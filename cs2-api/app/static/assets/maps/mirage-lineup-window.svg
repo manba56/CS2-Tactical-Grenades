@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 360">
+  <rect width="600" height="360" fill="#111924"/>
+  <circle cx="120" cy="280" r="16" fill="#ff7a18"/>
+  <circle cx="420" cy="104" r="16" fill="#ffe7cc"/>
+  <path d="M120 280C190 250 270 180 420 104" stroke="#ff7a18" stroke-width="6" fill="none" stroke-dasharray="14 12"/>
+  <text x="72" y="320" fill="#fff" font-size="22" font-family="Bahnschrift, Segoe UI, sans-serif">起点</text>
+  <text x="390" y="76" fill="#fff" font-size="22" font-family="Bahnschrift, Segoe UI, sans-serif">窗口</text>
+</svg>

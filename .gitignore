@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.vite/
+.venv/
+__pycache__/
+*.pyc
+
+cs2-api/data/
+cs2-api/app/static/uploads/
+
+.DS_Store
+.idea/
+.vscode/

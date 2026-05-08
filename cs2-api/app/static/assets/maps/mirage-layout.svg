@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700">
+  <rect width="1000" height="700" fill="#0b1119"/>
+  <path d="M130 530H320V635H130zM320 470H445V590H320zM460 300H600V520H460zM610 290H860V450H610z" fill="#172233" stroke="#ff7a18" stroke-width="8"/>
+  <path d="M610 150H790V275H610zM320 160H500V295H320z" fill="#101825" stroke="#ffc286" stroke-width="8"/>
+  <text x="165" y="585" fill="#fff" font-size="34" font-family="Bahnschrift, Segoe UI, sans-serif">T SPAWN</text>
+  <text x="344" y="535" fill="#fff" font-size="30" font-family="Bahnschrift, Segoe UI, sans-serif">A RAMP</text>
+  <text x="490" y="410" fill="#fff" font-size="34" font-family="Bahnschrift, Segoe UI, sans-serif">MID</text>
+  <text x="668" y="365" fill="#fff" font-size="30" font-family="Bahnschrift, Segoe UI, sans-serif">A SITE</text>
+  <text x="648" y="226" fill="#ffcf9e" font-size="26" font-family="Bahnschrift, Segoe UI, sans-serif">WINDOW</text>
+  <text x="372" y="236" fill="#ffcf9e" font-size="26" font-family="Bahnschrift, Segoe UI, sans-serif">CONNECTOR</text>
+</svg>

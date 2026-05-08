@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 360">
+  <rect width="600" height="360" fill="#101722"/>
+  <circle cx="120" cy="250" r="16" fill="#ff7a18"/>
+  <circle cx="430" cy="150" r="16" fill="#ffe7cc"/>
+  <path d="M120 250C220 248 286 190 430 150" stroke="#ffb56b" stroke-width="6" fill="none" stroke-dasharray="14 12"/>
+  <text x="84" y="292" fill="#fff" font-size="22" font-family="Bahnschrift, Segoe UI, sans-serif">A 坡</text>
+  <text x="392" y="124" fill="#fff" font-size="22" font-family="Bahnschrift, Segoe UI, sans-serif">连接</text>
+</svg>

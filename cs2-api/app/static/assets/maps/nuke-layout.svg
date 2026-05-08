@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700">
+  <rect width="1000" height="700" fill="#0c1720"/>
+  <path d="M150 480H380V610H150zM380 210H650V470H380zM655 188H860V340H655zM665 460H860V600H665z" fill="#16313c" stroke="#65d6ce" stroke-width="8"/>
+  <path d="M500 500H650V620H500z" fill="#122834" stroke="#a6fff0" stroke-width="8"/>
+  <text x="190" y="555" fill="#fff" font-size="34" font-family="Bahnschrift, Segoe UI, sans-serif">RED BOX</text>
+  <text x="478" y="348" fill="#fff" font-size="34" font-family="Bahnschrift, Segoe UI, sans-serif">YARD</text>
+  <text x="692" y="287" fill="#d9fff9" font-size="24" font-family="Bahnschrift, Segoe UI, sans-serif">GARAGE</text>
+  <text x="708" y="542" fill="#fff" font-size="32" font-family="Bahnschrift, Segoe UI, sans-serif">SECRET</text>
+</svg>

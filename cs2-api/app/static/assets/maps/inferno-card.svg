@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700">
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#2d1c11"/>
+      <stop offset="100%" stop-color="#102330"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="url(#bg)"/>
+  <circle cx="260" cy="220" r="160" fill="#ffc145" opacity="0.22"/>
+  <circle cx="900" cy="490" r="220" fill="#f98b37" opacity="0.16"/>
+  <text x="88" y="126" fill="#fff4d7" font-size="82" font-family="Bahnschrift, Segoe UI, sans-serif">INFERNO</text>
+  <text x="92" y="182" fill="#ffc145" font-size="28" font-family="Bahnschrift, Segoe UI, sans-serif">BANANA CONTROL | COFFIN MOLLY | FAST B HIT</text>
+  <rect x="110" y="254" width="290" height="130" rx="24" fill="#121925" opacity="0.82"/>
+  <text x="146" y="318" fill="#ffffff" font-size="60" font-family="Bahnschrift, Segoe UI, sans-serif">BANANA</text>
+  <text x="146" y="354" fill="#d6deea" font-size="20" font-family="Segoe UI, sans-serif">默认争抢与二次展开</text>
+</svg>

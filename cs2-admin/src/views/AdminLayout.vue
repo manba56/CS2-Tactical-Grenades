@@ -1,0 +1,59 @@
+<script setup lang="ts">
+import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+import { api } from '../api';
+import { useSessionStore } from '../stores/session';
+import type { DashboardSummary } from '../types';
+
+const session = useSessionStore();
+const router = useRouter();
+const summary = ref<DashboardSummary | null>(null);
+
+async function loadSummary() {
+  summary.value = await api.dashboard(session.token);
+}
+
+function logout() {
+  session.clearSession();
+  router.push('/login');
+}
+
+onMounted(loadSummary);
+</script>
+
+<template>
+  <div class="admin-shell">
+    <aside class="admin-sidebar">
+      <div class="admin-brand">
+        <small>CS2 Tactics Admin</small>
+        <strong>内容运营后台</strong>
+        <span class="muted">当前账号：{{ session.user?.username }}</span>
+      </div>
+
+      <nav class="admin-nav">
+        <router-link to="/admin/maps">地图管理</router-link>
+        <router-link to="/admin/points">点位管理</router-link>
+        <router-link to="/admin/lineups">线路管理</router-link>
+        <router-link to="/admin/tactics">战术管理</router-link>
+        <router-link to="/admin/assets">媒体资源</router-link>
+        <router-link to="/admin/users">前台用户</router-link>
+      </nav>
+
+      <div v-if="summary" class="stat-grid">
+        <div class="card"><strong>{{ summary.maps }}</strong><div class="muted">地图</div></div>
+        <div class="card"><strong>{{ summary.tactics }}</strong><div class="muted">战术</div></div>
+        <div class="card"><strong>{{ summary.lineups }}</strong><div class="muted">线路</div></div>
+        <div class="card"><strong>{{ summary.users }}</strong><div class="muted">玩家</div></div>
+      </div>
+
+      <div style="margin-top: 18px">
+        <button class="ghost-button" @click="logout">退出后台</button>
+      </div>
+    </aside>
+
+    <main class="admin-main">
+      <router-view />
+    </main>
+  </div>
+</template>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700">
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#28170e"/>
+      <stop offset="100%" stop-color="#0b1119"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="url(#bg)"/>
+  <circle cx="320" cy="280" r="180" fill="#ff7a18" opacity="0.22"/>
+  <circle cx="880" cy="460" r="240" fill="#ffb56b" opacity="0.18"/>
+  <text x="80" y="120" fill="#fff2e5" font-size="86" font-family="Bahnschrift, Segoe UI, sans-serif">MIRAGE</text>
+  <text x="84" y="176" fill="#ffb56b" font-size="28" font-family="Bahnschrift, Segoe UI, sans-serif">A EXEC | MID CONTROL | WINDOW SMOKE</text>
+  <rect x="96" y="246" width="260" height="118" rx="24" fill="#121925" opacity="0.82"/>
+  <text x="128" y="310" fill="#ffffff" font-size="64" font-family="Bahnschrift, Segoe UI, sans-serif">A</text>
+  <text x="128" y="346" fill="#cad4e5" font-size="20" font-family="Segoe UI, sans-serif">爆弹重点区域</text>
+  <rect x="640" y="198" width="318" height="168" rx="24" fill="#121925" opacity="0.72"/>
+  <text x="676" y="274" fill="#ffffff" font-size="56" font-family="Bahnschrift, Segoe UI, sans-serif">WINDOW</text>
+  <text x="676" y="314" fill="#cad4e5" font-size="20" font-family="Segoe UI, sans-serif">控制窗口信息后展开</text>
+</svg>

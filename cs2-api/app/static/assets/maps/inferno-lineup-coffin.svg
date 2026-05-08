@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 360">
+  <rect width="600" height="360" fill="#131a21"/>
+  <circle cx="160" cy="250" r="16" fill="#ffc145"/>
+  <circle cx="452" cy="120" r="16" fill="#ffe7b1"/>
+  <path d="M160 250C232 236 332 168 452 120" stroke="#ffc145" stroke-width="6" fill="none" stroke-dasharray="14 12"/>
+  <text x="120" y="292" fill="#fff" font-size="22" font-family="Bahnschrift, Segoe UI, sans-serif">木头位</text>
+  <text x="410" y="94" fill="#fff" font-size="22" font-family="Bahnschrift, Segoe UI, sans-serif">棺材</text>
+</svg>
