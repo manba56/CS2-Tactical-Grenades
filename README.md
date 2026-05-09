@@ -100,6 +100,12 @@ start-all.bat
 .\start-all.ps1 -SkipInstall
 ```
 
+关闭这 3 个服务：
+
+```powershell
+.\stop-all.ps1
+```
+
 ### 1. Start API
 
 ```bash
