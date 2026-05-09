@@ -73,6 +73,33 @@ cs2-tactics-suite/
 
 ## Quick Start
 
+### One-click Start on Windows
+
+在仓库根目录直接运行：
+
+```powershell
+.\start-all.ps1
+```
+
+或者双击：
+
+```text
+start-all.bat
+```
+
+脚本会：
+
+- 检查 `python` 和 `npm` 是否可用
+- 自动补装缺失的 `cs2-api` Python 依赖
+- 自动补装缺失的 `cs2-web` / `cs2-admin` Node 依赖
+- 分别拉起 API、玩家前台、管理后台 3 个窗口
+
+如果你已经装好了依赖，想更快启动：
+
+```powershell
+.\start-all.ps1 -SkipInstall
+```
+
 ### 1. Start API
 
 ```bash
