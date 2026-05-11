@@ -2,8 +2,9 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 
 import { api } from '../api';
+import RouteEditor from '../components/RouteEditor.vue';
 import { useSessionStore } from '../stores/session';
-import type { AdminLineup, AdminMap, AdminTactic } from '../types';
+import type { AdminLineup, AdminMap, AdminTactic, RouteData } from '../types';
 
 const session = useSessionStore();
 const maps = ref<AdminMap[]>([]);
@@ -25,7 +26,13 @@ const form = reactive({
   cover_url: '',
   featured: false,
   status: 'draft',
-  stepsText: '1|主道具位|utility|补首颗关键烟|1',
+  stepsText: '1|主道具位|utility|补首颗关键烟|',
+  routes: [] as RouteData[],
+});
+
+const currentMapSlug = computed(() => {
+  const map = maps.value.find(m => m.id === form.map_id);
+  return map?.slug || 'mirage';
 });
 
 const filteredLineups = computed(() => lineups.value.filter((lineup) => lineup.map_id === form.map_id));
@@ -73,6 +80,7 @@ function edit(item: AdminTactic) {
     ...item,
     tagsText: item.tags.join(', '),
     stepsText: serializeSteps(item.step_items),
+    routes: item.routes ? JSON.parse(JSON.stringify(item.routes)) : [],
   });
 }
 
@@ -94,6 +102,7 @@ function resetForm() {
     featured: false,
     status: 'draft',
     stepsText: '1|主道具位|utility|补首颗关键烟|',
+    routes: [] as RouteData[],
   });
 }
 
@@ -114,6 +123,7 @@ async function submit() {
     featured: form.featured,
     status: form.status,
     step_items: parseSteps(),
+    routes: form.routes,
   };
 
   if (editingId.value) {
@@ -247,6 +257,9 @@ onMounted(load);
           步骤定义（每行：序号|角色|类型|说明|lineupId）
           <textarea v-model="form.stepsText" class="textarea" />
         </label>
+        <div class="full">
+          <RouteEditor v-model="form.routes" :map-slug="currentMapSlug" />
+        </div>
       </div>
       <div class="toolbar">
         <button class="button">{{ editingId ? '保存修改' : '创建战术' }}</button>

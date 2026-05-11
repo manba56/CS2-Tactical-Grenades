@@ -69,6 +69,18 @@ class TacticStepPayload(BaseModel):
     lineup_id: int | None = None
 
 
+class RoutePoint(BaseModel):
+    x: float = Field(ge=0, le=100)
+    y: float = Field(ge=0, le=100)
+
+
+class RouteData(BaseModel):
+    player: int = Field(ge=1, le=5)
+    color: str = "#ff7a18"
+    label: str = ""
+    points: list[RoutePoint] = Field(default_factory=list)
+
+
 class TacticPayload(BaseModel):
     map_id: int
     title: str
@@ -83,6 +95,7 @@ class TacticPayload(BaseModel):
     tags: list[str] = Field(default_factory=list)
     cover_url: str
     step_items: list[TacticStepPayload] = Field(default_factory=list)
+    routes: list[RouteData] = Field(default_factory=list)
     status: Literal["draft", "published", "archived"] = "draft"
     featured: bool = False
 

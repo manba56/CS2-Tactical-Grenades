@@ -151,6 +151,7 @@ def build_seed_state() -> dict:
             "status": "published",
             "featured": True,
             "created_at": (now - timedelta(days=2)).isoformat(),
+            "routes": [],
             "step_items": [
                 {"order": 1, "role": "辅助位", "type": "utility", "instruction": "先给窗口烟，确保中路狙击位失去信息。", "lineup_id": 1},
                 {"order": 2, "role": "二道具位", "type": "utility", "instruction": "A 坡补连接烟，压缩 CT 回防路线。", "lineup_id": 2},

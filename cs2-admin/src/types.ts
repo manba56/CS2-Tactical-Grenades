@@ -66,6 +66,18 @@ export interface AdminTacticStep {
   lineup_id: number | null;
 }
 
+export interface RoutePoint {
+  x: number;
+  y: number;
+}
+
+export interface RouteData {
+  player: number;
+  color: string;
+  label: string;
+  points: RoutePoint[];
+}
+
 export interface AdminTactic {
   id: number;
   map_id: number;
@@ -84,4 +96,5 @@ export interface AdminTactic {
   status: string;
   created_at: string;
   step_items: AdminTacticStep[];
+  routes: RouteData[];
 }

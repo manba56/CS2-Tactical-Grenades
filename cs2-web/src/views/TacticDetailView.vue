@@ -14,6 +14,7 @@ const session = useSessionStore();
 const tactic = ref<TacticDetail | null>(null);
 const error = ref('');
 const isFavorite = computed(() => tactic.value?.is_favorite ?? false);
+const lightboxUrl = ref('');
 
 async function load() {
   try {
@@ -38,6 +39,11 @@ async function toggleFavorite() {
     await api.addFavorite(tactic.value.id, session.token);
     tactic.value.is_favorite = true;
   }
+}
+
+function routePath(r: { points: { x: number; y: number }[] }): string {
+  if (!r.points || r.points.length < 2) return '';
+  return r.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x}% ${p.y}%`).join(' ');
 }
 
 onMounted(load);
@@ -99,6 +105,43 @@ onMounted(load);
       </aside>
     </section>
 
+    <section v-if="tactic.routes && tactic.routes.length" class="glass-panel section-block">
+      <div class="section-heading">
+        <h2>进攻路线</h2>
+      </div>
+      <div class="route-map-stage">
+        <img :src="resolveAssetUrl(tactic.map_layout_url)" :alt="tactic.map.name" />
+        <svg class="route-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <defs>
+            <marker
+              v-for="r in tactic.routes" :key="'arrow-'+r.player"
+              :id="`arrow-${r.player}`"
+              viewBox="0 0 10 10" refX="10" refY="5"
+              markerWidth="6" markerHeight="6" orient="auto"
+            >
+              <path d="M0,0 L10,5 L0,10 Z" :fill="r.color" />
+            </marker>
+          </defs>
+          <path
+            v-for="r in tactic.routes" :key="r.player"
+            :d="routePath(r)"
+            :stroke="r.color"
+            stroke-width="0.8"
+            fill="none"
+            stroke-linecap="round"
+            :marker-end="`url(#arrow-${r.player})`"
+          />
+        </svg>
+        <!-- Route legend -->
+        <div class="route-legend">
+          <div v-for="r in tactic.routes" :key="r.player" class="route-legend-item">
+            <span class="dot" :style="{ background: r.color }" />
+            P{{ r.player }} {{ r.label }}
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="section-block glass-panel">
       <div class="section-heading">
         <h2>执行顺序</h2>
@@ -117,12 +160,21 @@ onMounted(load);
               <span class="chip">{{ step.lineup.difficulty }}</span>
             </div>
             <p class="muted">{{ step.lineup.purpose }}</p>
-            <img
-              v-if="step.lineup.media[0]"
-              :src="resolveAssetUrl(step.lineup.media[0])"
-              :alt="step.lineup.title"
-              class="tactic-card-cover"
-            />
+            <!-- Screenshot gallery — all media images -->
+            <div v-if="step.lineup.media.length" class="screenshot-grid">
+              <div
+                v-for="(url, idx) in step.lineup.media" :key="idx"
+                class="screenshot-card"
+                @click="lightboxUrl = resolveAssetUrl(url)"
+              >
+                <img :src="resolveAssetUrl(url)" :alt="`${step.lineup.title} ${idx + 1}`" />
+                <span class="screenshot-caption">瞄点截图 {{ idx + 1 }}</span>
+              </div>
+            </div>
+            <!-- Empty placeholder when no media -->
+            <div v-else class="screenshot-placeholder">
+              <span>在此添加道具瞄点截图</span>
+            </div>
           </div>
         </article>
       </div>
@@ -136,5 +188,9 @@ onMounted(load);
         <TacticCard v-for="item in tactic.related" :key="item.id" :tactic="item" />
       </div>
     </section>
+    <!-- Lightbox -->
+    <div v-if="lightboxUrl" class="screenshot-lightbox" @click="lightboxUrl = ''">
+      <img :src="lightboxUrl" alt="enlarged screenshot" />
+    </div>
   </template>
 </template>

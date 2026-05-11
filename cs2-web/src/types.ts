@@ -84,12 +84,26 @@ export interface TacticStep {
   lineup?: UtilityLineupDetail | null;
 }
 
+export interface RoutePoint {
+  x: number;
+  y: number;
+}
+
+export interface RouteData {
+  player: number;
+  color: string;
+  label: string;
+  points: RoutePoint[];
+}
+
 export interface TacticDetail extends TacticCard {
   note: string;
   map_layout_url: string;
+  map_radar_url: string;
   map_points: MapPoint[];
   steps: TacticStep[];
   lineups: UtilityLineupDetail[];
+  routes: RouteData[];
   related: TacticCard[];
   is_favorite: boolean;
 }
