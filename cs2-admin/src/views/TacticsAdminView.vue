@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 
-import { api } from '../api';
+import { api, resolveAssetUrl } from '../api';
 import RouteEditor from '../components/RouteEditor.vue';
 import { useSessionStore } from '../stores/session';
-import type { AdminLineup, AdminMap, AdminTactic, RouteData } from '../types';
+import type { AdminLineup, AdminMap, AdminTactic, RouteData, ScreenshotItem } from '../types';
 
 const session = useSessionStore();
 const maps = ref<AdminMap[]>([]);
@@ -28,6 +28,7 @@ const form = reactive({
   status: 'draft',
   stepsText: '1|主道具位|utility|补首颗关键烟|',
   routes: [] as RouteData[],
+  screenshots: [] as ScreenshotItem[],
 });
 
 const currentMapSlug = computed(() => {
@@ -74,6 +75,22 @@ function parseSteps() {
     });
 }
 
+function addScreenshot(url: string = '') {
+  form.screenshots.push({ url, description: '' });
+}
+function removeScreenshot(index: number) {
+  form.screenshots.splice(index, 1);
+}
+async function uploadScreenshot(index: number, file: File) {
+  try {
+    const result = await api.uploadAsset(file, session.token);
+    form.screenshots[index].url = result.url;
+  } catch (err) {
+    console.error('Upload failed:', err);
+    alert('上传失败');
+  }
+}
+
 function edit(item: AdminTactic) {
   editingId.value = item.id;
   Object.assign(form, {
@@ -81,6 +98,7 @@ function edit(item: AdminTactic) {
     tagsText: item.tags.join(', '),
     stepsText: serializeSteps(item.step_items),
     routes: item.routes ? JSON.parse(JSON.stringify(item.routes)) : [],
+    screenshots: item.screenshots ? JSON.parse(JSON.stringify(item.screenshots)) : [],
   });
 }
 
@@ -103,6 +121,7 @@ function resetForm() {
     status: 'draft',
     stepsText: '1|主道具位|utility|补首颗关键烟|',
     routes: [] as RouteData[],
+    screenshots: [] as ScreenshotItem[],
   });
 }
 
@@ -124,6 +143,7 @@ async function submit() {
     status: form.status,
     step_items: parseSteps(),
     routes: form.routes,
+    screenshots: form.screenshots,
   };
 
   if (editingId.value) {
@@ -260,6 +280,46 @@ onMounted(load);
         <div class="full">
           <RouteEditor v-model="form.routes" :map-slug="currentMapSlug" />
         </div>
+        <div class="full">
+          <div class="screenshots-section">
+            <div class="screenshots-header">
+              <h3>点位截图</h3>
+              <button type="button" class="ghost-button" @click="addScreenshot()">+ 添加截图</button>
+            </div>
+            <p class="muted">每个截图可以写描述，图片先点"选择文件"上传。</p>
+            <div v-if="form.screenshots.length === 0" class="screenshot-placeholder">
+              还没有添加截图，点右上角「+ 添加截图」开始
+            </div>
+            <div v-for="(shot, idx) in form.screenshots" :key="idx" class="screenshot-card">
+              <label class="field-label">描述</label>
+              <textarea
+                v-model="shot.description"
+                class="field textarea"
+                rows="2"
+                placeholder="描述这张截图的内容，如：P1 从A门丢出的烟雾弹落点..."
+              />
+              <div class="screenshot-row" style="margin-top:8px">
+                <input
+                  type="file"
+                  class="field"
+                  accept="image/*"
+                  @change="(e) => {
+                    const f = e.target?.files?.[0];
+                    if (f) uploadScreenshot(idx, f);
+                  }"
+                />
+                <button type="button" class="ghost-button" @click="removeScreenshot(idx)">删除</button>
+              </div>
+              <img
+                v-if="shot.url"
+                :src="resolveAssetUrl(shot.url)"
+                class="screenshot-preview"
+                :alt="shot.description || '截图'"
+              />
+              <div v-else class="screenshot-placeholder">选择图片上传后自动预览</div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="toolbar">
         <button class="button">{{ editingId ? '保存修改' : '创建战术' }}</button>
@@ -281,3 +341,56 @@ onMounted(load);
     </form>
   </div>
 </template>
+
+<style scoped>
+.screenshots-section {
+  margin-top: 12px;
+}
+.screenshots-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.screenshots-header h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.screenshot-card {
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #141428;
+}
+.screenshot-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.screenshot-preview {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 6px;
+  margin-top: 8px;
+  display: block;
+}
+.screenshot-placeholder {
+  border: 2px dashed #333;
+  border-radius: 6px;
+  padding: 32px 16px;
+  text-align: center;
+  color: #555;
+  font-size: 12px;
+}
+.field-label {
+  display: block;
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 4px;
+}
+.textarea {
+  resize: vertical;
+  min-height: 50px;
+}
+</style>

@@ -164,6 +164,7 @@ def build_tactic_detail(state: dict[str, Any], tactic: dict[str, Any], user: dic
         "steps": steps,
         "lineups": lineups,
         "routes": tactic.get("routes", []),
+        "screenshots": tactic.get("screenshots", []),
         "related": related,
         "is_favorite": tactic["id"] in favorite_ids,
     }
@@ -521,11 +522,23 @@ def admin_tactics(_: dict[str, Any] = Depends(get_admin_user)) -> list[dict[str,
     return sorted(state["tactics"], key=lambda x: x["created_at"], reverse=True)
 
 
+def _auto_slug(payload_slug: str, payload_title: str, tactic_id: int) -> str:
+    if payload_slug.strip():
+        return payload_slug.strip()
+    if payload_title.strip():
+        import re as _re
+        base = _re.sub(r"[^\w\-]", "-", payload_title.strip().lower())
+        base = _re.sub(r"-{2,}", "-", base).strip("-")
+        return f"{base}-{tactic_id}"
+    return f"tactic-{tactic_id}"
+
+
 @app.post("/api/admin/tactics")
 def create_tactic(payload: TacticPayload, _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, Any]:
     def mutate(state: dict[str, Any]) -> dict[str, Any]:
         item = dump_model(payload)
         item["id"] = next_id(state, "tactics")
+        item["slug"] = _auto_slug(payload.slug, payload.title, item["id"])
         item["created_at"] = datetime.utcnow().isoformat()
         state["tactics"].append(item)
         return item
@@ -539,6 +552,7 @@ def update_tactic(tactic_id: int, payload: TacticPayload, _: dict[str, Any] = De
         item = find_by_id(state["tactics"], tactic_id)
         original_created_at = item["created_at"]
         item.update(dump_model(payload))
+        item["slug"] = _auto_slug(payload.slug, payload.title, item["id"])
         item["created_at"] = original_created_at
         return item
 

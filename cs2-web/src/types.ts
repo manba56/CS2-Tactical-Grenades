@@ -96,6 +96,11 @@ export interface RouteData {
   points: RoutePoint[];
 }
 
+export interface ScreenshotItem {
+  url: string;
+  description: string;
+}
+
 export interface TacticDetail extends TacticCard {
   note: string;
   map_layout_url: string;
@@ -104,6 +109,7 @@ export interface TacticDetail extends TacticCard {
   steps: TacticStep[];
   lineups: UtilityLineupDetail[];
   routes: RouteData[];
+  screenshots: ScreenshotItem[];
   related: TacticCard[];
   is_favorite: boolean;
 }

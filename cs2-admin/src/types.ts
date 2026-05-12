@@ -78,6 +78,11 @@ export interface RouteData {
   points: RoutePoint[];
 }
 
+export interface ScreenshotItem {
+  url: string;
+  description: string;
+}
+
 export interface AdminTactic {
   id: number;
   map_id: number;
@@ -97,4 +102,5 @@ export interface AdminTactic {
   created_at: string;
   step_items: AdminTacticStep[];
   routes: RouteData[];
+  screenshots: ScreenshotItem[];
 }

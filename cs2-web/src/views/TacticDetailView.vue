@@ -77,7 +77,7 @@ onMounted(load);
         </div>
 
         <div class="glass-panel map-stage">
-          <img :src="resolveAssetUrl(tactic.map_layout_url)" :alt="tactic.map.name" />
+          <img :src="resolveAssetUrl(tactic.map_radar_url)" :alt="tactic.map.name" />
           <template v-for="point in tactic.map_points" :key="point.id">
             <span
               class="map-point"
@@ -90,6 +90,19 @@ onMounted(load);
           </template>
         </div>
       </div>
+
+      <section v-if="tactic.screenshots && tactic.screenshots.length" class="glass-panel section-block">
+        <div class="section-heading">
+          <h2>点位截图</h2>
+          <span class="chip">{{ tactic.screenshots.length }} 张截图</span>
+        </div>
+        <div class="screenshot-grid">
+          <div v-for="(shot, idx) in tactic.screenshots" :key="idx" class="screenshot-card" @click="lightboxUrl = resolveAssetUrl(shot.url)">
+            <img :src="resolveAssetUrl(shot.url)" :alt="shot.description || `截图 #${idx + 1}`" />
+            <span class="screenshot-caption">{{ shot.description || `截图 #${idx + 1}` }}</span>
+          </div>
+        </div>
+      </section>
 
       <aside class="glass-panel">
         <div class="section-heading">
@@ -110,7 +123,7 @@ onMounted(load);
         <h2>进攻路线</h2>
       </div>
       <div class="route-map-stage">
-        <img :src="resolveAssetUrl(tactic.map_layout_url)" :alt="tactic.map.name" />
+        <img :src="resolveAssetUrl(tactic.map_radar_url)" :alt="tactic.map.name" />
         <svg class="route-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
           <defs>
             <marker

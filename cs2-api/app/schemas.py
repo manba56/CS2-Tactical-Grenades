@@ -81,6 +81,11 @@ class RouteData(BaseModel):
     points: list[RoutePoint] = Field(default_factory=list)
 
 
+class ScreenshotItem(BaseModel):
+    url: str
+    description: str = ""
+
+
 class TacticPayload(BaseModel):
     map_id: int
     title: str
@@ -96,6 +101,7 @@ class TacticPayload(BaseModel):
     cover_url: str
     step_items: list[TacticStepPayload] = Field(default_factory=list)
     routes: list[RouteData] = Field(default_factory=list)
+    screenshots: list[ScreenshotItem] = Field(default_factory=list)
     status: Literal["draft", "published", "archived"] = "draft"
     featured: bool = False
 

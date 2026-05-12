@@ -45,7 +45,7 @@ onMounted(async () => {
       <h1 class="map-title">{{ mapDetail.name }}</h1>
       <p class="section-intro">{{ mapDetail.overview }}</p>
       <div class="map-stage section-block">
-        <img :src="resolveAssetUrl(mapDetail.layout_url)" :alt="mapDetail.name" />
+        <img :src="resolveAssetUrl(`/static/assets/maps/radars/${mapDetail.slug}-radar.png`)" :alt="mapDetail.name" />
         <template v-for="point in mapDetail.points" :key="point.id">
           <span
             class="map-point"
