@@ -15,6 +15,9 @@ const tactic = ref<TacticDetail | null>(null);
 const error = ref('');
 const isFavorite = computed(() => tactic.value?.is_favorite ?? false);
 const lightboxUrl = ref('');
+const showRadar = ref(false);
+const routeShots = computed(() => tactic.value?.screenshots?.filter(s => s.type === 'route') ?? []);
+const spotShots = computed(() => tactic.value?.screenshots?.filter(s => (s.type || 'spot') !== 'route') ?? []);
 
 async function load() {
   try {
@@ -76,7 +79,32 @@ onMounted(load);
           </div>
         </div>
 
-        <div class="glass-panel map-stage">
+        <!-- Route screenshots as primary map view -->
+        <div v-if="routeShots.length" class="glass-panel map-stage">
+          <div class="section-heading">
+            <h2>路线截图</h2>
+            <button class="secondary-button" @click="showRadar = !showRadar">
+              {{ showRadar ? '隐藏雷达底图' : '显示雷达底图' }}
+            </button>
+          </div>
+          <div class="screenshot-main-list">
+            <div v-for="(shot, idx) in routeShots" :key="idx" class="shot-full-block">
+              <p class="shot-desc">{{ shot.description || `路线截图 #${idx + 1}` }}</p>
+              <img
+                :src="resolveAssetUrl(shot.url)"
+                :alt="shot.description || `路线截图 #${idx + 1}`"
+                class="shot-full-img"
+                @click="lightboxUrl = resolveAssetUrl(shot.url)"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Radar template (collapsible) -->
+        <div v-if="showRadar" class="glass-panel map-stage">
+          <div class="section-heading">
+            <h2>雷达底图</h2>
+          </div>
           <img :src="resolveAssetUrl(tactic.map_radar_url)" :alt="tactic.map.name" />
           <template v-for="point in tactic.map_points" :key="point.id">
             <span
@@ -91,19 +119,6 @@ onMounted(load);
         </div>
       </div>
 
-      <section v-if="tactic.screenshots && tactic.screenshots.length" class="glass-panel section-block">
-        <div class="section-heading">
-          <h2>点位截图</h2>
-          <span class="chip">{{ tactic.screenshots.length }} 张截图</span>
-        </div>
-        <div class="screenshot-grid">
-          <div v-for="(shot, idx) in tactic.screenshots" :key="idx" class="screenshot-card" @click="lightboxUrl = resolveAssetUrl(shot.url)">
-            <img :src="resolveAssetUrl(shot.url)" :alt="shot.description || `截图 #${idx + 1}`" />
-            <span class="screenshot-caption">{{ shot.description || `截图 #${idx + 1}` }}</span>
-          </div>
-        </div>
-      </section>
-
       <aside class="glass-panel">
         <div class="section-heading">
           <h2>执行注意事项</h2>
@@ -113,6 +128,17 @@ onMounted(load);
           <div class="muted">所需道具</div>
           <div class="chip-row">
             <span v-for="utility in tactic.utility_types" :key="utility" class="chip strong">{{ utility }}</span>
+          </div>
+        </div>
+
+        <!-- Spot screenshots in sidebar -->
+        <div v-if="spotShots.length" class="section-block">
+          <div class="muted">点位截图</div>
+          <div class="screenshot-grid">
+            <div v-for="(shot, idx) in spotShots" :key="idx" class="screenshot-card" @click="lightboxUrl = resolveAssetUrl(shot.url)">
+              <img :src="resolveAssetUrl(shot.url)" :alt="shot.description || `点位 #${idx + 1}`" />
+              <span class="screenshot-caption">{{ shot.description || `点位 #${idx + 1}` }}</span>
+            </div>
           </div>
         </div>
       </aside>

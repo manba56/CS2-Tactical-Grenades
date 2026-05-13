@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { resolveAssetUrl } from '../api';
 
 // ── Types ───────────────────────────────────────────────────────
@@ -41,7 +41,25 @@ const activePlayer = ref(1);
 const containerRef = ref<HTMLElement | null>(null);
 const isDrawing = ref(false);
 const drawingPoints = ref<RoutePoint[]>([]);
-const showTutorial = ref(true);
+const showTutorial = ref(false);
+
+// ── Lifecycle: attach pen listeners directly to the canvas ──────
+onMounted(() => {
+  const el = containerRef.value;
+  if (!el) return;
+  el.addEventListener('mousedown', onPenDown);
+  el.addEventListener('touchstart', onPenDown, { passive: false });
+  el.addEventListener('dragstart', (e) => e.preventDefault());
+});
+
+onBeforeUnmount(() => {
+  const el = containerRef.value;
+  if (!el) return;
+  el.removeEventListener('mousedown', onPenDown);
+  el.removeEventListener('touchstart', onPenDown);
+  window.removeEventListener('mousemove', onPenMove);
+  window.removeEventListener('mouseup', onPenUp);
+});
 
 watch(() => props.modelValue, (val) => {
   routes.value = val ? JSON.parse(JSON.stringify(val)) : [];
@@ -88,23 +106,41 @@ function currentRoute(): RouteData {
 }
 
 // ── Pen drawing ─────────────────────────────────────────────────
-// Throttle: sample every N pixels of movement
-const SAMPLE_DIST = 1.5; // percent units
+const SAMPLE_DIST = 1.5;
 let lastSample = { x: 0, y: 0 };
 
-function onPenDown(e: MouseEvent) {
-  if (e.button !== 0) return; // left button only
-  e.preventDefault();
-  isDrawing.value = true;
-  drawingPoints.value = [];
-  const pt = pageToPercent(e.clientX, e.clientY);
-  drawingPoints.value.push(pt);
-  lastSample = pt;
+function eventXY(e: MouseEvent | TouchEvent): { x: number; y: number } {
+  if ('touches' in e) {
+    const t = e.touches[0] || (e as TouchEvent).changedTouches[0];
+    return { x: t.clientX, y: t.clientY };
+  }
+  return { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY };
 }
 
-function onPenMove(e: MouseEvent) {
+function onPenDown(e: MouseEvent | TouchEvent) {
+  if ('button' in e && e.button !== 0) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  const { x, y } = eventXY(e);
+  isDrawing.value = true;
+  drawingPoints.value = [];
+  const pt = pageToPercent(x, y);
+  drawingPoints.value.push(pt);
+  lastSample = pt;
+
+  window.addEventListener('mousemove', onPenMove);
+  window.addEventListener('mouseup', onPenUp);
+  window.addEventListener('touchmove', onPenMove, { passive: false });
+  window.addEventListener('touchend', onPenUp);
+}
+
+function onPenMove(e: MouseEvent | TouchEvent) {
   if (!isDrawing.value) return;
-  const pt = pageToPercent(e.clientX, e.clientY);
+  if ('touches' in e) e.preventDefault();
+
+  const { x, y } = eventXY(e);
+  const pt = pageToPercent(x, y);
   const dist = Math.hypot(pt.x - lastSample.x, pt.y - lastSample.y);
   if (dist >= SAMPLE_DIST) {
     drawingPoints.value.push(pt);
@@ -113,11 +149,15 @@ function onPenMove(e: MouseEvent) {
 }
 
 function onPenUp() {
+  window.removeEventListener('mousemove', onPenMove);
+  window.removeEventListener('mouseup', onPenUp);
+  window.removeEventListener('touchmove', onPenMove);
+  window.removeEventListener('touchend', onPenUp);
+
   if (!isDrawing.value) return;
   isDrawing.value = false;
 
   if (drawingPoints.value.length < 2) {
-    // Single click → just add one point
     if (drawingPoints.value.length === 1) {
       const route = currentRoute();
       route.points.push(drawingPoints.value[0]);
@@ -127,7 +167,6 @@ function onPenUp() {
     return;
   }
 
-  // Simplify and smooth the raw points
   const simplified = simplifyPath(drawingPoints.value, 1.0);
   const smoothed = smoothPath(simplified, 2);
 
@@ -272,10 +311,6 @@ function lastPoint(r: RouteData): RoutePoint | null {
         <div
           ref="containerRef"
           class="route-canvas"
-          @mousedown="onPenDown"
-          @mousemove="onPenMove"
-          @mouseup="onPenUp"
-          @mouseleave="onPenUp"
           @contextmenu.prevent
         >
           <img :src="radarUrl" class="radar-bg" alt="map radar" />

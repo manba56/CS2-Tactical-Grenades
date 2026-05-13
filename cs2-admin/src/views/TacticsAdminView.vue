@@ -75,8 +75,8 @@ function parseSteps() {
     });
 }
 
-function addScreenshot(url: string = '') {
-  form.screenshots.push({ url, description: '' });
+function addScreenshot(type: 'route' | 'spot' = 'spot') {
+  form.screenshots.push({ url: '', description: '', type });
 }
 function removeScreenshot(index: number) {
   form.screenshots.splice(index, 1);
@@ -90,6 +90,13 @@ async function uploadScreenshot(index: number, file: File) {
     alert('上传失败');
   }
 }
+
+const routeScreenshots = computed(() =>
+  form.screenshots.filter((s, i) => s.type === 'route').map((s, i) => ({ shot: s, formIdx: form.screenshots.indexOf(s) }))
+);
+const spotScreenshots = computed(() =>
+  form.screenshots.filter((s, i) => s.type === 'spot').map((s, i) => ({ shot: s, formIdx: form.screenshots.indexOf(s) }))
+);
 
 function edit(item: AdminTactic) {
   editingId.value = item.id;
@@ -280,41 +287,80 @@ onMounted(load);
         <div class="full">
           <RouteEditor v-model="form.routes" :map-slug="currentMapSlug" />
         </div>
+        <!-- 路线截图 -->
         <div class="full">
           <div class="screenshots-section">
             <div class="screenshots-header">
-              <h3>点位截图</h3>
-              <button type="button" class="ghost-button" @click="addScreenshot()">+ 添加截图</button>
+              <h3>路线截图</h3>
+              <span class="chip">先上传手绘路线图</span>
+              <button type="button" class="ghost-button" @click="addScreenshot('route')">+ 添加路线截图</button>
             </div>
-            <p class="muted">每个截图可以写描述，图片先点"选择文件"上传。</p>
-            <div v-if="form.screenshots.length === 0" class="screenshot-placeholder">
-              还没有添加截图，点右上角「+ 添加截图」开始
+            <p class="muted">在外面画好的进攻路线图。雷达底图在 http://localhost:5174/static/assets/maps/radars/</p>
+            <div v-if="routeScreenshots.length === 0" class="screenshot-placeholder">
+              还没有路线截图，点「+ 添加路线截图」
             </div>
-            <div v-for="(shot, idx) in form.screenshots" :key="idx" class="screenshot-card">
+            <div v-for="item in routeScreenshots" :key="item.formIdx" class="screenshot-card">
               <label class="field-label">描述</label>
               <textarea
-                v-model="shot.description"
+                v-model="item.shot.description"
                 class="field textarea"
                 rows="2"
-                placeholder="描述这张截图的内容，如：P1 从A门丢出的烟雾弹落点..."
+                placeholder="如：P1突破手路线、P2辅助路线、全体进攻路线"
               />
               <div class="screenshot-row" style="margin-top:8px">
                 <input
                   type="file"
                   class="field"
                   accept="image/*"
-                  @change="(e) => {
-                    const f = e.target?.files?.[0];
-                    if (f) uploadScreenshot(idx, f);
-                  }"
+                  @change="(e) => { const f = e.target?.files?.[0]; if (f) uploadScreenshot(item.formIdx, f); }"
                 />
-                <button type="button" class="ghost-button" @click="removeScreenshot(idx)">删除</button>
+                <button type="button" class="ghost-button" @click="removeScreenshot(item.formIdx)">删除</button>
               </div>
               <img
-                v-if="shot.url"
-                :src="resolveAssetUrl(shot.url)"
+                v-if="item.shot.url"
+                :src="resolveAssetUrl(item.shot.url)"
                 class="screenshot-preview"
-                :alt="shot.description || '截图'"
+                :alt="item.shot.description || '路线截图'"
+              />
+              <div v-else class="screenshot-placeholder">选择图片上传后自动预览</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 点位截图 -->
+        <div class="full">
+          <div class="screenshots-section">
+            <div class="screenshots-header">
+              <h3>点位截图</h3>
+              <span class="chip">道具瞄点/落点</span>
+              <button type="button" class="ghost-button" @click="addScreenshot('spot')">+ 添加点位截图</button>
+            </div>
+            <p class="muted">烟雾弹瞄点、闪光弹落点等道具截图。</p>
+            <div v-if="spotScreenshots.length === 0" class="screenshot-placeholder">
+              还没有点位截图，点「+ 添加点位截图」
+            </div>
+            <div v-for="item in spotScreenshots" :key="item.formIdx" class="screenshot-card">
+              <label class="field-label">描述</label>
+              <textarea
+                v-model="item.shot.description"
+                class="field textarea"
+                rows="2"
+                placeholder="如：A点烟雾弹瞄点、窗口闪落点..."
+              />
+              <div class="screenshot-row" style="margin-top:8px">
+                <input
+                  type="file"
+                  class="field"
+                  accept="image/*"
+                  @change="(e) => { const f = e.target?.files?.[0]; if (f) uploadScreenshot(item.formIdx, f); }"
+                />
+                <button type="button" class="ghost-button" @click="removeScreenshot(item.formIdx)">删除</button>
+              </div>
+              <img
+                v-if="item.shot.url"
+                :src="resolveAssetUrl(item.shot.url)"
+                class="screenshot-preview"
+                :alt="item.shot.description || '点位截图'"
               />
               <div v-else class="screenshot-placeholder">选择图片上传后自动预览</div>
             </div>

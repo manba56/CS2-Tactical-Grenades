@@ -338,6 +338,70 @@ button {
   resize: vertical;
 }
 
+/* ── Global <select> & <option> fix ──────────────────── */
+select {
+  color: #fff;
+  background: #1a1a2e;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 7px 30px 7px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23999' d='M5 7L1 3h8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+select:hover {
+  border-color: #ff7a18;
+}
+
+select:focus {
+  outline: none;
+  border-color: #ff7a18;
+  box-shadow: 0 0 0 3px rgba(255, 122, 24, 0.15);
+}
+
+select option {
+  background: #1a1a2e;
+  color: #fff;
+  padding: 8px 12px;
+}
+
+select option:hover,
+select option:checked {
+  background: #ff7a18;
+  color: #fff;
+}
+
+/* Override .field/.field-select to keep their own look */
+.field-select {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Element Plus select compatibility */
+.el-select .el-input__inner,
+.el-select-dropdown__item {
+  color: #fff;
+  background: #1a1a2e;
+}
+
+.el-select-dropdown {
+  background: #1a1a2e;
+}
+
+.el-select-dropdown__item:hover,
+.el-select-dropdown__item.is-hovering {
+  background: rgba(255, 122, 24, 0.2);
+}
+
+.el-select-dropdown__item.selected {
+  background: #ff7a18;
+  color: #fff;
+}
+
 .two-column,
 .detail-grid {
   grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.85fr);
@@ -484,6 +548,52 @@ button {
   border-radius: 50%;
 }
 
+/* ---- Screenshot main view ---- */
+.screenshot-main-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 8px;
+}
+.shot-full-block {
+  border: 1px solid #222;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0a0a1a;
+}
+.shot-desc {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffcc00;
+  background: rgba(255, 122, 24, 0.08);
+  border-bottom: 1px solid #222;
+}
+.shot-full-img {
+  width: 100%;
+  display: block;
+  cursor: pointer;
+}
+
+/* ---- Secondary button ---- */
+.secondary-button {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #aaa;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.secondary-button:hover {
+  border-color: #ff7a18;
+  color: #ff7a18;
+}
+
 /* ---- Screenshot gallery ---- */
 .screenshot-grid {
   display: grid;
@@ -548,5 +658,4 @@ button {
   max-height: 90vh;
   border-radius: 8px;
   box-shadow: 0 0 60px rgba(0, 0, 0, 0.5);
-}
 }

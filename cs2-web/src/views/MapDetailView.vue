@@ -8,29 +8,42 @@ import type { MapDetail } from '../types';
 
 const route = useRoute();
 const mapDetail = ref<MapDetail | null>(null);
-const filters = ref({
-  side: '',
-  utility_type: '',
-  goal: '',
-  phase: '',
-  difficulty: '',
-  tag: '',
+
+type FilterKey = 'side' | 'utility_type' | 'goal' | 'phase' | 'difficulty' | 'tag';
+const filterKeys: FilterKey[] = ['side', 'utility_type', 'goal', 'phase', 'difficulty', 'tag'];
+const filterLabels: Record<FilterKey, string> = {
+  side: '阵营', utility_type: '道具', goal: '目标', phase: '阶段', difficulty: '难度', tag: '标签',
+};
+
+const activeFilters = ref<Record<FilterKey, string>>({
+  side: '', utility_type: '', goal: '', phase: '', difficulty: '', tag: '',
 });
 
 const filteredTactics = computed(() => {
-  if (!mapDetail.value) {
-    return [];
-  }
-
+  if (!mapDetail.value) return [];
   return mapDetail.value.tactics.filter((tactic) => {
-    if (filters.value.side && tactic.side !== filters.value.side) return false;
-    if (filters.value.goal && tactic.goal !== filters.value.goal) return false;
-    if (filters.value.phase && tactic.phase !== filters.value.phase) return false;
-    if (filters.value.difficulty && tactic.difficulty !== filters.value.difficulty) return false;
-    if (filters.value.tag && !tactic.tags.includes(filters.value.tag)) return false;
-    if (filters.value.utility_type && !tactic.utility_types.includes(filters.value.utility_type)) return false;
+    const f = activeFilters.value;
+    if (f.side && tactic.side !== f.side) return false;
+    if (f.goal && tactic.goal !== f.goal) return false;
+    if (f.phase && tactic.phase !== f.phase) return false;
+    if (f.difficulty && tactic.difficulty !== f.difficulty) return false;
+    if (f.tag && !tactic.tags.includes(f.tag)) return false;
+    if (f.utility_type && !tactic.utility_types.includes(f.utility_type)) return false;
     return true;
   });
+});
+
+const filterOptions = computed(() => {
+  if (!mapDetail.value) return {} as Record<FilterKey, string[]>;
+  const f = mapDetail.value.filters;
+  return {
+    side: f.sides,
+    utility_type: f.utility_types,
+    goal: f.goals,
+    phase: f.phases,
+    difficulty: f.difficulties,
+    tag: f.tags,
+  };
 });
 
 onMounted(async () => {
@@ -39,87 +52,129 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section v-if="mapDetail" class="detail-grid">
-    <div class="glass-panel">
+  <div v-if="mapDetail" class="map-detail-root">
+    <!-- ── Filter bar (top) ──────────────────────────────────── -->
+    <div class="filter-bar">
+      <span class="filter-bar-title">筛选器</span>
+      <label v-for="key in filterKeys" :key="key" class="filter-label">
+        <span class="filter-label-text">{{ filterLabels[key] }}</span>
+        <select v-model="activeFilters[key]" class="filter-select">
+          <option value="">全部</option>
+          <option v-for="val in filterOptions[key]" :key="val" :value="val">{{ val }}</option>
+        </select>
+      </label>
+      <span class="filter-count">{{ filteredTactics.length }} 条</span>
+    </div>
+
+    <!-- ── Map image ─────────────────────────────────────────── -->
+    <div class="glass-panel map-panel">
       <div class="kicker">Map Layer</div>
       <h1 class="map-title">{{ mapDetail.name }}</h1>
       <p class="section-intro">{{ mapDetail.overview }}</p>
       <div class="map-stage section-block">
         <img :src="resolveAssetUrl(`/static/assets/maps/radars/${mapDetail.slug}-radar.png`)" :alt="mapDetail.name" />
-        <template v-for="point in mapDetail.points" :key="point.id">
-          <span
-            class="map-point"
-            :style="{
-              left: `${point.x}%`,
-              top: `${point.y}%`,
-              background: point.side === 'CT' ? '#65d6ce' : point.side === 'T' ? '#ff7a18' : '#ffffff',
-            }"
-          />
-          <span class="map-point-label" :style="{ left: `${point.x}%`, top: `${point.y}%` }">
-            {{ point.name }}
-          </span>
-        </template>
+        <span
+          v-for="point in mapDetail.points" :key="point.id"
+          class="map-point"
+          :style="{
+            left: `${point.x}%`, top: `${point.y}%`,
+            background: point.side === 'CT' ? '#65d6ce' : point.side === 'T' ? '#ff7a18' : '#ffffff',
+          }"
+        />
+        <span
+          v-for="point in mapDetail.points" :key="'lbl-'+point.id"
+          class="map-point-label"
+          :style="{ left: `${point.x}%`, top: `${point.y}%` }"
+        >{{ point.name }}</span>
       </div>
     </div>
 
-    <aside class="glass-panel">
+    <!-- ── Tactic list ───────────────────────────────────────── -->
+    <section class="section-block">
       <div class="section-heading">
-        <h2>筛选器</h2>
+        <h2>战术列表</h2>
+        <span class="muted">{{ filteredTactics.length }} 条匹配结果</span>
       </div>
-      <div class="filter-grid">
-        <label>
-          阵营
-          <select v-model="filters.side" class="field-select">
-            <option value="">全部</option>
-            <option v-for="side in mapDetail.filters.sides" :key="side" :value="side">{{ side }}</option>
-          </select>
-        </label>
-        <label>
-          道具类型
-          <select v-model="filters.utility_type" class="field-select">
-            <option value="">全部</option>
-            <option v-for="item in mapDetail.filters.utility_types" :key="item" :value="item">{{ item }}</option>
-          </select>
-        </label>
-        <label>
-          目标
-          <select v-model="filters.goal" class="field-select">
-            <option value="">全部</option>
-            <option v-for="item in mapDetail.filters.goals" :key="item" :value="item">{{ item }}</option>
-          </select>
-        </label>
-        <label>
-          执行阶段
-          <select v-model="filters.phase" class="field-select">
-            <option value="">全部</option>
-            <option v-for="item in mapDetail.filters.phases" :key="item" :value="item">{{ item }}</option>
-          </select>
-        </label>
-        <label>
-          难度
-          <select v-model="filters.difficulty" class="field-select">
-            <option value="">全部</option>
-            <option v-for="item in mapDetail.filters.difficulties" :key="item" :value="item">{{ item }}</option>
-          </select>
-        </label>
-        <label>
-          标签
-          <select v-model="filters.tag" class="field-select">
-            <option value="">全部</option>
-            <option v-for="item in mapDetail.filters.tags" :key="item" :value="item">{{ item }}</option>
-          </select>
-        </label>
+      <div class="card-grid">
+        <TacticCard v-for="tactic in filteredTactics" :key="tactic.id" :tactic="tactic" />
       </div>
-    </aside>
-  </section>
-
-  <section v-if="mapDetail" class="section-block">
-    <div class="section-heading">
-      <h2>战术列表</h2>
-      <span class="muted">{{ filteredTactics.length }} 条匹配结果</span>
-    </div>
-    <div class="card-grid">
-      <TacticCard v-for="tactic in filteredTactics" :key="tactic.id" :tactic="tactic" />
-    </div>
-  </section>
+    </section>
+  </div>
+  <div v-else class="glass-panel" style="text-align:center;padding:40px;">
+    <p class="muted">加载中...</p>
+  </div>
 </template>
+
+<style scoped>
+.map-detail-root {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Filter bar ────────────────────────────── */
+.filter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.filter-bar-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #ff7a18;
+  white-space: nowrap;
+  padding-bottom: 6px;
+  margin-right: 4px;
+}
+.filter-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.filter-label-text {
+  font-size: 11px;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.filter-select {
+  padding: 7px 32px 7px 12px;
+  border-radius: 8px;
+  border: 1px solid #555;
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  min-width: 100px;
+}
+.filter-select:focus {
+  outline: none;
+  border-color: #ff7a18;
+}
+.filter-select option {
+  background: #1a1a2e;
+  color: #fff;
+}
+.filter-count {
+  font-size: 12px;
+  color: #888;
+  white-space: nowrap;
+  padding-bottom: 8px;
+  margin-left: auto;
+}
+
+/* ── Map panel ─────────────────────────────── */
+.map-panel {
+  /* full width */
+}
+</style>

@@ -99,6 +99,7 @@ export interface RouteData {
 export interface ScreenshotItem {
   url: string;
   description: string;
+  type: 'route' | 'spot';
 }
 
 export interface TacticDetail extends TacticCard {

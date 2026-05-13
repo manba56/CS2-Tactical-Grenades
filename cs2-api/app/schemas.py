@@ -84,6 +84,7 @@ class RouteData(BaseModel):
 class ScreenshotItem(BaseModel):
     url: str
     description: str = ""
+    type: Literal["route", "spot"] = "spot"
 
 
 class TacticPayload(BaseModel):
