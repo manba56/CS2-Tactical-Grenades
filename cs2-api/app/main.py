@@ -40,6 +40,8 @@ app.add_middleware(
         "http://localhost:5174",
         "http://127.0.0.1:5175",
         "http://localhost:5175",
+        # Production domains — add your actual domain below
+        # "https://yourdomain.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
