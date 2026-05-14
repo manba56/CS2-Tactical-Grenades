@@ -610,8 +610,7 @@ def admin_users(_: dict[str, Any] = Depends(get_admin_user)) -> list[dict[str, A
 
 
 @app.post("/api/admin/assets")
-@limiter.limit("10/minute")
-def upload_asset(request: Request, file: UploadFile = File(...), _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, Any]:
+def upload_asset(file: UploadFile = File(...), _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, Any]:
     suffix = Path(file.filename or "upload.bin").suffix
     filename = f"{uuid4().hex}{suffix}"
     target = UPLOAD_DIR / filename
@@ -635,8 +634,7 @@ def upload_asset(request: Request, file: UploadFile = File(...), _: dict[str, An
 
 
 @app.post("/api/admin/assets/batch")
-@limiter.limit("5/minute")
-def upload_assets(request: Request, files: list[UploadFile] = File(...), _: dict[str, Any] = Depends(get_admin_user)) -> list[dict[str, Any]]:
+def upload_assets(files: list[UploadFile] = File(...), _: dict[str, Any] = Depends(get_admin_user)) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     for file in files:
         suffix = Path(file.filename or "upload.bin").suffix
