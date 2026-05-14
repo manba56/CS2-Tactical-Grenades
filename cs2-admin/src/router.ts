@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { useSessionStore } from './stores/session';
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory('/admin/'),
   routes: [
     { path: '/login', component: () => import('./views/LoginView.vue') },
     {
@@ -11,13 +11,13 @@ const router = createRouter({
       component: () => import('./views/AdminLayout.vue'),
       meta: { requiresAuth: true },
       children: [
-        { path: '', redirect: '/admin/maps' },
-        { path: '/admin/maps', component: () => import('./views/MapsAdminView.vue') },
-        { path: '/admin/points', component: () => import('./views/PointsAdminView.vue') },
-        { path: '/admin/lineups', component: () => import('./views/LineupsAdminView.vue') },
-        { path: '/admin/tactics', component: () => import('./views/TacticsAdminView.vue') },
-        { path: '/admin/assets', component: () => import('./views/AssetsAdminView.vue') },
-        { path: '/admin/users', component: () => import('./views/UsersAdminView.vue') },
+        { path: '', redirect: '/maps' },
+        { path: '/maps', component: () => import('./views/MapsAdminView.vue') },
+        { path: '/points', component: () => import('./views/PointsAdminView.vue') },
+        { path: '/lineups', component: () => import('./views/LineupsAdminView.vue') },
+        { path: '/tactics', component: () => import('./views/TacticsAdminView.vue') },
+        { path: '/assets', component: () => import('./views/AssetsAdminView.vue') },
+        { path: '/users', component: () => import('./views/UsersAdminView.vue') },
       ],
     },
   ],

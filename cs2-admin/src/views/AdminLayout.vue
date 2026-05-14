@@ -32,12 +32,12 @@ onMounted(loadSummary);
       </div>
 
       <nav class="admin-nav">
-        <router-link to="/admin/maps">地图管理</router-link>
-        <router-link to="/admin/points">点位管理</router-link>
-        <router-link to="/admin/lineups">线路管理</router-link>
-        <router-link to="/admin/tactics">战术管理</router-link>
-        <router-link to="/admin/assets">媒体资源</router-link>
-        <router-link to="/admin/users">前台用户</router-link>
+        <router-link to="/maps">地图管理</router-link>
+        <router-link to="/points">点位管理</router-link>
+        <router-link to="/lineups">线路管理</router-link>
+        <router-link to="/tactics">战术管理</router-link>
+        <router-link to="/assets">媒体资源</router-link>
+        <router-link to="/users">前台用户</router-link>
       </nav>
 
       <div v-if="summary" class="stat-grid">
