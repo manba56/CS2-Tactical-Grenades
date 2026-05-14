@@ -132,8 +132,12 @@ button {
 }
 
 .secondary-button {
+  display: inline-block;
   background: rgba(101, 214, 206, 0.14);
   border-color: rgba(101, 214, 206, 0.28);
+  color: #7cdad3;
+  text-decoration: none;
+  font-size: 13px;
 }
 
 .ghost-button {
@@ -381,26 +385,6 @@ select option:checked {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-/* Element Plus select compatibility */
-.el-select .el-input__inner,
-.el-select-dropdown__item {
-  color: #fff;
-  background: #1a1a2e;
-}
-
-.el-select-dropdown {
-  background: #1a1a2e;
-}
-
-.el-select-dropdown__item:hover,
-.el-select-dropdown__item.is-hovering {
-  background: rgba(255, 122, 24, 0.2);
-}
-
-.el-select-dropdown__item.selected {
-  background: #ff7a18;
-  color: #fff;
-}
 
 .two-column,
 .detail-grid {
@@ -576,22 +560,9 @@ select option:checked {
   cursor: pointer;
 }
 
-/* ---- Secondary button ---- */
-.secondary-button {
-  display: inline-block;
-  padding: 6px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: transparent;
-  color: #aaa;
-  font-size: 12px;
-  cursor: pointer;
-  text-decoration: none;
-  transition: all 0.15s;
-}
 .secondary-button:hover {
   border-color: #ff7a18;
-  color: #ff7a18;
+  color: #fff;
 }
 
 /* ---- Screenshot gallery ---- */

@@ -204,27 +204,6 @@ select option:checked {
   background: rgba(255, 255, 255, 0.04);
 }
 
-/* Element Plus compatibility */
-.el-select .el-input__inner,
-.el-select-dropdown__item {
-  color: #fff;
-  background: #1a1a2e;
-}
-
-.el-select-dropdown {
-  background: #1a1a2e;
-}
-
-.el-select-dropdown__item:hover,
-.el-select-dropdown__item.is-hovering {
-  background: rgba(255, 122, 24, 0.2);
-}
-
-.el-select-dropdown__item.selected {
-  background: #ff7a18;
-  color: #fff;
-}
-
 .textarea {
   min-height: 100px;
   resize: vertical;

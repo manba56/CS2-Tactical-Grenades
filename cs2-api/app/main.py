@@ -24,7 +24,6 @@ from .schemas import (
     TacticPayload,
     dump_model,
 )
-from .seed import build_seed_state
 from .storage import JsonStore
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -195,11 +194,6 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/api/debug/reset")
-@limiter.limit("2/minute")
-def reset_seed(request: Request) -> dict[str, str]:
-    STORE.write_state(build_seed_state())
-    return {"status": "reset"}
 
 
 @app.get("/api/public/home")
@@ -633,83 +627,3 @@ def upload_asset(file: UploadFile = File(...), _: dict[str, Any] = Depends(get_a
     return STORE.mutate(mutate)
 
 
-@app.post("/api/admin/assets/batch")
-def upload_assets(files: list[UploadFile] = File(...), _: dict[str, Any] = Depends(get_admin_user)) -> list[dict[str, Any]]:
-    results: list[dict[str, Any]] = []
-    for file in files:
-        suffix = Path(file.filename or "upload.bin").suffix
-        filename = f"{uuid4().hex}{suffix}"
-        target = UPLOAD_DIR / filename
-        with target.open("wb") as output:
-            shutil.copyfileobj(file.file, output)
-
-        def mutate(state: dict[str, Any], filename=filename, file=file) -> dict[str, Any]:
-            asset = {
-                "id": next_id(state, "assets"),
-                "filename": filename,
-                "original_name": file.filename,
-                "url": f"/static/uploads/{filename}",
-                "width": None,
-                "height": None,
-                "type": file.content_type or "application/octet-stream",
-            }
-            state["assets"].append(asset)
-            return asset
-
-        results.append(STORE.mutate(mutate))
-    return results
-
-
-@app.post("/api/admin/assets/import-screenshots")
-def import_screenshots(
-    map_id: int,
-    payload: list[dict[str, Any]],
-    _: dict[str, Any] = Depends(get_admin_user),
-) -> dict[str, Any]:
-    """Batch-import screenshots and associate them with lineups.
-
-    Each payload item: {"asset_url": "/static/uploads/...", "lineup_id": 3}
-    Returns summary counts.
-    """
-    state = STORE.snapshot()
-    assigned = 0
-    skipped = 0
-
-    for item in payload:
-        asset_url = item.get("asset_url")
-        lineup_id = item.get("lineup_id")
-        if not asset_url or not lineup_id:
-            skipped += 1
-            continue
-
-        lineup = next((l for l in state["lineups"] if l["id"] == lineup_id and l["map_id"] == map_id), None)
-        if not lineup:
-            skipped += 1
-            continue
-
-        if asset_url not in lineup.setdefault("media", []):
-            lineup["media"].append(asset_url)
-            assigned += 1
-        else:
-            skipped += 1
-
-    STORE.write_state(state)
-    return {"assigned": assigned, "skipped": skipped}
-
-
-@app.post("/api/admin/lineups/{lineup_id}/media")
-def append_lineup_media(
-    lineup_id: int,
-    payload: dict[str, str],
-    _: dict[str, Any] = Depends(get_admin_user),
-) -> dict[str, Any]:
-    """Append a media URL to a lineup's media list. Body: {"url": "/static/uploads/..."}"""
-
-    def mutate(state: dict[str, Any]) -> dict[str, Any]:
-        lineup = find_by_id(state["lineups"], lineup_id)
-        url = payload["url"]
-        if url not in lineup.setdefault("media", []):
-            lineup["media"].append(url)
-        return build_lineup_detail(state, lineup)
-
-    return STORE.mutate(mutate)

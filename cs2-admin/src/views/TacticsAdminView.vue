@@ -295,7 +295,7 @@ onMounted(load);
               <span class="chip">先上传手绘路线图</span>
               <button type="button" class="ghost-button" @click="addScreenshot('route')">+ 添加路线截图</button>
             </div>
-            <p class="muted">在外面画好的进攻路线图。雷达底图在 http://localhost:5174/static/assets/maps/radars/</p>
+            <p class="muted">在外面画好的进攻路线图。雷达底图在 /static/assets/maps/radars/ 下，右键雷达图复制链接即可获取。</p>
             <div v-if="routeScreenshots.length === 0" class="screenshot-placeholder">
               还没有路线截图，点「+ 添加路线截图」
             </div>

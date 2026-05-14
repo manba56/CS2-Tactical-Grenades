@@ -1,19 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { resolveAssetUrl } from '../api';
-
-// ── Types ───────────────────────────────────────────────────────
-export interface RoutePoint {
-  x: number;
-  y: number;
-}
-
-export interface RouteData {
-  player: number;
-  color: string;
-  label: string;
-  points: RoutePoint[];
-}
+import type { RoutePoint, RouteData } from '../types';
 
 const PLAYER_COLORS = ['#ff7a18', '#409eff', '#67c23a', '#e6a23c', '#f56c6c'];
 const PLAYER_LABELS = ['突破手', '辅助/道具', '补枪/跟枪', '自由人', '狙击手'];
