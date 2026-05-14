@@ -18,7 +18,7 @@ async function submit() {
   try {
     const result = await api.login(username.value, password.value);
     session.setSession(result.token, result.user);
-    router.push('/admin/maps');
+    router.push('/maps');
   } catch (err) {
     error.value = err instanceof Error ? err.message : '登录失败';
   } finally {
