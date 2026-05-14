@@ -6,12 +6,9 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile, status
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
 from .auth import create_token, hash_password, parse_token, public_user_payload, verify_password
 from .schemas import (
@@ -32,11 +29,6 @@ UPLOAD_DIR = BASE_DIR / "app" / "static" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="CS2 Tactics API", version="0.1.0")
-
-# Rate limiter: 120 req/min per IP globally
-limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "app" / "static"), name="static")
 app.add_middleware(
@@ -333,8 +325,7 @@ def register(payload: RegisterRequest) -> dict[str, Any]:
 
 
 @app.post("/api/public/auth/login")
-@limiter.limit("10/minute")
-def login(request: Request, payload: LoginRequest) -> dict[str, Any]:
+def login(payload: LoginRequest) -> dict[str, Any]:
     state = STORE.snapshot()
     user = next(
         (
@@ -351,8 +342,7 @@ def login(request: Request, payload: LoginRequest) -> dict[str, Any]:
 
 
 @app.post("/api/admin/auth/login")
-@limiter.limit("5/minute")
-def admin_login(request: Request, payload: AdminLoginRequest) -> dict[str, Any]:
+def admin_login(payload: AdminLoginRequest) -> dict[str, Any]:
     state = STORE.snapshot()
     user = next((item for item in state["users"] if item["username"] == payload.username and item["role"] == "admin"), None)
     if not user or not verify_password(payload.password, user["password_hash"]):
