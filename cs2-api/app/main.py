@@ -21,10 +21,10 @@ from .schemas import (
     TacticPayload,
     dump_model,
 )
-from .storage import JsonStore
+from .storage import SqliteStore
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-STORE = JsonStore(BASE_DIR / "data" / "db.json")
+STORE = SqliteStore(BASE_DIR / "data" / "db.sqlite")
 UPLOAD_DIR = BASE_DIR / "app" / "static" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
