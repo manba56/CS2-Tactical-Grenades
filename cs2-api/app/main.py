@@ -593,13 +593,32 @@ def admin_users(_: dict[str, Any] = Depends(get_admin_user)) -> list[dict[str, A
     ]
 
 
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"}
+ALLOWED_MIMES = {"image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"}
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20 MB
+
+
 @app.post("/api/admin/assets")
 def upload_asset(file: UploadFile = File(...), _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, Any]:
-    suffix = Path(file.filename or "upload.bin").suffix
+    suffix = Path(file.filename or "upload.bin").suffix.lower()
+    mime = (file.content_type or "").lower()
+
+    if suffix not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"不支持的文件类型: {suffix}，仅允许图片格式")
+    if mime and mime not in ALLOWED_MIMES:
+        raise HTTPException(status_code=400, detail=f"不支持的文件类型: {mime}，仅允许图片格式")
+
+    # Read into memory to enforce size limit
+    data = file.file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="文件过大，最大允许 20 MB")
+    if len(data) == 0:
+        raise HTTPException(status_code=400, detail="文件为空")
+
     filename = f"{uuid4().hex}{suffix}"
     target = UPLOAD_DIR / filename
     with target.open("wb") as output:
-        shutil.copyfileobj(file.file, output)
+        output.write(data)
 
     def mutate(state: dict[str, Any]) -> dict[str, Any]:
         asset = {
