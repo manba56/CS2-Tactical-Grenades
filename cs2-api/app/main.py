@@ -6,9 +6,12 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile, status
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from .auth import create_token, hash_password, parse_token, public_user_payload, verify_password
 from .schemas import (
@@ -30,6 +33,12 @@ UPLOAD_DIR = BASE_DIR / "app" / "static" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="CS2 Tactics API", version="0.1.0")
+
+# Rate limiter: 120 req/min per IP globally
+limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.mount("/static", StaticFiles(directory=BASE_DIR / "app" / "static"), name="static")
 app.add_middleware(
     CORSMiddleware,
@@ -187,7 +196,8 @@ def health() -> dict[str, str]:
 
 
 @app.post("/api/debug/reset")
-def reset_seed() -> dict[str, str]:
+@limiter.limit("2/minute")
+def reset_seed(request: Request) -> dict[str, str]:
     STORE.write_state(build_seed_state())
     return {"status": "reset"}
 
@@ -329,7 +339,8 @@ def register(payload: RegisterRequest) -> dict[str, Any]:
 
 
 @app.post("/api/public/auth/login")
-def login(payload: LoginRequest) -> dict[str, Any]:
+@limiter.limit("10/minute")
+def login(request: Request, payload: LoginRequest) -> dict[str, Any]:
     state = STORE.snapshot()
     user = next(
         (
@@ -346,7 +357,8 @@ def login(payload: LoginRequest) -> dict[str, Any]:
 
 
 @app.post("/api/admin/auth/login")
-def admin_login(payload: AdminLoginRequest) -> dict[str, Any]:
+@limiter.limit("5/minute")
+def admin_login(request: Request, payload: AdminLoginRequest) -> dict[str, Any]:
     state = STORE.snapshot()
     user = next((item for item in state["users"] if item["username"] == payload.username and item["role"] == "admin"), None)
     if not user or not verify_password(payload.password, user["password_hash"]):
@@ -598,7 +610,8 @@ def admin_users(_: dict[str, Any] = Depends(get_admin_user)) -> list[dict[str, A
 
 
 @app.post("/api/admin/assets")
-def upload_asset(file: UploadFile = File(...), _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, Any]:
+@limiter.limit("10/minute")
+def upload_asset(request: Request, file: UploadFile = File(...), _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, Any]:
     suffix = Path(file.filename or "upload.bin").suffix
     filename = f"{uuid4().hex}{suffix}"
     target = UPLOAD_DIR / filename
@@ -622,7 +635,8 @@ def upload_asset(file: UploadFile = File(...), _: dict[str, Any] = Depends(get_a
 
 
 @app.post("/api/admin/assets/batch")
-def upload_assets(files: list[UploadFile] = File(...), _: dict[str, Any] = Depends(get_admin_user)) -> list[dict[str, Any]]:
+@limiter.limit("5/minute")
+def upload_assets(request: Request, files: list[UploadFile] = File(...), _: dict[str, Any] = Depends(get_admin_user)) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     for file in files:
         suffix = Path(file.filename or "upload.bin").suffix
