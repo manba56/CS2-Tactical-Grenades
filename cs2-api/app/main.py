@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile, status
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -21,6 +21,7 @@ from .schemas import (
     TacticPayload,
     dump_model,
 )
+from .rate_limit import check_rate_limit, get_client_ip
 from .storage import SqliteStore
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -28,7 +29,23 @@ STORE = SqliteStore(BASE_DIR / "data" / "db.sqlite")
 UPLOAD_DIR = BASE_DIR / "app" / "static" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+STRICT_PATHS = {"/api/public/auth/login", "/api/public/auth/register", "/api/admin/auth/login"}
+
 app = FastAPI(title="CS2 Tactics API", version="0.1.0")
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    ip = get_client_ip(request)
+    path = request.url.path
+    strict = any(path.startswith(p) for p in STRICT_PATHS)
+    if not check_rate_limit(ip, strict=strict):
+        return Response(
+            content='{"detail":"请求太频繁，请稍后再试"}',
+            status_code=429,
+            media_type="application/json",
+        )
+    return await call_next(request)
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "app" / "static"), name="static")
 app.add_middleware(
