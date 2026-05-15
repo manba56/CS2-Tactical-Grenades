@@ -11,7 +11,6 @@ const maps = ref<AdminMap[]>([]);
 const lineups = ref<AdminLineup[]>([]);
 const tactics = ref<AdminTactic[]>([]);
 const editingId = ref<number | null>(null);
-const showForm = ref(false);
 const form = reactive({
   map_id: 1,
   title: '',
@@ -114,7 +113,6 @@ const spotScreenshots = computed(() =>
 
 function edit(item: AdminTactic) {
   editingId.value = item.id;
-  showForm.value = true;
   Object.assign(form, {
     ...item,
     tagsText: item.tags.join(', '),
@@ -126,7 +124,6 @@ function edit(item: AdminTactic) {
 
 function resetForm() {
   editingId.value = null;
-  showForm.value = false;
   Object.assign(form, {
     map_id: maps.value[0]?.id || 1,
     title: '',
@@ -214,11 +211,7 @@ onMounted(load);
       </article>
     </section>
 
-    <div class="panel" style="text-align:center;padding:24px" v-if="!showForm">
-      <button class="button" @click="showForm = true">+ 新增战术</button>
-    </div>
-
-    <form class="panel" @submit.prevent="submit" v-if="showForm">
+    <form class="panel" @submit.prevent="submit">
       <h2>{{ editingId ? '编辑战术' : '新增战术' }}</h2>
       <div class="form-grid">
         <label>
