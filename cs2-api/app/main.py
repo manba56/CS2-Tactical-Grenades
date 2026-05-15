@@ -210,12 +210,23 @@ def build_tactic_detail(state: dict[str, Any], tactic: dict[str, Any], user: dic
 
 
 def maybe_get_user(token: str | None = Depends(get_bearer_token)) -> dict[str, Any] | None:
-    parsed = parse_token(token)
-    if not parsed:
+    if not token:
         return None
-    role, user_id = parsed
+
     state = STORE.snapshot()
-    return next((item for item in state["users"] if item["id"] == user_id and item["role"] == role), None)
+
+    # New token path: lookup by hash
+    for t in state.get("tokens", []):
+        if verify_token(token, t["token_hash"]):
+            return next((u for u in state["users"] if u["id"] == t["user_id"]), None)
+
+    # Legacy token path
+    parsed = parse_legacy_token(token)
+    if parsed:
+        role, user_id = parsed
+        return next((u for u in state["users"] if u["id"] == user_id and u["role"] == role), None)
+
+    return None
 
 
 @app.get("/api/health")
