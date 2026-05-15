@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { onMounted, reactive, ref, watch } from 'vue';
 
-import { api } from '../api';
+import { api, resolveAssetUrl } from '../api';
 import { useSessionStore } from '../stores/session';
 import type { AdminMap } from '../types';
 
 const session = useSessionStore();
 const maps = ref<AdminMap[]>([]);
 const editingId = ref<number | null>(null);
+const showForm = ref(false);
 const form = reactive<Omit<AdminMap, 'id' | 'tactic_count'>>({
   name: '',
   slug: '',
@@ -20,17 +21,39 @@ const form = reactive<Omit<AdminMap, 'id' | 'tactic_count'>>({
   active_pool: true,
 });
 
+function mapPrefix(slug: string) {
+  // Determine file prefix from slug (mirage→de_mirage, dust2→de_dust2, etc.)
+  const mapping: Record<string, string> = {
+    ancient: 'de_ancient', anubis: 'de_anubis', dust2: 'de_dust2',
+    inferno: 'de_inferno', mirage: 'de_mirage', nuke: 'de_nuke',
+    overpass: 'de_overpass', vertigo: 'de_vertigo', train: 'de_train',
+  };
+  return mapping[slug] || `de_${slug}`;
+}
+
+// Auto-fill URLs when slug changes
+watch(() => form.slug, (newSlug) => {
+  if (!editingId.value && newSlug.trim()) {
+    const prefix = mapPrefix(newSlug.trim().toLowerCase());
+    form.cover_url = `/static/assets/maps/icons/${prefix}.png`;
+    form.layout_url = `/static/assets/maps/${newSlug.trim().toLowerCase()}-layout.svg`;
+    if (!form.name) form.name = newSlug;
+  }
+});
+
 async function load() {
   maps.value = await api.maps(session.token);
 }
 
 function edit(item: AdminMap) {
   editingId.value = item.id;
+  showForm.value = true;
   Object.assign(form, { ...item });
 }
 
 function resetForm() {
   editingId.value = null;
+  showForm.value = false;
   Object.assign(form, {
     name: '',
     slug: '',
@@ -80,7 +103,11 @@ onMounted(load);
       </article>
     </section>
 
-    <form class="panel" @submit.prevent="submit">
+    <div class="panel" style="text-align:center;padding:24px" v-if="!showForm">
+      <button class="button" @click="showForm = true">+ 新增地图</button>
+    </div>
+
+    <form class="panel" @submit.prevent="submit" v-if="showForm">
       <h2>{{ editingId ? '编辑地图' : '新增地图' }}</h2>
       <div class="form-grid">
         <label>
@@ -89,18 +116,21 @@ onMounted(load);
         </label>
         <label>
           Slug
-          <input v-model="form.slug" class="field" />
+          <input v-model="form.slug" class="field" placeholder="如 mirage" />
         </label>
         <label class="full">
           概述
           <textarea v-model="form.overview" class="textarea" />
         </label>
         <label class="full">
-          封面图 URL
-          <input v-model="form.cover_url" class="field" />
+          封面图 URL（填 Slug 自动生成）
+          <div class="cover-row">
+            <input v-model="form.cover_url" class="field" style="flex:1" />
+            <img v-if="form.cover_url" :src="resolveAssetUrl(form.cover_url)" class="cover-preview" />
+          </div>
         </label>
         <label class="full">
-          底图 URL
+          底图 URL（填 Slug 自动生成）
           <input v-model="form.layout_url" class="field" />
         </label>
         <label>
@@ -134,3 +164,19 @@ onMounted(load);
     </form>
   </div>
 </template>
+
+<style scoped>
+.cover-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.cover-preview {
+  width: 60px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #333;
+  flex-shrink: 0;
+}
+</style>
