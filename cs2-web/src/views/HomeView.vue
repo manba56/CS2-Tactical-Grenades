@@ -1,113 +1,277 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import { api, resolveAssetUrl } from '../api';
 import TacticCard from '../components/TacticCard.vue';
 import type { MapSummary, TacticCard as TacticCardType } from '../types';
 
 const loading = ref(true);
-const maps = ref<MapSummary[]>([]);
-const featuredTactics = ref<TacticCardType[]>([]);
-const latestTactics = ref<TacticCardType[]>([]);
-const utilityQuickLinks = ref<{ type: string; count: number }[]>([]);
-
 const loadError = ref('');
+const maps = ref<MapSummary[]>([]);
+const allTactics = ref<TacticCardType[]>([]);
+
+// Filters for the tactic grid
+const filterMapSlug = ref('');
+const filterSide = ref('');
 
 onMounted(async () => {
   try {
-    const home = await api.getHome();
-    maps.value = home.featured_maps;
-    featuredTactics.value = home.featured_tactics;
-    latestTactics.value = home.latest_tactics;
-    utilityQuickLinks.value = home.utility_quick_links;
+    const [homeData, tacticsData] = await Promise.all([
+      api.getHome(),
+      api.getTactics({}),
+    ]);
+    maps.value = homeData.featured_maps;
+    allTactics.value = tacticsData.items;
   } catch {
     loadError.value = '加载失败，请刷新重试';
   } finally {
     loading.value = false;
   }
 });
+
+const filteredTactics = computed(() => {
+  return allTactics.value.filter(t => {
+    if (filterMapSlug.value && t.map_slug !== filterMapSlug.value) return false;
+    if (filterSide.value && t.side !== filterSide.value) return false;
+    return true;
+  });
+});
 </script>
 
 <template>
-  <section class="hero-grid">
-    <div class="hero-card">
-      <div class="kicker">Manual Playbook for CS2 Teams</div>
-      <h1 class="hero-title">把战术、道具和执行顺序整理成一眼能看懂的地图资料站。</h1>
-      <p class="hero-subtitle">
-        以地图为入口，把点位、投掷物线路、执行步骤和战术配合拆开展示。首版聚焦现役比赛地图池，适合队内复盘和日常约战。
-      </p>
-      <div class="split-actions">
-        <router-link class="primary-button" to="/maps">进入地图库</router-link>
-        <router-link class="secondary-button" to="/favorites">查看收藏与最近浏览</router-link>
+  <div class="home-root">
+    <!-- ── Hero ────────────────────────────────────────────── -->
+    <section class="hero-panel">
+      <div class="hero-text">
+        <div class="kicker">CS2 Tactics Playbook</div>
+        <h1 class="hero-title">战术手册</h1>
+        <p class="hero-subtitle">
+          以地图为入口，按阵营、道具、执行阶段浏览。快速找到下一局要用的配合。
+        </p>
+        <div class="hero-actions">
+          <router-link class="primary-button" to="/maps">浏览全部地图</router-link>
+          <router-link class="secondary-button" to="/favorites">我的收藏</router-link>
+        </div>
       </div>
-    </div>
-
-    <div class="glass-panel">
-      <div class="section-heading">
-        <h2>快速入口</h2>
-      </div>
-      <div class="chip-row">
-        <span v-for="quick in utilityQuickLinks" :key="quick.type" class="chip strong">
-          {{ quick.type }} · {{ quick.count }}
-        </span>
-      </div>
-      <div class="section-block stats-grid">
-        <div class="stat-card">
-          <div class="muted">地图池</div>
+      <div class="hero-stats">
+        <div class="hero-stat">
           <strong>{{ maps.length }}</strong>
+          <span>张地图</span>
         </div>
-        <div class="stat-card">
-          <div class="muted">精选战术</div>
-          <strong>{{ featuredTactics.length }}</strong>
-        </div>
-        <div class="stat-card">
-          <div class="muted">最新上架</div>
-          <strong>{{ latestTactics.length }}</strong>
+        <div class="hero-stat">
+          <strong>{{ allTactics.length }}</strong>
+          <span>条战术</span>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section-block">
-    <div class="section-heading">
-      <h2>热门地图</h2>
-      <span class="section-intro">按地图进入，浏览点位与战术联动。</span>
-    </div>
-    <div class="maps-grid" v-if="!loading">
-      <router-link
-        v-for="map in maps"
-        :key="map.slug"
-        class="map-card"
-        :style="{ backgroundImage: `url(${resolveAssetUrl(map.cover_url)})` }"
-        :to="`/maps/${map.slug}`"
-      >
-        <div class="chip-row">
-          <span class="chip strong">{{ map.name }}</span>
-          <span class="chip">{{ map.tactic_count }} 个战术</span>
+    <!-- ── Map entry cards (horizontal scroll) ─────────────── -->
+    <section class="section-block" v-if="!loading">
+      <div class="section-heading">
+        <h2>快速选图</h2>
+      </div>
+      <div class="map-scroll">
+        <router-link
+          v-for="map in maps"
+          :key="map.slug"
+          class="map-entry-card"
+          :to="`/maps/${map.slug}`"
+        >
+          <img :src="resolveAssetUrl(map.cover_url)" :alt="map.name" class="map-entry-icon" />
+          <div class="map-entry-body">
+            <strong>{{ map.name }}</strong>
+            <span class="chip">{{ map.tactic_count }} 条战术</span>
+          </div>
+        </router-link>
+      </div>
+    </section>
+
+    <!-- ── All tactics ─────────────────────────────────────── -->
+    <section class="section-block" v-if="!loading">
+      <div class="section-heading">
+        <h2>全部战术</h2>
+        <span class="muted" v-if="!loadError">{{ filteredTactics.length }} 条</span>
+      </div>
+
+      <!-- Filter chips -->
+      <div class="home-filter-bar">
+        <div class="filter-row">
+          <button
+            class="filter-chip"
+            :class="{ active: !filterMapSlug }"
+            @click="filterMapSlug = ''"
+          >全部地图</button>
+          <button
+            v-for="map in maps"
+            :key="map.slug"
+            class="filter-chip"
+            :class="{ active: filterMapSlug === map.slug }"
+            @click="filterMapSlug = map.slug"
+          >{{ map.name }}</button>
         </div>
-        <h3 class="map-title">{{ map.name }}</h3>
-        <p>{{ map.overview }}</p>
-      </router-link>
-    </div>
-  </section>
+        <div class="filter-row">
+          <button
+            class="filter-chip"
+            :class="{ active: !filterSide }"
+            @click="filterSide = ''"
+          >全部阵营</button>
+          <button
+            class="filter-chip"
+            :class="{ active: filterSide === 'T' }"
+            @click="filterSide = 'T'"
+          >T 进攻</button>
+          <button
+            class="filter-chip"
+            :class="{ active: filterSide === 'CT' }"
+            @click="filterSide = 'CT'"
+          >CT 防守</button>
+        </div>
+      </div>
 
-  <section class="section-block">
-    <div class="section-heading">
-      <h2>精选执行</h2>
-      <span class="section-intro">更适合直接抄进训练计划的成套配合。</span>
-    </div>
-    <div class="card-grid">
-      <TacticCard v-for="tactic in featuredTactics" :key="tactic.id" :tactic="tactic" />
-    </div>
-  </section>
+      <div class="card-grid">
+        <TacticCard v-for="tactic in filteredTactics" :key="tactic.id" :tactic="tactic" />
+      </div>
 
-  <section class="section-block">
-    <div class="section-heading">
-      <h2>最新上线</h2>
-      <span class="section-intro">方便队伍保持手册的新鲜度。</span>
+      <div v-if="filteredTactics.length === 0" class="empty-card">
+        <p class="muted">没有匹配的战术</p>
+      </div>
+    </section>
+
+    <div v-if="loadError" class="empty-card">
+      <p class="muted">{{ loadError }}</p>
     </div>
-    <div class="card-grid">
-      <TacticCard v-for="tactic in latestTactics" :key="tactic.id" :tactic="tactic" />
-    </div>
-  </section>
+  </div>
 </template>
+
+<style scoped>
+.home-root {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* ── Hero ─────────────────────────────── */
+.hero-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 40px 0 8px;
+}
+.hero-text {
+  max-width: 600px;
+}
+.hero-title {
+  margin: 4px 0 12px;
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 800;
+}
+.hero-subtitle {
+  color: #aeb9cb;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+.hero-actions {
+  display: flex;
+  gap: 10px;
+}
+.hero-stats {
+  display: flex;
+  gap: 28px;
+  flex-shrink: 0;
+}
+.hero-stat {
+  text-align: center;
+}
+.hero-stat strong {
+  display: block;
+  font-size: 2rem;
+  color: #ff7a18;
+}
+.hero-stat span {
+  font-size: 0.82rem;
+  color: #888;
+}
+
+/* ── Map scroll ────────────────────────── */
+.map-scroll {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.map-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.map-scroll::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+.map-entry-card {
+  flex: 0 0 220px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  overflow: hidden;
+  background: rgba(13, 20, 31, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: border-color 0.2s, transform 0.15s;
+  text-decoration: none;
+  color: inherit;
+}
+.map-entry-card:hover {
+  border-color: #ff7a18;
+  transform: translateY(-2px);
+}
+.map-entry-icon {
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  object-fit: cover;
+}
+.map-entry-body {
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.map-entry-body strong {
+  font-size: 14px;
+}
+
+/* ── Filter chips ──────────────────────── */
+.home-filter-bar {
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.filter-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.filter-chip {
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid #444;
+  background: #1a1a2e;
+  color: #ddd;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-chip:hover {
+  border-color: #ff7a18;
+  color: #fff;
+}
+.filter-chip.active {
+  background: #ff7a18;
+  border-color: #ff7a18;
+  color: #fff;
+  font-weight: 700;
+}
+</style>
