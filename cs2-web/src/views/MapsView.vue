@@ -15,10 +15,16 @@ const filters = ref({
   search: '',
 });
 
+const loadError = ref('');
+
 async function load() {
-  const [mapItems, tacticItems] = await Promise.all([api.getMaps(), api.getTactics(filters.value)]);
-  maps.value = mapItems;
-  tactics.value = tacticItems.items;
+  try {
+    const [mapItems, tacticItems] = await Promise.all([api.getMaps(), api.getTactics(filters.value)]);
+    maps.value = mapItems;
+    tactics.value = tacticItems.items;
+  } catch {
+    loadError.value = '加载失败，请刷新重试';
+  }
 }
 
 onMounted(load);

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from .auth import hash_password
 
@@ -90,7 +90,7 @@ _POINT_DATA = [
 
 
 def build_seed_state() -> dict:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     maps = []
     for m in _MAP_DATA:

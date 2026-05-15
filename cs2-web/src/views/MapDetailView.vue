@@ -46,8 +46,14 @@ const filterOptions = computed(() => {
   };
 });
 
+const loadError = ref('');
+
 onMounted(async () => {
-  mapDetail.value = await api.getMapDetail(route.params.mapSlug as string);
+  try {
+    mapDetail.value = await api.getMapDetail(route.params.mapSlug as string);
+  } catch {
+    loadError.value = '加载失败，请刷新重试';
+  }
 });
 </script>
 
@@ -99,6 +105,9 @@ onMounted(async () => {
         <TacticCard v-for="tactic in filteredTactics" :key="tactic.id" :tactic="tactic" />
       </div>
     </section>
+  </div>
+  <div v-else-if="loadError" class="glass-panel" style="text-align:center;padding:40px;">
+    <p class="muted">{{ loadError }}</p>
   </div>
   <div v-else class="glass-panel" style="text-align:center;padding:40px;">
     <p class="muted">加载中...</p>

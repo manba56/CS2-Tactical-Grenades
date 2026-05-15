@@ -19,6 +19,7 @@ import re
 import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -453,7 +454,6 @@ class HLTVDemoDownloader:
 
             elif ext_lower == ".zip":
                 console.print("  [dim]Extracting .zip...[/dim]")
-                import zipfile
                 with zipfile.ZipFile(tmp_path, "r") as zf:
                     for name in zf.namelist():
                         if name.endswith(".dem"):

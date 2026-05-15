@@ -81,32 +81,6 @@ def fetch_map_by_slug(url: str, slug: str) -> dict | None:
         return None
 
 
-def append_lineup_media(url: str, token: str, lineup_id: int, asset_url: str) -> dict:
-    """Append a single media URL to a lineup using the dedicated endpoint."""
-    r = requests.post(
-        f"{url}/api/admin/lineups/{lineup_id}/media",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"url": asset_url},
-        timeout=10,
-    )
-    r.raise_for_status()
-    return r.json()
-
-
-def batch_import_screenshots(
-    url: str, token: str, map_id: int, associations: list[dict[str, Any]]
-) -> dict:
-    """Batch-associate already-uploaded screenshots with lineups."""
-    r = requests.post(
-        f"{url}/api/admin/assets/import-screenshots",
-        headers={"Authorization": f"Bearer {token}"},
-        params={"map_id": map_id},
-        json=associations,
-        timeout=30,
-    )
-    r.raise_for_status()
-    return r.json()
-
 
 def run_interactive(
     url: str,
@@ -195,8 +169,16 @@ def run_interactive(
             continue
 
         if not dry_run:
-            append_lineup_media(url, token, chosen["id"], asset_url)
-            print(f"  Added to {chosen['title']} media")
+            try:
+                requests.put(
+                    f"{url}/api/admin/lineups/{chosen['id']}",
+                    headers={"Authorization": f"Bearer {token}"},
+                    json={**chosen, "media": chosen.get("media", []) + [asset_url]},
+                    timeout=10,
+                ).raise_for_status()
+                print(f"  Added to {chosen['title']} media")
+            except Exception as e:
+                print(f"  Failed to update {chosen['title']}: {e}")
         else:
             print(f"  Would associate with {chosen['title']}")
 
@@ -264,7 +246,15 @@ def run_auto(
         if len(matching) == 1:
             chosen = matching[0]
             if not dry_run:
-                append_lineup_media(url, token, chosen["id"], asset_url)
+                try:
+                    requests.put(
+                        f"{url}/api/admin/lineups/{chosen['id']}",
+                        headers={"Authorization": f"Bearer {token}"},
+                        json={**chosen, "media": chosen.get("media", []) + [asset_url]},
+                        timeout=10,
+                    ).raise_for_status()
+                except Exception as e:
+                    print(f"  Failed to update {chosen['title']}: {e}")
             results["assigned"].append(f"tick {tick}: → {chosen['title']}")
             print(f"  Auto → {chosen['title']}")
         else:

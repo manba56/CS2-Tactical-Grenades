@@ -92,10 +92,10 @@ async function uploadScreenshot(index: number, file: File) {
 }
 
 const routeScreenshots = computed(() =>
-  form.screenshots.filter((s, i) => s.type === 'route').map((s, i) => ({ shot: s, formIdx: form.screenshots.indexOf(s) }))
+  form.screenshots.flatMap((s, i) => s.type === 'route' ? [{ shot: s, formIdx: i }] : [])
 );
 const spotScreenshots = computed(() =>
-  form.screenshots.filter((s, i) => s.type === 'spot').map((s, i) => ({ shot: s, formIdx: form.screenshots.indexOf(s) }))
+  form.screenshots.flatMap((s, i) => s.type === 'spot' ? [{ shot: s, formIdx: i }] : [])
 );
 
 function edit(item: AdminTactic) {

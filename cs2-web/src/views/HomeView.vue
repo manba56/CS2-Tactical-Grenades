@@ -11,13 +11,20 @@ const featuredTactics = ref<TacticCardType[]>([]);
 const latestTactics = ref<TacticCardType[]>([]);
 const utilityQuickLinks = ref<{ type: string; count: number }[]>([]);
 
+const loadError = ref('');
+
 onMounted(async () => {
-  const home = await api.getHome();
-  maps.value = home.featured_maps;
-  featuredTactics.value = home.featured_tactics;
-  latestTactics.value = home.latest_tactics;
-  utilityQuickLinks.value = home.utility_quick_links;
-  loading.value = false;
+  try {
+    const home = await api.getHome();
+    maps.value = home.featured_maps;
+    featuredTactics.value = home.featured_tactics;
+    latestTactics.value = home.latest_tactics;
+    utilityQuickLinks.value = home.utility_quick_links;
+  } catch {
+    loadError.value = '加载失败，请刷新重试';
+  } finally {
+    loading.value = false;
+  }
 });
 </script>
 

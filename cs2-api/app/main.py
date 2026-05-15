@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -554,7 +553,7 @@ def create_tactic(payload: TacticPayload, _: dict[str, Any] = Depends(get_admin_
         item = dump_model(payload)
         item["id"] = next_id(state, "tactics")
         item["slug"] = _auto_slug(payload.slug, payload.title, item["id"])
-        item["created_at"] = datetime.utcnow().isoformat()
+        item["created_at"] = datetime.now(timezone.utc).isoformat()
         state["tactics"].append(item)
         return item
 
