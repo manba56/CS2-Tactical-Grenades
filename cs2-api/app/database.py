@@ -60,6 +60,23 @@ CREATE TABLE IF NOT EXISTS assets (
     width INTEGER, height INTEGER, type TEXT
 );
 
+CREATE TABLE IF NOT EXISTS tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    expires_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS login_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    username TEXT,
+    ip TEXT,
+    success INTEGER,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS counters (
     table_name TEXT PRIMARY KEY,
     next_id INTEGER
@@ -81,6 +98,8 @@ TABLE_COLUMNS: dict[str, list[str]] = {
     "users":     ["username", "email", "password_hash", "role",
                   "favorite_ids", "recent_tactic_ids"],
     "assets":    ["filename", "original_name", "url", "width", "height", "type"],
+    "tokens":    ["user_id", "token_hash", "created_at", "expires_at"],
+    "login_log": ["user_id", "username", "ip", "success", "created_at"],
 }
 
 # Columns that store JSON arrays/objects and need json.loads / json.dumps

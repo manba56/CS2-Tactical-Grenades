@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -9,7 +9,15 @@ from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Reques
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .auth import create_token, hash_password, parse_token, public_user_payload, verify_password
+from .auth import (
+    generate_token,
+    hash_password,
+    needs_rehash,
+    parse_legacy_token,
+    public_user_payload,
+    verify_password,
+    verify_token,
+)
 from .schemas import (
     AdminLoginRequest,
     LineupPayload,
@@ -95,16 +103,27 @@ def next_id(state: dict[str, Any], key: str) -> int:
 
 
 def get_current_user(token: str = Depends(get_bearer_token)) -> dict[str, Any]:
-    parsed = parse_token(token)
-    if not parsed:
+    if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未登录")
 
-    role, user_id = parsed
     state = STORE.snapshot()
-    user = next((item for item in state["users"] if item["id"] == user_id and item["role"] == role), None)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录状态失效")
-    return user
+
+    # New token path: lookup by hash
+    for t in state.get("tokens", []):
+        if verify_token(token, t["token_hash"]):
+            user = next((u for u in state["users"] if u["id"] == t["user_id"]), None)
+            if user:
+                return user
+
+    # Legacy token path: {role}:{user_id} — will be removed after migration
+    parsed = parse_legacy_token(token)
+    if parsed:
+        role, user_id = parsed
+        user = next((u for u in state["users"] if u["id"] == user_id and u["role"] == role), None)
+        if user:
+            return user
+
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录状态失效")
 
 
 def get_admin_user(user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
@@ -317,12 +336,64 @@ def get_tactic_detail(slug: str, user: dict[str, Any] | None = Depends(maybe_get
     return build_tactic_detail(state, tactic, user)
 
 
+# ── Default account anomaly detection ──────────────────────────
+DEFAULT_ACCOUNTS = {"admin", "demo"}
+MAX_FAILED_ATTEMPTS = 5
+LOCKOUT_WINDOW_MINUTES = 15
+
+
+def _check_anomaly(state: dict[str, Any], username: str, ip: str) -> None:
+    """Block default accounts after too many failed logins."""
+    if username not in DEFAULT_ACCOUNTS:
+        return
+    now_ts = datetime.now(timezone.utc).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=LOCKOUT_WINDOW_MINUTES)).isoformat()
+    recent_fails = [
+        e for e in state.get("login_log", [])
+        if e["username"] == username and not e["success"] and e["created_at"] > cutoff
+    ]
+    if len(recent_fails) >= MAX_FAILED_ATTEMPTS:
+        raise HTTPException(
+            status_code=429,
+            detail=f"账号 {username} 因多次登录失败已临时锁定，请 {LOCKOUT_WINDOW_MINUTES} 分钟后重试",
+        )
+
+
+def _record_login(
+    state: dict[str, Any], user_id: int | None, username: str, ip: str, success: bool
+) -> None:
+    entry = {
+        "id": next_id(state, "login_log"),
+        "user_id": user_id,
+        "username": username,
+        "ip": ip,
+        "success": int(success),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    state.setdefault("login_log", []).append(entry)
+
+
+def _issue_token(state: dict[str, Any], user: dict[str, Any]) -> str:
+    """Generate a random token, store its hash, return the raw token."""
+    raw, token_hash = generate_token()
+    state.setdefault("tokens", []).append({
+        "id": next_id(state, "tokens"),
+        "user_id": user["id"],
+        "token_hash": token_hash,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": None,
+    })
+    return raw
+
+
 @app.post("/api/public/auth/register")
-def register(payload: RegisterRequest) -> dict[str, Any]:
+def register(payload: RegisterRequest, request: Request) -> dict[str, Any]:
+    ip = get_client_ip(request)
+
     def mutate(state: dict[str, Any]) -> dict[str, Any]:
-        if any(user["username"] == payload.username for user in state["users"]):
+        if any(u["username"] == payload.username for u in state["users"]):
             raise HTTPException(status_code=400, detail="用户名已存在")
-        if any(user["email"] == payload.email for user in state["users"]):
+        if any(u["email"] == payload.email for u in state["users"]):
             raise HTTPException(status_code=400, detail="邮箱已存在")
         user = {
             "id": next_id(state, "users"),
@@ -334,14 +405,16 @@ def register(payload: RegisterRequest) -> dict[str, Any]:
             "recent_tactic_ids": [],
         }
         state["users"].append(user)
-        token = create_token("player", user["id"])
+        token = _issue_token(state, user)
+        _record_login(state, user["id"], payload.username, ip, True)
         return public_user_payload(user, token)
 
     return STORE.mutate(mutate)
 
 
 @app.post("/api/public/auth/login")
-def login(payload: LoginRequest) -> dict[str, Any]:
+def login(payload: LoginRequest, request: Request) -> dict[str, Any]:
+    ip = get_client_ip(request)
     state = STORE.snapshot()
     user = next(
         (
@@ -352,18 +425,63 @@ def login(payload: LoginRequest) -> dict[str, Any]:
         ),
         None,
     )
-    if not user or not verify_password(payload.password, user["password_hash"]):
-        raise HTTPException(status_code=400, detail="账号或密码错误")
-    return public_user_payload(user, create_token("player", user["id"]))
+
+    username = user["username"] if user else payload.username_or_email
+
+    def mutate(state: dict[str, Any]) -> dict[str, Any]:
+        u = next(
+            (item for item in state["users"]
+             if item["role"] == "player"
+             and (item["username"] == payload.username_or_email or item["email"] == payload.username_or_email)),
+            None,
+        )
+        if not u:
+            _check_anomaly(state, username, ip)
+            _record_login(state, None, username, ip, False)
+            raise HTTPException(status_code=400, detail="账号或密码错误")
+
+        if not verify_password(payload.password, u["password_hash"]):
+            _check_anomaly(state, username, ip)
+            _record_login(state, u["id"], username, ip, False)
+            raise HTTPException(status_code=400, detail="账号或密码错误")
+
+        # Auto-upgrade legacy password hash
+        if needs_rehash(u["password_hash"]):
+            u["password_hash"] = hash_password(payload.password)
+
+        token = _issue_token(state, u)
+        _record_login(state, u["id"], username, ip, True)
+        return public_user_payload(u, token)
+
+    return STORE.mutate(mutate)
 
 
 @app.post("/api/admin/auth/login")
-def admin_login(payload: AdminLoginRequest) -> dict[str, Any]:
+def admin_login(payload: AdminLoginRequest, request: Request) -> dict[str, Any]:
+    ip = get_client_ip(request)
     state = STORE.snapshot()
     user = next((item for item in state["users"] if item["username"] == payload.username and item["role"] == "admin"), None)
-    if not user or not verify_password(payload.password, user["password_hash"]):
-        raise HTTPException(status_code=400, detail="后台账号或密码错误")
-    return public_user_payload(user, create_token("admin", user["id"]))
+
+    def mutate(state: dict[str, Any]) -> dict[str, Any]:
+        u = next((item for item in state["users"] if item["username"] == payload.username and item["role"] == "admin"), None)
+        if not u:
+            _check_anomaly(state, payload.username, ip)
+            _record_login(state, None, payload.username, ip, False)
+            raise HTTPException(status_code=400, detail="后台账号或密码错误")
+
+        if not verify_password(payload.password, u["password_hash"]):
+            _check_anomaly(state, payload.username, ip)
+            _record_login(state, u["id"], payload.username, ip, False)
+            raise HTTPException(status_code=400, detail="后台账号或密码错误")
+
+        if needs_rehash(u["password_hash"]):
+            u["password_hash"] = hash_password(payload.password)
+
+        token = _issue_token(state, u)
+        _record_login(state, u["id"], payload.username, ip, True)
+        return public_user_payload(u, token)
+
+    return STORE.mutate(mutate)
 
 
 @app.get("/api/public/me/favorites")
