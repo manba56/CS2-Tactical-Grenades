@@ -97,6 +97,8 @@ def find_by_slug(items: list[dict[str, Any]], slug: str) -> dict[str, Any]:
 
 
 def next_id(state: dict[str, Any], key: str) -> int:
+    if key not in state["counters"]:
+        state["counters"][key] = 1
     entity_id = state["counters"][key]
     state["counters"][key] += 1
     return entity_id
