@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 import { api, resolveAssetUrl } from '../api';
 import RouteEditor from '../components/RouteEditor.vue';
@@ -50,7 +50,20 @@ async function load() {
   if (!editingId.value && mapItems[0]) {
     form.map_id = mapItems[0].id;
   }
+  _syncCoverUrl();
 }
+
+function _syncCoverUrl() {
+  const map = maps.value.find(m => m.id === form.map_id);
+  if (map && !form.cover_url) {
+    form.cover_url = map.cover_url;
+  }
+}
+
+// Auto-fill cover URL when map changes
+watch(() => form.map_id, () => {
+  _syncCoverUrl();
+});
 
 function serializeSteps(stepItems: AdminTactic['step_items']) {
   return stepItems
@@ -258,8 +271,11 @@ onMounted(load);
           <textarea v-model="form.note" class="textarea" />
         </label>
         <label class="full">
-          封面 URL
-          <input v-model="form.cover_url" class="field" />
+          封面 URL（选地图自动填，可手动改）
+          <div class="cover-row">
+            <input v-model="form.cover_url" class="field" style="flex:1" />
+            <img v-if="form.cover_url" :src="resolveAssetUrl(form.cover_url)" class="cover-preview" />
+          </div>
         </label>
         <label class="full">
           标签（逗号分隔）
@@ -438,5 +454,18 @@ onMounted(load);
 .textarea {
   resize: vertical;
   min-height: 50px;
+}
+.cover-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.cover-preview {
+  width: 60px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #333;
+  flex-shrink: 0;
 }
 </style>
