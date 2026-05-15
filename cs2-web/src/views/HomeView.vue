@@ -31,7 +31,7 @@ onMounted(async () => {
 
 const filteredTactics = computed(() => {
   return allTactics.value.filter(t => {
-    if (filterMapSlug.value && t.map_slug !== filterMapSlug.value) return false;
+    if (filterMapSlug.value && t.map.slug !== filterMapSlug.value) return false;
     if (filterSide.value && t.side !== filterSide.value) return false;
     return true;
   });
