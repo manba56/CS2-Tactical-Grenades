@@ -53,7 +53,10 @@ async function load() {
   _syncCoverUrl();
 }
 
+const _skipAutoFill = ref(false);
+
 function _syncCoverUrl() {
+  if (_skipAutoFill.value || editingId.value) return;
   const map = maps.value.find(m => m.id === form.map_id);
   if (map && !form.cover_url) {
     form.cover_url = map.cover_url;
@@ -123,7 +126,9 @@ function edit(item: AdminTactic) {
 }
 
 function resetForm() {
+  _skipAutoFill.value = true;
   editingId.value = null;
+  setTimeout(() => { _skipAutoFill.value = false; }, 100);
   Object.assign(form, {
     map_id: maps.value[0]?.id || 1,
     title: '',
