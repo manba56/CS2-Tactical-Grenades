@@ -109,12 +109,16 @@ class TestAdminLineups:
             "map_id": map_id,
             "title": f"Test Lineup {uuid.uuid4().hex[:6]}",
             "slug": "",
+            "side": "T",
             "utility_type": "smoke",
             "start_point_id": point_id,
             "aim_point_id": point_id,
             "land_point_id": point_id,
-            "throw_style": "jumpthrow",
-            "description": "Auto-test lineup",
+            "purpose": "Auto-test lineup purpose",
+            "difficulty": "medium",
+            "summary": "Auto-test lineup",
+            "steps": [],
+            "media": [],
             "status": "draft",
         }
         status, created = admin_client.admin_create_lineup(payload)
