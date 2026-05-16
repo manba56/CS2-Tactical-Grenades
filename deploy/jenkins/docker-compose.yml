@@ -5,26 +5,18 @@ services:
     build: .
     container_name: jenkins-cs2
     restart: always
-    user: root                    # root needed to run docker/pip from pipeline
-    ports:
-      - "8080:8080"               # Jenkins web UI
-      - "50000:50000"             # JNLP agent port
+    user: root
+    network_mode: host                       # 共享宿主机网络，127.0.0.1 能访问 API
     volumes:
       - jenkins_home:/var/jenkins_home
-      - ../../:/opt/cs2-tactics-suite   # mount project inside container
-      - /var/run/docker.sock:/var/run/docker.sock  # optional: docker-from-docker
+      - ../../:/opt/cs2-tactics-suite
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       JAVA_OPTS: "-Djenkins.install.runSetupWizard=false -Xmx512m"
       TEST_API_BASE: "http://127.0.0.1:8008"
       TEST_WEB_BASE: "http://127.0.0.1:5174"
       TEST_ADMIN_BASE: "http://127.0.0.1:5175"
-    networks:
-      - jenkins-net
 
 volumes:
   jenkins_home:
     driver: local
-
-networks:
-  jenkins-net:
-    driver: bridge
