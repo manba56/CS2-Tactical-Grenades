@@ -1,0 +1,18 @@
+# ── Core test framework ───────────────────
+pytest>=7.0
+pytest-timeout>=2.0
+pytest-xdist>=3.0          # parallel test execution
+
+# ── API testing ──────────────────────────
+requests>=2.31
+httpx>=0.25                # async alternative, for rate-limit tests
+
+# ── E2E / browser testing ─────────────────
+playwright>=1.45
+pytest-playwright>=0.4
+
+# ── Reporting ────────────────────────────
+allure-pytest>=2.13
+
+# ── Utilities ────────────────────────────
+python-dotenv>=1.0         # .env loading
