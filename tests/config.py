@@ -9,7 +9,7 @@ ADMIN_BASE = os.getenv("TEST_ADMIN_BASE", "http://127.0.0.1:5175")
 
 # ── Test accounts ───────────────────────────────────────
 ADMIN_USERNAME = os.getenv("TEST_ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("TEST_ADMIN_PASSWORD", "admin123")
+ADMIN_PASSWORD = os.getenv("TEST_ADMIN_PASSWORD", "Gyh159951.")
 
 PLAYER_USERNAME = os.getenv("TEST_PLAYER_USERNAME", "testrunner")
 PLAYER_EMAIL = os.getenv("TEST_PLAYER_EMAIL", "testrunner@test.com")
