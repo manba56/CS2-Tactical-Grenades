@@ -1,5 +1,7 @@
 """Admin CRUD — maps, lineups, tactics lifecycle."""
 
+import uuid
+
 import pytest
 import allure
 
@@ -40,7 +42,7 @@ class TestAdminMaps:
     @allure.severity(allure.severity_level.CRITICAL)
     def test_map_lifecycle(self, admin_client):
         payload = {
-            "name": f"Test Map {pytest.importlib.import_module('uuid').uuid4().hex[:6]}",
+            "name": f"Test Map {uuid.uuid4().hex[:6]}",
             "slug": "",
             "overview": "Auto-test created map",
             "cover_url": "",
@@ -105,7 +107,7 @@ class TestAdminLineups:
 
         payload = {
             "map_id": map_id,
-            "title": f"Test Lineup {pytest.importlib.import_module('uuid').uuid4().hex[:6]}",
+            "title": f"Test Lineup {uuid.uuid4().hex[:6]}",
             "slug": "",
             "utility_type": "smoke",
             "start_point_id": point_id,
