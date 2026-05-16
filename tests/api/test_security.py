@@ -11,7 +11,7 @@ import config
 @allure.feature("Security — Rate Limiting")
 class TestRateLimit:
 
-    @allure.title("Global rate limit triggers 429 after {n} requests", n=config.RATE_LIMIT_REQUESTS)
+    @allure.title(f"Global rate limit triggers 429 after {config.RATE_LIMIT_REQUESTS} requests")
     @allure.severity(allure.severity_level.CRITICAL)
     def test_global_rate_limit(self, anon_client):
         """Fire 130 requests in a loop; at least one must be 429."""
