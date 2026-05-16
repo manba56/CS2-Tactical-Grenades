@@ -36,23 +36,15 @@ def admin_client():
     return Client(token=token)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def player_client():
-    """Per-test player client — fresh register with rate-limit retry."""
-    import time
+    """Session-scoped player client — single registration for all tests."""
     from utils.api_client import Client
     username = _unique_username()
     email = f"{username}@test.com"
-    for attempt in range(3):
-        status, body = Client().register(username, email, config.PLAYER_PASSWORD)
-        if status == 200:
-            break
-        if status == 429:
-            time.sleep(1.5)
-            continue
+    status, body = Client().register(username, email, config.PLAYER_PASSWORD)
+    if status != 200:
         pytest.fail(f"Player register failed: {body}")
-    else:
-        pytest.fail(f"Player register failed after retries: {body}")
     token = body["token"]
     return Client(token=token)
 
