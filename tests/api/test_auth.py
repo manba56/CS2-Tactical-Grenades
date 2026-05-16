@@ -144,4 +144,5 @@ class TestFavorites:
         assert_status(status, 200)
         status, body = player_client.get_favorites()
         assert_status(status, 200)
-        assert tactic_id in body.get("recent", [])
+        recent_ids = [t["id"] for t in body.get("recent", [])]
+        assert tactic_id in recent_ids, f"Tactic {tactic_id} not in recent list: {recent_ids}"
