@@ -16,3 +16,4 @@ allure-pytest>=2.13
 
 # ── Utilities ────────────────────────────
 python-dotenv>=1.0         # .env loading
+pytest-cov>=4.0             # code coverage

@@ -7,6 +7,8 @@ pipeline {
         string(name: 'API_BASE', defaultValue: 'http://127.0.0.1:8008', description: 'API endpoint')
         string(name: 'WEB_BASE', defaultValue: 'http://127.0.0.1:5174', description: 'Frontend URL')
         booleanParam(name: 'REPORT_TO_ZENTAO', defaultValue: false, description: 'Create ZenTao bugs on failure')
+        string(name: 'COV_THRESHOLD', defaultValue: '80', description: 'Coverage percentage threshold')
+        booleanParam(name: 'PERF_TEST', defaultValue: false, description: 'Run JMeter performance tests')
     }
 
     environment {
@@ -51,7 +53,28 @@ pipeline {
             }
         }
 
-        // ──── Stage 3: API Tests ─────────────────────
+        // ──── Stage 3: Unit Tests ─────────────────────
+        stage('Unit Tests') {
+            steps {
+                sh '''
+                    cd tests
+                    echo "[Jenkins] Running unit tests (no API required)..."
+                    python3 -m pytest unit/ -v --tb=short --color=no \
+                        --alluredir=${ALLURE_RESULTS_DIR} \
+                        --cov=../cs2-api/app --cov-report=xml:coverage.xml \
+                        --junitxml=unit-report.xml \
+                        || true
+                '''
+            }
+            post {
+                always {
+                    junit 'tests/unit-report.xml'
+                    allure includeProperties: false, results: [[path: 'tests/allure-results']]
+                }
+            }
+        }
+
+        // ──── Stage 4: API Tests ─────────────────────
         stage('API Tests') {
             steps {
                 sh '''
@@ -71,7 +94,7 @@ pipeline {
             }
         }
 
-        // ──── Stage 4: E2E Tests (full only) ─────────
+        // ──── Stage 5: E2E Tests (full only) ─────────
         stage('E2E Tests') {
             when {
                 expression { params.TEST_LEVEL == 'full' }
@@ -96,7 +119,7 @@ pipeline {
             }
         }
 
-        // ──── Stage 5: Security Audit ────────────────
+        // ──── Stage 6: Security Audit ────────────────
         stage('Security Audit') {
             steps {
                 sh '''
@@ -118,7 +141,69 @@ pipeline {
             }
         }
 
-        // ──── Stage 6: Report ────────────────────────
+        // ──── Stage 7: Coverage Report ────────────────
+        stage('Coverage Report') {
+            steps {
+                sh '''
+                    cd tests
+                    echo "[Jenkins] Generating coverage report..."
+                    python3 -m coverage report --fail-under=${COV_THRESHOLD} 2>/dev/null || \
+                        echo "[Jenkins] WARNING: Coverage below ${COV_THRESHOLD}% threshold"
+                    python3 -m coverage html -d coverage-html 2>/dev/null || true
+                    python3 -m coverage xml -o coverage.xml 2>/dev/null || true
+                '''
+            }
+            post {
+                always {
+                    publishHTML(target: [
+                        allowMissing: true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'tests/coverage-html',
+                        reportFiles: 'index.html',
+                        reportName: 'Coverage Report'
+                    ])
+                }
+            }
+        }
+
+        // ──── Stage 8: Performance Test ────────────────
+        stage('Performance Test') {
+            when {
+                expression { params.PERF_TEST == true || params.TEST_LEVEL == 'full' }
+            }
+            steps {
+                sh '''
+                    if command -v jmeter 2>/dev/null; then
+                        cd tests/performance
+                        echo "[Jenkins] Running load test (50 users, 5 min)..."
+                        jmeter -n -t load_test.jmx -Japi_base=${API_BASE} \
+                            -l results/perf_load.jtl \
+                            -e -o results/load_report \
+                            2>&1 || echo "[Jenkins] Performance threshold exceeded"
+                        echo "[Jenkins] Load test completed."
+                    else
+                        echo "[Jenkins] JMeter not installed — skipping performance test"
+                        echo "[Jenkins] Install: sudo apt-get install jmeter"
+                    fi
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'tests/performance/results/*.jtl', allowEmptyArchive: true
+                    publishHTML(target: [
+                        allowMissing: true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'tests/performance/results/load_report',
+                        reportFiles: 'index.html',
+                        reportName: 'Performance Report'
+                    ])
+                }
+            }
+        }
+
+        // ──── Stage 9: Report ────────────────────────
         stage('Generate Report') {
             steps {
                 sh '''
@@ -133,6 +218,19 @@ pipeline {
                     cd tests
                     python3 -m pytest api/ --junitxml=report.xml -v --tb=line 2>/dev/null || true
                 '''
+                // Generate build report from template
+                sh '''
+                    cd tests
+                    if [ -f docs/构建报告生成脚本.sh ]; then
+                        bash docs/构建报告生成脚本.sh
+                        echo "[Jenkins] Build report generated."
+                    fi
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'tests/docs/build_reports/*.md', allowEmptyArchive: true
+                }
             }
         }
     }

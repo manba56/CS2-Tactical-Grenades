@@ -9,6 +9,8 @@
 #   ./run.sh --e2e            # Include Playwright E2E tests
 #   ./run.sh --allure         # Run + serve Allure report at :8880
 #   ./run.sh --api-only       # API tests only
+#   ./run.sh --unit           # Unit tests only (no server needed)
+#   ./run.sh --cov            # Run with coverage report
 #
 # Env vars:
 #   TEST_API_BASE   — API base URL (default http://127.0.0.1:8008)
@@ -34,25 +36,29 @@ ALLURE_DIR="./allure-results"
 PYTEST_ARGS=()
 
 # ── Parse flags ───────────────────────────────────────────
-E2E=false; SMOKE=false; SERVE_ALLURE=false; API_ONLY=false
+E2E=false; SMOKE=false; SERVE_ALLURE=false; API_ONLY=false; UNIT=false; COV=false
 for arg in "$@"; do
   case "$arg" in
     --e2e)       E2E=true ;;
     --smoke)     SMOKE=true ;;
     --allure)    SERVE_ALLURE=true ;;
     --api-only)  API_ONLY=true ;;
+    --unit)      UNIT=true ;;
+    --cov)       COV=true ;;
     *)           PYTEST_ARGS+=("$arg") ;;
   esac
 done
 
-# ── Check API alive ───────────────────────────────────────
-log "Checking API health at ${API_BASE}..."
-if ! curl -sf "${API_BASE}/api/health" > /dev/null 2>&1; then
-  err "API is not reachable at ${API_BASE}"
-  echo "   Start it first: cd cs2-api && uvicorn app.main:app --host 0.0.0.0 --port 8008"
-  exit 1
+# ── Check API alive (skip for unit tests) ───────────────────
+if ! $UNIT; then
+  log "Checking API health at ${API_BASE}..."
+  if ! curl -sf "${API_BASE}/api/health" > /dev/null 2>&1; then
+    err "API is not reachable at ${API_BASE}"
+    echo "   Start it first: cd cs2-api && uvicorn app.main:app --host 0.0.0.0 --port 8008"
+    exit 1
+  fi
+  log "API OK"
 fi
-log "API OK"
 
 # ── Install deps ──────────────────────────────────────────
 if ! python3 -c "import pytest" 2>/dev/null; then
@@ -83,7 +89,10 @@ if $SMOKE; then
   log "Mode: SMOKE only"
 fi
 
-if $API_ONLY; then
+if $UNIT; then
+  CMD+=("unit/")
+  log "Mode: Unit tests only (no server needed)"
+elif $API_ONLY; then
   CMD+=("api/")
   log "Mode: API only"
 elif ! $E2E; then
@@ -92,6 +101,16 @@ elif ! $E2E; then
 else
   CMD+=("api/" "e2e/")
   log "Mode: API + E2E"
+fi
+
+if $COV; then
+  CMD+=(
+    "--cov=../cs2-api/app"
+    "--cov-report=term"
+    "--cov-report=html:coverage-html"
+    "--cov-report=xml:coverage.xml"
+  )
+  log "Coverage: enabled"
 fi
 
 CMD+=(

@@ -24,6 +24,7 @@ const form = reactive({
   note: '',
   tagsText: '',
   cover_url: '',
+  video_url: '',
   featured: false,
   status: 'draft',
   stepsText: '1|主道具位|utility|补首颗关键烟|',
@@ -119,6 +120,7 @@ function edit(item: AdminTactic) {
   Object.assign(form, {
     ...item,
     tagsText: item.tags.join(', '),
+    video_url: (item as any).video_url || '',
     stepsText: serializeSteps(item.step_items),
     routes: item.routes ? JSON.parse(JSON.stringify(item.routes)) : [],
     screenshots: item.screenshots ? JSON.parse(JSON.stringify(item.screenshots)) : [],
@@ -142,6 +144,7 @@ function resetForm() {
     note: '',
     tagsText: '',
     cover_url: '',
+    video_url: '',
     featured: false,
     status: 'draft',
     stepsText: '1|主道具位|utility|补首颗关键烟|',
@@ -164,6 +167,7 @@ async function submit() {
     note: form.note,
     tags: form.tagsText.split(',').map((item) => item.trim()).filter(Boolean),
     cover_url: form.cover_url,
+    video_url: form.video_url,
     featured: form.featured,
     status: form.status,
     step_items: parseSteps(),
@@ -285,6 +289,10 @@ onMounted(load);
         <label class="full">
           标签（逗号分隔）
           <input v-model="form.tagsText" class="field" />
+        </label>
+        <label class="full">
+          B站视频链接（可选，如 https://www.bilibili.com/video/BVxxx）
+          <input v-model="form.video_url" class="field" placeholder="粘贴B站视频链接" />
         </label>
         <label>
           Featured

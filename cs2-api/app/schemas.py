@@ -27,6 +27,7 @@ class MapPayload(BaseModel):
     overview: str
     cover_url: str
     layout_url: str
+    video_url: str = ""
     callout_color: str = "#ff7a18"
     order: int = 0
     status: Literal["draft", "published", "archived"] = "draft"
@@ -58,6 +59,7 @@ class LineupPayload(BaseModel):
     summary: str
     steps: list[str] = Field(default_factory=list)
     media: list[str] = Field(default_factory=list)
+    video_url: str = ""
     status: Literal["draft", "published", "archived"] = "draft"
 
 
@@ -103,6 +105,7 @@ class TacticPayload(BaseModel):
     step_items: list[TacticStepPayload] = Field(default_factory=list)
     routes: list[RouteData] = Field(default_factory=list)
     screenshots: list[ScreenshotItem] = Field(default_factory=list)
+    video_url: str = ""
     status: Literal["draft", "published", "archived"] = "draft"
     featured: bool = False
 

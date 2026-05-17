@@ -25,6 +25,7 @@ const form = reactive({
   summary: '',
   stepsText: '',
   mediaText: '',
+  video_url: '',
   status: 'draft',
 });
 
@@ -50,6 +51,7 @@ function edit(item: AdminLineup) {
     ...item,
     stepsText: item.steps.join('\n'),
     mediaText: item.media.join('\n'),
+    video_url: item.video_url || '',
   });
 }
 
@@ -71,6 +73,7 @@ function resetForm() {
     summary: '',
     stepsText: '',
     mediaText: '',
+    video_url: '',
     status: 'draft',
   });
 }
@@ -90,6 +93,7 @@ async function submit() {
     summary: form.summary,
     steps: form.stepsText.split('\n').map((item) => item.trim()).filter(Boolean),
     media: form.mediaText.split('\n').map((item) => item.trim()).filter(Boolean),
+    video_url: form.video_url,
     status: form.status,
   };
   if (editingId.value) {
@@ -225,6 +229,10 @@ onMounted(load);
         <label class="full">
           媒体 URL（每行一条）
           <textarea v-model="form.mediaText" class="textarea" />
+        </label>
+        <label class="full">
+          B站视频链接（可选，如 https://www.bilibili.com/video/BVxxx）
+          <input v-model="form.video_url" class="field" placeholder="粘贴B站视频链接" />
         </label>
       </div>
       <div class="toolbar">

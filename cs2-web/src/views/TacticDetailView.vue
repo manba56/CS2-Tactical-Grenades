@@ -16,6 +16,12 @@ const error = ref('');
 const isFavorite = computed(() => tactic.value?.is_favorite ?? false);
 const lightboxUrl = ref('');
 const showRadar = ref(false);
+const bilibiliEmbedUrl = computed(() => {
+  const url = tactic.value?.video_url;
+  if (!url) return null;
+  const bvMatch = url.match(/BV[\\w]+/);
+  return bvMatch ? `//player.bilibili.com/player.html?bvid=${bvMatch[0]}&page=1` : null;
+});
 const routeShots = computed(() => tactic.value?.screenshots?.filter(s => s.type === 'route') ?? []);
 const spotShots = computed(() => tactic.value?.screenshots?.filter(s => (s.type || 'spot') !== 'route') ?? []);
 
@@ -76,6 +82,24 @@ onMounted(load);
               {{ isFavorite ? '取消收藏' : '收藏战术' }}
             </button>
             <router-link class="secondary-button" :to="`/maps/${tactic.map.slug}`">返回地图页</router-link>
+          </div>
+        </div>
+
+        <!-- B站视频演示 -->
+        <div v-if="bilibiliEmbedUrl" class="glass-panel bilibili-stage">
+          <div class="section-heading">
+            <h2>视频演示</h2>
+          </div>
+          <div class="bilibili-wrapper">
+            <iframe
+              :src="bilibiliEmbedUrl"
+              scrolling="no"
+              border="0"
+              frameborder="no"
+              framespacing="0"
+              allowfullscreen="true"
+              class="bilibili-iframe"
+            />
           </div>
         </div>
 
@@ -233,3 +257,22 @@ onMounted(load);
     </div>
   </template>
 </template>
+
+<style scoped>
+.bilibili-wrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 */
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.bilibili-iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+</style>

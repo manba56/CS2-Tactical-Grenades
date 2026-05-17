@@ -102,6 +102,18 @@ class Client:
     def admin_update_map(self, map_id: int, payload: dict) -> tuple[int, dict]:
         return self._do("PUT", f"/api/admin/maps/{map_id}", json=payload)
 
+    def admin_list_points(self, map_id: int | None = None) -> tuple[int, list]:
+        params = {}
+        if map_id is not None:
+            params["map_id"] = map_id
+        return self._do("GET", "/api/admin/points", params=params)
+
+    def admin_create_point(self, payload: dict) -> tuple[int, dict]:
+        return self._do("POST", "/api/admin/points", json=payload)
+
+    def admin_update_point(self, point_id: int, payload: dict) -> tuple[int, dict]:
+        return self._do("PUT", f"/api/admin/points/{point_id}", json=payload)
+
     def admin_list_lineups(self, map_id: int | None = None) -> tuple[int, list]:
         params = {}
         if map_id is not None:

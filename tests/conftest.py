@@ -89,3 +89,49 @@ def pytest_runtest_makereport(item, call):
             report_on_failure(test_name, detail)
         except Exception:
             pass  # never let ZenTao break the test run
+
+
+# ═══════════════════════════════════════════════════════════
+# Test data cleanup
+# ═══════════════════════════════════════════════════════════
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_test_data():
+    """Delete test-created entities in reverse dependency order.
+
+    Best-effort: silently skipped when API is not available or
+    admin credentials are wrong (unit tests, local dev without server).
+    """
+    yield  # Wait for all tests to complete
+
+    from utils.data_cleanup import get_tracker
+    tracker = get_tracker()
+    cleanup_ids = tracker.get_cleanup_ids()
+
+    if not any(cleanup_ids.values()):
+        return
+
+    # Try to get admin token for cleanup — skip if API is down
+    try:
+        from utils.api_client import Client
+        import config
+        status, body = Client().admin_login(config.ADMIN_USERNAME, config.ADMIN_PASSWORD)
+        if status != 200:
+            return  # Auth failed, skip cleanup
+        admin_client = Client(token=body["token"])
+    except Exception:
+        return  # API not reachable, skip cleanup
+
+    for entity_type in tracker.cleanup_order:
+        ids = cleanup_ids.get(entity_type, set())
+        for entity_id in sorted(ids):
+            try:
+                if entity_type == "tactic":
+                    admin_client.admin_archive_tactic(entity_id)
+                elif entity_type == "lineup":
+                    admin_client.admin_archive_lineup(entity_id)
+                    admin_client.admin_delete_lineup(entity_id)
+            except Exception:
+                pass  # Cleanup is best-effort
+
+    tracker.clear()

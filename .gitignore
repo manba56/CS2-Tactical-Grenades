@@ -12,3 +12,13 @@ cs2-api/app/static/uploads/
 .DS_Store
 .idea/
 .vscode/
+
+# Test artifacts
+tests/allure-results/
+tests/allure-report/
+tests/coverage-html/
+tests/coverage.xml
+tests/unit-report.xml
+tests/report.xml
+tests/performance/results/
+*.jtl
