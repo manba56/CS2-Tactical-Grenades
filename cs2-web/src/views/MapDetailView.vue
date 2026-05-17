@@ -186,4 +186,35 @@ onMounted(async () => {
 .map-panel {
   /* full width */
 }
+
+@media (max-width: 640px) {
+  .filter-bar {
+    gap: 10px;
+    padding: 10px 14px;
+  }
+  .filter-select {
+    min-width: 80px;
+    padding: 7px 28px 7px 10px;
+    font-size: 12px;
+  }
+  .filter-count {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .filter-bar {
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+  }
+  .filter-select {
+    min-width: 70px;
+    padding: 6px 24px 6px 8px;
+    font-size: 11px;
+  }
+  .filter-label-text {
+    font-size: 10px;
+  }
+}
 </style>

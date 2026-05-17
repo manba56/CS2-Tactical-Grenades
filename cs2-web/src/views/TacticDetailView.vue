@@ -262,7 +262,7 @@ onMounted(load);
 .bilibili-wrapper {
   position: relative;
   width: 100%;
-  padding-top: 56.25%; /* 16:9 */
+  padding-top: 56.25%;
   background: #000;
   border-radius: 8px;
   overflow: hidden;
@@ -274,5 +274,14 @@ onMounted(load);
   width: 100%;
   height: 100%;
   border: none;
+}
+
+@media (max-width: 480px) {
+  .bilibili-wrapper {
+    border-radius: 4px;
+  }
+  .section-heading h2 {
+    font-size: 1.1rem;
+  }
 }
 </style>

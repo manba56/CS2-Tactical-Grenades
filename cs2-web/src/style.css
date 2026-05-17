@@ -18,7 +18,11 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  min-height: 100dvh;
   background: transparent;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 a {
@@ -468,6 +472,7 @@ select option:checked {
   color: #ff9f96;
 }
 
+/* ── Tablet (920px) ──────────────────────── */
 @media (max-width: 920px) {
   .hero-grid,
   .two-column,
@@ -481,6 +486,180 @@ select option:checked {
 
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+
+  .map-card {
+    min-height: 220px;
+    padding: 16px;
+  }
+
+  .card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+
+  .maps-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+
+/* ── Small tablet / large phone (640px) ──── */
+@media (max-width: 640px) {
+  .page-shell {
+    width: calc(100vw - 20px);
+    padding: 16px 0 48px;
+  }
+
+  .top-nav {
+    padding: 12px 16px;
+    gap: 10px;
+  }
+
+  .tactic-card-body,
+  .glass-panel,
+  .form-card,
+  .empty-card {
+    padding: 16px;
+  }
+
+  .stat-card {
+    padding: 14px;
+  }
+
+  .stat-card strong {
+    font-size: 1.3rem;
+  }
+
+  .map-card {
+    min-height: 180px;
+    border-radius: 20px;
+  }
+
+  .screenshot-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-title {
+    font-size: 2rem;
+  }
+
+  .detail-title,
+  .map-title {
+    font-size: 1.4rem;
+  }
+
+  .filter-grid {
+    gap: 8px;
+  }
+
+  .split-actions {
+    flex-direction: column;
+  }
+}
+
+/* ── Phone (480px) ───────────────────────── */
+@media (max-width: 480px) {
+  .page-shell {
+    width: calc(100vw - 12px);
+    padding: 10px 0 36px;
+  }
+
+  .top-nav {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .brand strong {
+    font-size: 1.1rem;
+  }
+
+  .brand-kicker {
+    font-size: 0.65rem;
+  }
+
+  .tactic-card-body,
+  .glass-panel,
+  .form-card,
+  .empty-card {
+    padding: 12px;
+  }
+
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .maps-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .map-card {
+    min-height: 160px;
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .stat-card strong {
+    font-size: 1.1rem;
+  }
+
+  .hero-title {
+    font-size: 1.6rem;
+  }
+
+  .detail-title,
+  .map-title {
+    font-size: 1.2rem;
+  }
+
+  .eyebrow-row,
+  .chip-row {
+    gap: 4px;
+  }
+
+  .chip,
+  .chip strong {
+    padding: 3px 8px;
+    font-size: 0.7rem;
+  }
+
+  .section-intro,
+  .tactic-card p {
+    font-size: 0.85rem;
+  }
+
+  .filter-grid {
+    gap: 6px;
+  }
+
+  .route-legend {
+    position: static;
+    margin-top: 8px;
+    font-size: 0.7rem;
+    padding: 6px 10px;
+  }
+
+  .route-legend-item {
+    font-size: 0.7rem;
+  }
+
+  .screenshot-main-list {
+    flex-direction: column;
+  }
+
+  .shot-full-block img {
+    max-height: 50vh;
+  }
+
+  /* Make sure h-scroll still usable */
+  .map-scroll {
+    gap: 10px;
+  }
+
+  .map-scroll-card {
+    flex: 0 0 180px;
   }
 }
 

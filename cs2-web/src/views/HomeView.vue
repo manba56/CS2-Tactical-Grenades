@@ -274,4 +274,56 @@ const filteredTactics = computed(() => {
   color: #fff;
   font-weight: 700;
 }
+
+@media (max-width: 640px) {
+  .hero-panel {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 24px 0 8px;
+  }
+  .hero-stats {
+    gap: 16px;
+  }
+  .hero-stat strong {
+    font-size: 1.5rem;
+  }
+  .filter-chip {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-panel {
+    padding: 16px 0 4px;
+    gap: 12px;
+  }
+  .hero-title {
+    font-size: 1.6rem;
+  }
+  .hero-subtitle {
+    font-size: 0.9rem;
+  }
+  .hero-stats {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .hero-stat strong {
+    font-size: 1.3rem;
+  }
+  .hero-stat span {
+    font-size: 0.72rem;
+  }
+  .filter-chip {
+    padding: 9px 18px;
+    font-size: 14px;
+  }
+  .filter-row {
+    gap: 4px;
+  }
+  .home-root {
+    gap: 20px;
+  }
+}
 </style>
