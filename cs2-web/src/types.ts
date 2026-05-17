@@ -103,6 +103,7 @@ export interface ScreenshotItem {
 }
 
 export interface TacticDetail extends TacticCard {
+  video_url?: string;
   note: string;
   map_layout_url: string;
   map_radar_url: string;

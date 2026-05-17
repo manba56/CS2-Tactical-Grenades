@@ -17,9 +17,9 @@ const isFavorite = computed(() => tactic.value?.is_favorite ?? false);
 const lightboxUrl = ref('');
 const showRadar = ref(false);
 const bilibiliEmbedUrl = computed(() => {
-  const url = tactic.value?.video_url;
+  const url = (tactic.value as any)?.video_url as string | undefined;
   if (!url) return null;
-  const bvMatch = url.match(/BV[\\w]+/);
+  const bvMatch = url.match(/BV\w+/);
   return bvMatch ? `//player.bilibili.com/player.html?bvid=${bvMatch[0]}&page=1` : null;
 });
 const routeShots = computed(() => tactic.value?.screenshots?.filter(s => s.type === 'route') ?? []);
