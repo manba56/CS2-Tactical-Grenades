@@ -196,6 +196,11 @@ onMounted(async () => {
     min-width: 80px;
     padding: 7px 28px 7px 10px;
     font-size: 12px;
+    /* Restore native appearance for mobile touch targets */
+    appearance: auto;
+    -webkit-appearance: auto;
+    background-image: none;
+    padding: 7px 10px;
   }
   .filter-count {
     margin-left: 0;
@@ -210,8 +215,11 @@ onMounted(async () => {
   }
   .filter-select {
     min-width: 70px;
-    padding: 6px 24px 6px 8px;
     font-size: 11px;
+    appearance: auto;
+    -webkit-appearance: auto;
+    background-image: none;
+    padding: 6px 6px;
   }
   .filter-label-text {
     font-size: 10px;
