@@ -21,6 +21,7 @@ export interface AdminMap {
   overview: string;
   cover_url: string;
   layout_url: string;
+  video_url: string;
   callout_color: string;
   order: number;
   status: string;
@@ -55,6 +56,7 @@ export interface AdminLineup {
   summary: string;
   steps: string[];
   media: string[];
+  video_url: string;
   status: string;
 }
 
@@ -98,6 +100,7 @@ export interface AdminTactic {
   note: string;
   tags: string[];
   cover_url: string;
+  video_url: string;
   featured: boolean;
   status: string;
   created_at: string;

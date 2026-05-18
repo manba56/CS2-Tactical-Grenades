@@ -204,6 +204,7 @@ def build_tactic_detail(state: dict[str, Any], tactic: dict[str, Any], user: dic
         "lineups": lineups,
         "routes": tactic.get("routes", []),
         "screenshots": tactic.get("screenshots", []),
+        "video_url": tactic.get("video_url", ""),
         "related": related,
         "is_favorite": tactic["id"] in favorite_ids,
     }

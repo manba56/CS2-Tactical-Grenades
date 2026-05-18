@@ -120,7 +120,7 @@ function edit(item: AdminTactic) {
   Object.assign(form, {
     ...item,
     tagsText: item.tags.join(', '),
-    video_url: (item as any).video_url || '',
+    video_url: item.video_url || '',
     stepsText: serializeSteps(item.step_items),
     routes: item.routes ? JSON.parse(JSON.stringify(item.routes)) : [],
     screenshots: item.screenshots ? JSON.parse(JSON.stringify(item.screenshots)) : [],
