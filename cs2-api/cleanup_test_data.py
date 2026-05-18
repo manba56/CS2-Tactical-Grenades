@@ -19,26 +19,34 @@ def cleanup():
 
     stats: dict[str, int] = {}
 
-    # Build pattern WHERE clause
-    patterns = " OR ".join(
-        f"title LIKE '%{p}%' OR name LIKE '%{p}%' OR slug LIKE '%{p}%'"
+    # Build per-table WHERE clauses (tactics/lineups have 'title', maps/points have 'name')
+    title_or_slug = " OR ".join(
+        f"title LIKE '%{p}%' OR slug LIKE '%{p}%'"
+        for p in TEST_PATTERNS
+    )
+    name_or_key = " OR ".join(
+        f"name LIKE '%{p}%' OR key LIKE '%{p}%'"
+        for p in TEST_PATTERNS
+    )
+    map_where = " OR ".join(
+        f"name LIKE '%{p}%' OR slug LIKE '%{p}%'"
         for p in TEST_PATTERNS
     )
 
-    # 1. Delete test tactics
-    cur.execute(f"DELETE FROM tactics WHERE {patterns} OR status = 'draft'")
+    # 1. Delete test tactics (title/slug + draft)
+    cur.execute(f"DELETE FROM tactics WHERE {title_or_slug} OR status = 'draft'")
     stats["tactics"] = cur.rowcount
 
-    # 2. Delete test lineups
-    cur.execute(f"DELETE FROM lineups WHERE {patterns} OR status = 'draft'")
+    # 2. Delete test lineups (title/slug + draft)
+    cur.execute(f"DELETE FROM lineups WHERE {title_or_slug} OR status = 'draft'")
     stats["lineups"] = cur.rowcount
 
-    # 3. Delete test points
-    cur.execute(f"DELETE FROM points WHERE {patterns}")
+    # 3. Delete test points (name/key)
+    cur.execute(f"DELETE FROM points WHERE {name_or_key}")
     stats["points"] = cur.rowcount
 
-    # 4. Delete test maps
-    cur.execute(f"DELETE FROM maps WHERE {patterns} OR status = 'draft'")
+    # 4. Delete test maps (name/slug + draft)
+    cur.execute(f"DELETE FROM maps WHERE {map_where} OR status = 'draft'")
     stats["maps"] = cur.rowcount
 
     # 5. Delete test users (keep admin, demo, man)
