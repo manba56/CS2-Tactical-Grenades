@@ -17,7 +17,7 @@ SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS maps (
     id INTEGER PRIMARY KEY,
     name TEXT, slug TEXT, overview TEXT,
-    cover_url TEXT, layout_url TEXT,
+    cover_url TEXT, layout_url TEXT, video_url TEXT,
     callout_color TEXT, "order" INTEGER,
     status TEXT, active_pool INTEGER
 );
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS lineups (
     side TEXT, utility_type TEXT,
     start_point_id INTEGER, aim_point_id INTEGER, land_point_id INTEGER,
     purpose TEXT, difficulty TEXT, summary TEXT,
-    steps TEXT, media TEXT, status TEXT
+    steps TEXT, media TEXT, video_url TEXT, status TEXT
 );
 
 CREATE TABLE IF NOT EXISTS tactics (
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS tactics (
     map_id INTEGER, title TEXT, slug TEXT,
     side TEXT, goal TEXT, phase TEXT, difficulty TEXT,
     players INTEGER, summary TEXT, note TEXT,
-    tags TEXT, cover_url TEXT, featured INTEGER, status TEXT,
+    tags TEXT, cover_url TEXT, video_url TEXT, featured INTEGER, status TEXT,
     created_at TEXT,
     step_items TEXT, routes TEXT, screenshots TEXT
 );
@@ -87,13 +87,13 @@ CREATE TABLE IF NOT EXISTS counters (
 # JSON columns are stored as TEXT and serialized/deserialized automatically.
 TABLE_COLUMNS: dict[str, list[str]] = {
     "maps":      ["name", "slug", "overview", "cover_url", "layout_url",
-                  "callout_color", "order", "status", "active_pool"],
+                  "video_url", "callout_color", "order", "status", "active_pool"],
     "points":    ["map_id", "name", "key", "x", "y", "side", "point_type", "tags"],
     "lineups":   ["map_id", "title", "slug", "side", "utility_type",
                   "start_point_id", "aim_point_id", "land_point_id",
-                  "purpose", "difficulty", "summary", "steps", "media", "status"],
+                  "purpose", "difficulty", "summary", "steps", "media", "video_url", "status"],
     "tactics":   ["map_id", "title", "slug", "side", "goal", "phase", "difficulty",
-                  "players", "summary", "note", "tags", "cover_url", "featured",
+                  "players", "summary", "note", "tags", "cover_url", "video_url", "featured",
                   "status", "created_at", "step_items", "routes", "screenshots"],
     "users":     ["username", "email", "password_hash", "role",
                   "favorite_ids", "recent_tactic_ids"],
@@ -166,6 +166,16 @@ class Database:
         conn = self._connect()
         try:
             conn.executescript(SCHEMA_SQL)
+            # Add columns that may be missing from older databases
+            for sql in [
+                "ALTER TABLE maps ADD COLUMN video_url TEXT DEFAULT ''",
+                "ALTER TABLE lineups ADD COLUMN video_url TEXT DEFAULT ''",
+                "ALTER TABLE tactics ADD COLUMN video_url TEXT DEFAULT ''",
+            ]:
+                try:
+                    conn.execute(sql)
+                except sqlite3.OperationalError:
+                    pass  # column already exists
             conn.commit()
             # Check if we need to seed (empty database)
             cur = conn.execute("SELECT COUNT(*) FROM counters")
