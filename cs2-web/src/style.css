@@ -500,6 +500,14 @@ select option:checked {
   .maps-grid {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   }
+
+  /* TacticDetail: sidebar above main on mobile */
+  .detail-grid > aside {
+    order: -1;
+  }
+  .detail-grid > aside .section-heading h2 {
+    font-size: 1.1rem;
+  }
 }
 
 /* ── Small tablet / large phone (640px) ──── */
