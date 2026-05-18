@@ -38,7 +38,7 @@ async function load() {
 
 async function toggleFavorite() {
   if (!session.token || !tactic.value) {
-    router.push(`/login?redirect=${encodeURIComponent(route.fullPath)}`);
+    router.push(`/login?redirect=${encodeURIComponent(route.fullPath)}&action=favorite`);
     return;
   }
   if (tactic.value.is_favorite) {
@@ -50,12 +50,23 @@ async function toggleFavorite() {
   }
 }
 
+// Auto-favorite after login redirect
+onMounted(async () => {
+  await load();
+  if (route.query.action === 'favorite' && session.token && tactic.value && !tactic.value.is_favorite) {
+    try {
+      await api.addFavorite(tactic.value.id, session.token);
+      tactic.value.is_favorite = true;
+    } catch (_) { /* ignore */ }
+    router.replace({ query: {} });
+  }
+});
+
 function routePath(r: { points: { x: number; y: number }[] }): string {
   if (!r.points || r.points.length < 2) return '';
   return r.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x}% ${p.y}%`).join(' ');
 }
 
-onMounted(load);
 </script>
 
 <template>
