@@ -182,9 +182,12 @@ def build_tactic_detail(state: dict[str, Any], tactic: dict[str, Any], user: dic
     for step in sorted(tactic["step_items"], key=lambda item: item["order"]):
         lineup_detail = None
         if step.get("lineup_id"):
-            lineup = find_by_id(state["lineups"], step["lineup_id"])
-            lineup_detail = build_lineup_detail(state, lineup)
-            lineups.append(lineup_detail)
+            try:
+                lineup = find_by_id(state["lineups"], step["lineup_id"])
+                lineup_detail = build_lineup_detail(state, lineup)
+                lineups.append(lineup_detail)
+            except HTTPException:
+                pass  # lineup was deleted, skip gracefully
         steps.append({**step, "lineup": lineup_detail})
 
     related = [

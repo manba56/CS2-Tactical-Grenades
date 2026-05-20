@@ -1,0 +1,670 @@
+{
+  "nodes": [
+    {
+      "id": "grppubapi000001",
+      "type": "group",
+      "x": -30,
+      "y": -30,
+      "width": 470,
+      "height": 620,
+      "label": "Public API (玩家端)",
+      "color": "6"
+    },
+    {
+      "id": "grpadmapi000001",
+      "type": "group",
+      "x": -30,
+      "y": 620,
+      "width": 470,
+      "height": 880,
+      "label": "Admin API (管理后台)",
+      "color": "2"
+    },
+    {
+      "id": "grpdb0000000001",
+      "type": "group",
+      "x": 480,
+      "y": -30,
+      "width": 410,
+      "height": 1350,
+      "label": "SQLite 数据库",
+      "color": "4"
+    },
+    {
+      "id": "grpweb000000001",
+      "type": "group",
+      "x": 930,
+      "y": -30,
+      "width": 400,
+      "height": 530,
+      "label": "cs2-web (玩家端页面)",
+      "color": "5"
+    },
+    {
+      "id": "grpadmpage00001",
+      "type": "group",
+      "x": 930,
+      "y": 530,
+      "width": 400,
+      "height": 620,
+      "label": "cs2-admin (管理后台页面)",
+      "color": "2"
+    },
+    {
+      "id": "ap000000000001",
+      "type": "text",
+      "x": 20,
+      "y": 20,
+      "width": 390,
+      "height": 65,
+      "text": "**GET /api/public/home**\n首页数据 → 返回 maps + tactics + lineups 汇总",
+      "color": "#4a9eff"
+    },
+    {
+      "id": "ap000000000002",
+      "type": "text",
+      "x": 20,
+      "y": 100,
+      "width": 390,
+      "height": 65,
+      "text": "**GET /api/public/maps**, **/maps/{slug}**\n地图列表 + 地图详情(含 points, lineups, tactics)",
+      "color": "#4a9eff"
+    },
+    {
+      "id": "ap000000000003",
+      "type": "text",
+      "x": 20,
+      "y": 180,
+      "width": 390,
+      "height": 65,
+      "text": "**GET /api/public/tactics**, **/tactics/{slug}**\n战术列表(筛选/分页) + 战术详情(含 lineups, steps, routes)",
+      "color": "#4a9eff"
+    },
+    {
+      "id": "ap000000000004",
+      "type": "text",
+      "x": 20,
+      "y": 260,
+      "width": 390,
+      "height": 65,
+      "text": "**POST auth/register**, **auth/login**\n玩家注册 + 登录 → 签发 token",
+      "color": "#4a9eff"
+    },
+    {
+      "id": "ap000000000005",
+      "type": "text",
+      "x": 20,
+      "y": 350,
+      "width": 390,
+      "height": 65,
+      "text": "**GET /api/public/me/favorites**\n我的收藏 + 最近浏览记录",
+      "color": "#4a9eff"
+    },
+    {
+      "id": "ap000000000006",
+      "type": "text",
+      "x": 20,
+      "y": 425,
+      "width": 390,
+      "height": 65,
+      "text": "**POST/DELETE /api/public/me/favorites/{id}**\n添加/取消收藏",
+      "color": "#4a9eff"
+    },
+    {
+      "id": "ap000000000007",
+      "type": "text",
+      "x": 20,
+      "y": 500,
+      "width": 390,
+      "height": 65,
+      "text": "**POST /api/public/me/recent/{id}**\n记录最近浏览战术",
+      "color": "#4a9eff"
+    },
+    {
+      "id": "aa000000000001",
+      "type": "text",
+      "x": 20,
+      "y": 670,
+      "width": 390,
+      "height": 65,
+      "text": "**POST /api/admin/auth/login**\n管理员登录 → 签发 admin token",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "aa000000000002",
+      "type": "text",
+      "x": 20,
+      "y": 750,
+      "width": 390,
+      "height": 65,
+      "text": "**GET /api/admin/dashboard**\n统计面板: maps/points/lineups/tactics/users 数量",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "aa000000000003",
+      "type": "text",
+      "x": 20,
+      "y": 830,
+      "width": 390,
+      "height": 65,
+      "text": "**GET/POST/PUT /api/admin/maps**\n地图 CRUD: 列表/创建/更新",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "aa000000000004",
+      "type": "text",
+      "x": 20,
+      "y": 910,
+      "width": 390,
+      "height": 65,
+      "text": "**GET/POST/PUT /api/admin/points**\n点位 CRUD: 列表/创建/更新(按 map_id 筛选)",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "aa000000000005",
+      "type": "text",
+      "x": 20,
+      "y": 990,
+      "width": 390,
+      "height": 65,
+      "text": "**GET/POST/PUT /api/admin/lineups**\n投掷线路 CRUD: 列表/创建/更新",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "aa000000000006",
+      "type": "text",
+      "x": 20,
+      "y": 1070,
+      "width": 390,
+      "height": 65,
+      "text": "**POST archive / DELETE /api/admin/lineups/{id}**\n归档线路 | 删除线路(检查战术引用)",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "aa000000000007",
+      "type": "text",
+      "x": 20,
+      "y": 1150,
+      "width": 390,
+      "height": 65,
+      "text": "**GET/POST/PUT /api/admin/tactics**\n战术 CRUD: 列表/创建/更新(含 step_items, routes)",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "aa000000000008",
+      "type": "text",
+      "x": 20,
+      "y": 1230,
+      "width": 390,
+      "height": 65,
+      "text": "**POST publish/archive /api/admin/tactics/{id}**\n发布战术 | 归档战术",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "aa000000000009",
+      "type": "text",
+      "x": 20,
+      "y": 1310,
+      "width": 390,
+      "height": 65,
+      "text": "**GET /api/admin/users**\n玩家用户列表(含收藏数/浏览数统计)",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "aa000000000010",
+      "type": "text",
+      "x": 20,
+      "y": 1390,
+      "width": 390,
+      "height": 65,
+      "text": "**POST /api/admin/assets**\n上传图片资源(≤20MB, 白名单校验)",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "db000000000001",
+      "type": "text",
+      "x": 510,
+      "y": 20,
+      "width": 360,
+      "height": 130,
+      "text": "## maps (地图)\nname, slug, overview, cover_url, layout_url\nvideo_url, callout_color, order\nstatus [draft|published|archived]\nactive_pool [bool]",
+      "color": "#4caf50"
+    },
+    {
+      "id": "db000000000002",
+      "type": "text",
+      "x": 510,
+      "y": 170,
+      "width": 360,
+      "height": 130,
+      "text": "## points (点位)\nmap_id → **maps.id**\nname, key, x, y, side [T|CT|BOTH]\npoint_type [site|staging|aim|utility|anchor]\ntags [JSON]",
+      "color": "#4caf50"
+    },
+    {
+      "id": "db000000000003",
+      "type": "text",
+      "x": 510,
+      "y": 320,
+      "width": 360,
+      "height": 150,
+      "text": "## lineups (投掷线路)\nmap_id → **maps.id**\ntitle, slug, side, utility_type\nstart_point_id → **points.id**\naim_point_id → **points.id**\nland_point_id → **points.id**\npurpose, difficulty, summary\nsteps [JSON], media [JSON], video_url\nstatus [draft|published|archived]",
+      "color": "#4caf50"
+    },
+    {
+      "id": "db000000000004",
+      "type": "text",
+      "x": 510,
+      "y": 490,
+      "width": 360,
+      "height": 150,
+      "text": "## tactics (战术)\nmap_id → **maps.id**\ntitle, slug, side, goal, phase, difficulty\nplayers, summary, note, tags [JSON]\ncover_url, video_url, featured, status\ncreated_at\nstep_items [JSON: {order, role, type, lineup_id→**lineups.id**}]\nroutes [JSON], screenshots [JSON]",
+      "color": "#4caf50"
+    },
+    {
+      "id": "db000000000005",
+      "type": "text",
+      "x": 510,
+      "y": 660,
+      "width": 360,
+      "height": 130,
+      "text": "## users (用户)\nusername, email, password_hash, role [admin|player]\nfavorite_ids [JSON: 收藏的 tactic IDs]\nrecent_tactic_ids [JSON: 最近浏览的 tactic IDs]",
+      "color": "#4caf50"
+    },
+    {
+      "id": "db000000000006",
+      "type": "text",
+      "x": 510,
+      "y": 810,
+      "width": 360,
+      "height": 100,
+      "text": "## assets (资源文件)\nfilename, original_name, url\nwidth, height, type",
+      "color": "#4caf50"
+    },
+    {
+      "id": "db000000000007",
+      "type": "text",
+      "x": 510,
+      "y": 930,
+      "width": 360,
+      "height": 85,
+      "text": "## tokens (登录令牌)\nuser_id → **users.id**\ntoken_hash, created_at, expires_at",
+      "color": "#4caf50"
+    },
+    {
+      "id": "db000000000008",
+      "type": "text",
+      "x": 510,
+      "y": 1035,
+      "width": 360,
+      "height": 85,
+      "text": "## login_log (登录日志)\nuser_id → **users.id** (nullable)\nusername, ip, success, created_at",
+      "color": "#4caf50"
+    },
+    {
+      "id": "db000000000009",
+      "type": "text",
+      "x": 510,
+      "y": 1140,
+      "width": 360,
+      "height": 65,
+      "text": "## counters (ID计数器)\ntable_name, next_id",
+      "color": "#4caf50"
+    },
+    {
+      "id": "pw000000000001",
+      "type": "text",
+      "x": 960,
+      "y": 20,
+      "width": 340,
+      "height": 55,
+      "text": "**HomeView** /\n首页: 精选地图+战术+快捷入口",
+      "color": "#4a9eff"
+    },
+    {
+      "id": "pw000000000002",
+      "type": "text",
+      "x": 960,
+      "y": 100,
+      "width": 340,
+      "height": 55,
+      "text": "**MapsView** /maps\n地图列表页",
+      "color": "#4a9eff"
+    },
+    {
+      "id": "pw000000000003",
+      "type": "text",
+      "x": 960,
+      "y": 180,
+      "width": 340,
+      "height": 55,
+      "text": "**MapDetailView** /maps/:slug\n地图详情: 点位+线路+战术筛选",
+      "color": "#4a9eff"
+    },
+    {
+      "id": "pw000000000004",
+      "type": "text",
+      "x": 960,
+      "y": 260,
+      "width": 340,
+      "height": 55,
+      "text": "**TacticDetailView** /tactics/:slug\n战术详情: 步骤+线路+路线图+收藏",
+      "color": "#4a9eff"
+    },
+    {
+      "id": "pw000000000005",
+      "type": "text",
+      "x": 960,
+      "y": 340,
+      "width": 340,
+      "height": 55,
+      "text": "**FavoritesView** /favorites\n我的收藏+最近浏览 (需登录)",
+      "color": "#4a9eff"
+    },
+    {
+      "id": "pw000000000006",
+      "type": "text",
+      "x": 960,
+      "y": 420,
+      "width": 340,
+      "height": 55,
+      "text": "**LoginView** /login\n玩家登录/注册",
+      "color": "#4a9eff"
+    },
+    {
+      "id": "pa000000000001",
+      "type": "text",
+      "x": 960,
+      "y": 580,
+      "width": 340,
+      "height": 55,
+      "text": "**LoginView** /admin/login\n管理员登录",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "pa000000000002",
+      "type": "text",
+      "x": 960,
+      "y": 660,
+      "width": 340,
+      "height": 55,
+      "text": "**MapsAdminView** /admin/maps\n地图管理: 创建/编辑地图",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "pa000000000003",
+      "type": "text",
+      "x": 960,
+      "y": 740,
+      "width": 340,
+      "height": 55,
+      "text": "**PointsAdminView** /admin/points\n点位管理: 在地图上标注点位",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "pa000000000004",
+      "type": "text",
+      "x": 960,
+      "y": 820,
+      "width": 340,
+      "height": 55,
+      "text": "**LineupsAdminView** /admin/lineups\n线路管理: 创建/编辑投掷线路",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "pa000000000005",
+      "type": "text",
+      "x": 960,
+      "y": 900,
+      "width": 340,
+      "height": 55,
+      "text": "**TacticsAdminView** /admin/tactics\n战术管理: 编排步骤+路线+截图",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "pa000000000006",
+      "type": "text",
+      "x": 960,
+      "y": 980,
+      "width": 340,
+      "height": 55,
+      "text": "**AssetsAdminView** /admin/assets\n资源管理: 上传图片素材",
+      "color": "#ff7a18"
+    },
+    {
+      "id": "pa000000000007",
+      "type": "text",
+      "x": 960,
+      "y": 1060,
+      "width": 340,
+      "height": 55,
+      "text": "**UsersAdminView** /admin/users\n用户管理: 查看玩家列表",
+      "color": "#ff7a18"
+    }
+  ],
+  "edges": [
+    {
+      "id": "edgepwtap000001",
+      "fromNode": "pw000000000001",
+      "fromSide": "left",
+      "toNode": "ap000000000001",
+      "toSide": "right",
+      "label": "GET home"
+    },
+    {
+      "id": "edgepwtap000002",
+      "fromNode": "pw000000000002",
+      "fromSide": "left",
+      "toNode": "ap000000000002",
+      "toSide": "right",
+      "label": "GET maps"
+    },
+    {
+      "id": "edgepwtap000003",
+      "fromNode": "pw000000000003",
+      "fromSide": "left",
+      "toNode": "ap000000000002",
+      "toSide": "right",
+      "label": "GET map detail"
+    },
+    {
+      "id": "edgepwtap000004",
+      "fromNode": "pw000000000003",
+      "fromSide": "left",
+      "toNode": "ap000000000003",
+      "toSide": "right",
+      "label": "GET tactics"
+    },
+    {
+      "id": "edgepwtap000005",
+      "fromNode": "pw000000000004",
+      "fromSide": "left",
+      "toNode": "ap000000000003",
+      "toSide": "right",
+      "label": "GET tactic"
+    },
+    {
+      "id": "edgepwtap000006",
+      "fromNode": "pw000000000004",
+      "fromSide": "left",
+      "toNode": "ap000000000006",
+      "toSide": "right",
+      "label": "fav"
+    },
+    {
+      "id": "edgepwtap000007",
+      "fromNode": "pw000000000004",
+      "fromSide": "left",
+      "toNode": "ap000000000007",
+      "toSide": "right",
+      "label": "recent"
+    },
+    {
+      "id": "edgepwtap000008",
+      "fromNode": "pw000000000005",
+      "fromSide": "left",
+      "toNode": "ap000000000005",
+      "toSide": "right",
+      "label": "GET favs"
+    },
+    {
+      "id": "edgepwtap000009",
+      "fromNode": "pw000000000005",
+      "fromSide": "left",
+      "toNode": "ap000000000006",
+      "toSide": "right",
+      "label": "DELETE"
+    },
+    {
+      "id": "edgepwtap000010",
+      "fromNode": "pw000000000006",
+      "fromSide": "left",
+      "toNode": "ap000000000004",
+      "toSide": "right",
+      "label": "auth"
+    },
+    {
+      "id": "edgepatwaa00001",
+      "fromNode": "pa000000000001",
+      "fromSide": "left",
+      "toNode": "aa000000000001",
+      "toSide": "right",
+      "label": "login"
+    },
+    {
+      "id": "edgepatwaa00002",
+      "fromNode": "pa000000000002",
+      "fromSide": "left",
+      "toNode": "aa000000000003",
+      "toSide": "right",
+      "label": "CRUD"
+    },
+    {
+      "id": "edgepatwaa00003",
+      "fromNode": "pa000000000003",
+      "fromSide": "left",
+      "toNode": "aa000000000004",
+      "toSide": "right",
+      "label": "CRUD"
+    },
+    {
+      "id": "edgepatwaa00004",
+      "fromNode": "pa000000000004",
+      "fromSide": "left",
+      "toNode": "aa000000000005",
+      "toSide": "right",
+      "label": "CRUD"
+    },
+    {
+      "id": "edgepatwaa00005",
+      "fromNode": "pa000000000004",
+      "fromSide": "left",
+      "toNode": "aa000000000006",
+      "toSide": "right",
+      "label": "archive/delete"
+    },
+    {
+      "id": "edgepatwaa00006",
+      "fromNode": "pa000000000005",
+      "fromSide": "left",
+      "toNode": "aa000000000007",
+      "toSide": "right",
+      "label": "CRUD"
+    },
+    {
+      "id": "edgepatwaa00007",
+      "fromNode": "pa000000000005",
+      "fromSide": "left",
+      "toNode": "aa000000000008",
+      "toSide": "right",
+      "label": "publish/archive"
+    },
+    {
+      "id": "edgepatwaa00008",
+      "fromNode": "pa000000000006",
+      "fromSide": "left",
+      "toNode": "aa000000000010",
+      "toSide": "right",
+      "label": "upload"
+    },
+    {
+      "id": "edgepatwaa00009",
+      "fromNode": "pa000000000007",
+      "fromSide": "left",
+      "toNode": "aa000000000009",
+      "toSide": "right",
+      "label": "list"
+    },
+    {
+      "id": "edgedb0fk00001",
+      "fromNode": "db000000000002",
+      "fromSide": "top",
+      "toNode": "db000000000001",
+      "toSide": "bottom",
+      "label": "map_id → maps.id",
+      "color": "#888888"
+    },
+    {
+      "id": "edgedb0fk00002",
+      "fromNode": "db000000000003",
+      "fromSide": "top",
+      "toNode": "db000000000001",
+      "toSide": "bottom",
+      "label": "map_id → maps.id",
+      "color": "#888888"
+    },
+    {
+      "id": "edgedb0fk00003",
+      "fromNode": "db000000000003",
+      "fromSide": "left",
+      "toNode": "db000000000002",
+      "toSide": "right",
+      "label": "start/aim/land_point_id → points.id",
+      "color": "#888888"
+    },
+    {
+      "id": "edgedb0fk00004",
+      "fromNode": "db000000000004",
+      "fromSide": "top",
+      "toNode": "db000000000001",
+      "toSide": "bottom",
+      "label": "map_id → maps.id",
+      "color": "#888888"
+    },
+    {
+      "id": "edgedb0fk00005",
+      "fromNode": "db000000000004",
+      "fromSide": "left",
+      "toNode": "db000000000003",
+      "toSide": "right",
+      "label": "step_items[].lineup_id → lineups.id",
+      "color": "#888888"
+    },
+    {
+      "id": "edgedb0fk00006",
+      "fromNode": "db000000000005",
+      "fromSide": "left",
+      "toNode": "db000000000004",
+      "toSide": "right",
+      "label": "favorite_ids[] .recent_ids[] → tactics.id",
+      "color": "#888888"
+    },
+    {
+      "id": "edgedb0fk00007",
+      "fromNode": "db000000000007",
+      "fromSide": "left",
+      "toNode": "db000000000005",
+      "toSide": "right",
+      "label": "user_id → users.id",
+      "color": "#888888"
+    },
+    {
+      "id": "edgedb0fk00008",
+      "fromNode": "db000000000008",
+      "fromSide": "left",
+      "toNode": "db000000000005",
+      "toSide": "right",
+      "label": "user_id → users.id",
+      "color": "#888888"
+    }
+  ]
+}
