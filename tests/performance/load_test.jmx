@@ -223,8 +223,8 @@
             <stringProp name="Assertion.custom_message"></stringProp>
           </ResponseAssertion>
           <hashTree/>
-          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="响应时间 &lt; 500ms" enabled="true">
-              <stringProp name="DurationAssertion.duration">500</stringProp>
+          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="响应时间 &lt; 2000ms (远程)" enabled="true">
+              <stringProp name="DurationAssertion.duration">2000</stringProp>
             </DurationAssertion>
             <hashTree/>        </hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="02-地图列表 GET /api/public/maps" enabled="true">
@@ -247,8 +247,8 @@
           </ResponseAssertion>
           <hashTree/>
 
-          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="响应时间 &lt; 500ms" enabled="true">
-            <stringProp name="DurationAssertion.duration">500</stringProp>
+          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="响应时间 &lt; 2000ms (远程)" enabled="true">
+            <stringProp name="DurationAssertion.duration">2000</stringProp>
           </DurationAssertion>
           <hashTree/>
           <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取第一个地图slug" enabled="true">
@@ -286,8 +286,8 @@
           </ResponseAssertion>
           <hashTree/>
 
-          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="响应时间 &lt; 1000ms" enabled="true">
-            <stringProp name="DurationAssertion.duration">1000</stringProp>
+          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="响应时间 &lt; 3000ms (远程)" enabled="true">
+            <stringProp name="DurationAssertion.duration">3000</stringProp>
           </DurationAssertion>
           <hashTree/>
         </hashTree>
@@ -312,8 +312,8 @@
           </ResponseAssertion>
           <hashTree/>
 
-          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="响应时间 &lt; 500ms" enabled="true">
-            <stringProp name="DurationAssertion.duration">500</stringProp>
+          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="响应时间 &lt; 2000ms (远程)" enabled="true">
+            <stringProp name="DurationAssertion.duration">2000</stringProp>
           </DurationAssertion>
           <hashTree/>
           <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取第一个战术slug" enabled="true">
@@ -351,8 +351,8 @@
           </ResponseAssertion>
           <hashTree/>
 
-          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="响应时间 &lt; 1000ms" enabled="true">
-            <stringProp name="DurationAssertion.duration">1000</stringProp>
+          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="响应时间 &lt; 3000ms (远程)" enabled="true">
+            <stringProp name="DurationAssertion.duration">3000</stringProp>
           </DurationAssertion>
           <hashTree/>
         </hashTree>
@@ -377,8 +377,8 @@
           </ResponseAssertion>
           <hashTree/>
 
-          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="响应时间 &lt; 1000ms" enabled="true">
-            <stringProp name="DurationAssertion.duration">1000</stringProp>
+          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="响应时间 &lt; 3000ms (远程)" enabled="true">
+            <stringProp name="DurationAssertion.duration">3000</stringProp>
           </DurationAssertion>
           <hashTree/>
         </hashTree>
