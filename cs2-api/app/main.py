@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .auth import (
@@ -53,6 +54,15 @@ async def rate_limit_middleware(request: Request, call_next):
             media_type="application/json",
         )
     return await call_next(request)
+
+@app.get("/api/admin/db/export")
+def export_database(_: dict[str, Any] = Depends(get_admin_user)):
+    """Download the SQLite database (admin only)."""
+    db_path = BASE_DIR / "data" / "db.sqlite"
+    if not db_path.exists():
+        raise HTTPException(status_code=404, detail="数据库文件不存在")
+    return FileResponse(str(db_path), media_type="application/octet-stream", filename="db.sqlite")
+
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "app" / "static"), name="static")
 app.add_middleware(
