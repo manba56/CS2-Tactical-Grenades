@@ -48,7 +48,11 @@ _auth_limiter = RateLimiter(max_requests=10, window_seconds=60)
 
 
 def check_rate_limit(ip: str, strict: bool = False) -> bool:
-    """Return True if the request is allowed. strict=True uses 10/min limit."""
+    """Return True if the request is allowed. strict=True uses 10/min limit.
+    Set DISABLE_RATE_LIMIT=true to bypass all limits (for load testing)."""
+    import os
+    if os.getenv("DISABLE_RATE_LIMIT", "").lower() in ("true", "1", "yes"):
+        return True
     if strict:
         return _auth_limiter.is_allowed(ip)
     return _limiter.is_allowed(ip)

@@ -14,7 +14,17 @@
         <collectionProp name="Arguments.arguments">
           <elementProp name="api_base" elementType="Argument">
             <stringProp name="Argument.name">api_base</stringProp>
-            <stringProp name="Argument.value">${__P(api_base, 127.0.0.1:8008)}</stringProp>
+            <stringProp name="Argument.value">${__P(api_base, 127.0.0.1)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="api_port" elementType="Argument">
+            <stringProp name="Argument.name">api_port</stringProp>
+            <stringProp name="Argument.value">${__P(api_port, 8008)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="api_port" elementType="Argument">
+            <stringProp name="Argument.name">api_port</stringProp>
+            <stringProp name="Argument.value">${__P(api_port, 8008)}</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="test_user" elementType="Argument">
@@ -30,6 +40,11 @@
           <elementProp name="admin_user" elementType="Argument">
             <stringProp name="Argument.name">admin_user</stringProp>
             <stringProp name="Argument.value">${__P(admin_user, admin)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="admin_password" elementType="Argument">
+            <stringProp name="Argument.name">admin_password</stringProp>
+            <stringProp name="Argument.value">${__P(admin_password, Gyh159951.)}</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
         </collectionProp>
@@ -56,6 +71,8 @@
         <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults">
           <stringProp name="HTTPSampler.domain">${api_base}</stringProp>
           <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.port">${api_port}</stringProp>
+          <stringProp name="HTTPSampler.port">${api_port}</stringProp>
           <stringProp name="HTTPSampler.implementation">HttpClient4</stringProp>
           <stringProp name="HTTPSampler.connect_timeout">5000</stringProp>
           <stringProp name="HTTPSampler.response_timeout">10000</stringProp>
@@ -83,9 +100,10 @@
         </HTTPSamplerProxy>
         <hashTree>
           <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200">
-            <collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp></collectionProp>
+            <collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp></collectionProp>
             <stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp>
           </ResponseAssertion><hashTree/>
+            <hashTree/>
         </hashTree>
         <!-- 02 地图列表+提取slug -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="02-地图列表 GET /api/public/maps">
@@ -94,15 +112,17 @@
         </HTTPSamplerProxy>
         <hashTree>
           <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200">
-            <collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp></collectionProp>
+            <collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp></collectionProp>
             <stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp>
           </ResponseAssertion><hashTree/>
+            <hashTree/>
           <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取 map_slug">
             <stringProp name="JSONPostProcessor.referenceNames">map_slug</stringProp>
             <stringProp name="JSONPostProcessor.jsonPathExprs">$[0].slug</stringProp>
             <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
             <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
           </JSONPostProcessor><hashTree/>
+            <hashTree/>
         </hashTree>
         <!-- 03 地图详情 -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="03-地图详情 GET /api/public/maps/${map_slug}">
@@ -111,9 +131,10 @@
         </HTTPSamplerProxy>
         <hashTree>
           <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200/404">
-            <collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp><stringProp name="-1">404</stringProp></collectionProp>
+            <collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp><stringProp name="-1">404</stringProp></collectionProp>
             <stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp>
           </ResponseAssertion><hashTree/>
+            <hashTree/>
         </hashTree>
         <!-- 04 战术列表+提取slug -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="04-战术列表 GET /api/public/tactics?page_size=6">
@@ -122,15 +143,17 @@
         </HTTPSamplerProxy>
         <hashTree>
           <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200">
-            <collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp></collectionProp>
+            <collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp></collectionProp>
             <stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp>
           </ResponseAssertion><hashTree/>
+            <hashTree/>
           <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取 tactic_slug">
             <stringProp name="JSONPostProcessor.referenceNames">tactic_slug</stringProp>
             <stringProp name="JSONPostProcessor.jsonPathExprs">$.items[0].slug</stringProp>
             <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
             <stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
           </JSONPostProcessor><hashTree/>
+            <hashTree/>
         </hashTree>
         <!-- 05 战术详情 -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="05-战术详情 GET /api/public/tactics/${tactic_slug}">
@@ -139,9 +162,10 @@
         </HTTPSamplerProxy>
         <hashTree>
           <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200/404">
-            <collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp><stringProp name="-1">404</stringProp></collectionProp>
+            <collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp><stringProp name="-1">404</stringProp></collectionProp>
             <stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp>
           </ResponseAssertion><hashTree/>
+            <hashTree/>
         </hashTree>
         <!-- 06 搜索 -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="06-搜索 GET /api/public/tactics?difficulty=medium&amp;search=smoke">
@@ -150,9 +174,10 @@
         </HTTPSamplerProxy>
         <hashTree>
           <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200">
-            <collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp></collectionProp>
+            <collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp></collectionProp>
             <stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp>
           </ResponseAssertion><hashTree/>
+            <hashTree/>
         </hashTree>
         <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="游客-聚合报告"><boolProp name="ResultCollector.error_logging">false</boolProp></ResultCollector><hashTree/>
       </hashTree>
@@ -172,19 +197,25 @@
       <hashTree>
         <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults">
           <stringProp name="HTTPSampler.domain">${api_base}</stringProp><stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.port">${api_port}</stringProp>
+          <stringProp name="HTTPSampler.port">${api_port}</stringProp>
           <stringProp name="HTTPSampler.implementation">HttpClient4</stringProp>
           <stringProp name="HTTPSampler.connect_timeout">5000</stringProp><stringProp name="HTTPSampler.response_timeout">10000</stringProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments"><collectionProp name="Arguments.arguments"/></elementProp>
         </ConfigTestElement><hashTree/>
+          <hashTree/>
         <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Headers (Auth动态)">
           <collectionProp name="HeaderManager.headers">
             <elementProp name="" elementType="Header"><stringProp name="Header.name">Accept</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
             <elementProp name="" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
+            <elementProp name="" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${token}</stringProp></elementProp>
           </collectionProp>
         </HeaderManager><hashTree/>
+          <hashTree/>
         <UniformRandomTimer guiclass="UniformRandomTimerGui" testclass="UniformRandomTimer" testname="操作间隔 0.5-2秒（压力模式）">
           <stringProp name="RandomTimer.range">1500</stringProp><stringProp name="ConstantTimer.delay">500</stringProp>
         </UniformRandomTimer><hashTree/>
+          <hashTree/>
         <!-- P1 登录+提取token -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="P1-登录 POST /api/public/auth/login">
           <stringProp name="HTTPSampler.path">/api/public/auth/login</stringProp>
@@ -201,58 +232,58 @@
         </HTTPSamplerProxy>
         <hashTree>
           <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200">
-            <collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp></collectionProp>
+            <collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp></collectionProp>
             <stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp>
           </ResponseAssertion><hashTree/>
+            <hashTree/>
           <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取 token">
             <stringProp name="JSONPostProcessor.referenceNames">token</stringProp><stringProp name="JSONPostProcessor.jsonPathExprs">$.token</stringProp>
             <stringProp name="JSONPostProcessor.match_numbers">1</stringProp><stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp>
           </JSONPostProcessor><hashTree/>
+            <hashTree/>
         </hashTree>
-        <!-- BeanShell auth -->
-        <BeanShellPreProcessor guiclass="TestBeanGUI" testclass="BeanShellPreProcessor" testname="设置 Bearer Token">
-          <stringProp name="BeanShellPreProcessor.query">import org.apache.jmeter.protocol.http.control.Header;
-sampler.getHeaderManager().removeHeaderNamed("Authorization");
-sampler.getHeaderManager().add(new Header("Authorization", "Bearer " + vars.get("token")));</stringProp>
-        </BeanShellPreProcessor>
-        <!-- P2 战术列表+提取id -->
+        <!-- Auth via dynamic HeaderManager -->        <!-- P2 战术列表+提取id -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="P2-战术列表 GET /api/public/tactics">
           <stringProp name="HTTPSampler.path">/api/public/tactics?page_size=4</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp><boolProp name="HTTPSampler.follow_redirects">true</boolProp>
         </HTTPSamplerProxy>
         <hashTree>
           <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200">
-            <collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp></collectionProp>
+            <collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp></collectionProp>
             <stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp>
           </ResponseAssertion><hashTree/>
+            <hashTree/>
           <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取 tactic_id">
             <stringProp name="JSONPostProcessor.referenceNames">fav_tactic_id</stringProp><stringProp name="JSONPostProcessor.jsonPathExprs">$.items[0].id</stringProp>
             <stringProp name="JSONPostProcessor.match_numbers">1</stringProp><stringProp name="JSONPostProcessor.defaultValues">0</stringProp>
           </JSONPostProcessor><hashTree/>
+            <hashTree/>
         </hashTree>
         <!-- P3 查收藏 -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="P3-查收藏 GET /api/public/me/favorites">
           <stringProp name="HTTPSampler.path">/api/public/me/favorites</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp><boolProp name="HTTPSampler.follow_redirects">true</boolProp>
         </HTTPSamplerProxy>
-        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200"><collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/></hashTree>
+        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200"><collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/></hashTree>
+          <hashTree/>
         <!-- P4 加收藏 -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="P4-加收藏 POST /api/public/me/favorites/${fav_tactic_id}">
           <stringProp name="HTTPSampler.path">/api/public/me/favorites/${fav_tactic_id}</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp><boolProp name="HTTPSampler.follow_redirects">true</boolProp>
         </HTTPSamplerProxy>
-        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200/400"><collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp><stringProp name="-1">400</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/></hashTree>
+        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200/400"><collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp><stringProp name="-1">400</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/></hashTree>
+          <hashTree/>
         <!-- P5 记录浏览 -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="P5-浏览记录 POST /api/public/me/recent/${fav_tactic_id}">
           <stringProp name="HTTPSampler.path">/api/public/me/recent/${fav_tactic_id}</stringProp>
           <stringProp name="HTTPSampler.method">POST</stringProp><boolProp name="HTTPSampler.follow_redirects">true</boolProp>
         </HTTPSamplerProxy>
-        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200"><collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/></hashTree>
+        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200"><collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/></hashTree>
+          <hashTree/>
         <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="玩家-聚合报告"><boolProp name="ResultCollector.error_logging">false</boolProp></ResultCollector><hashTree/>
       </hashTree>
 
-      <!-- ═══════════ TG-03 管理员 20 threads (10%) — 阶梯加压 ═══════════ -->
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="TG-03 管理员操作 (ramp to 20)">
+      <!-- ═══════════ TG-03 管理员操作 (ramp to 20)">
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController">
           <stringProp name="LoopController.loops">-1</stringProp><boolProp name="LoopController.continue_forever">false</boolProp>
@@ -266,19 +297,25 @@ sampler.getHeaderManager().add(new Header("Authorization", "Bearer " + vars.get(
       <hashTree>
         <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults">
           <stringProp name="HTTPSampler.domain">${api_base}</stringProp><stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.port">${api_port}</stringProp>
+          <stringProp name="HTTPSampler.port">${api_port}</stringProp>
           <stringProp name="HTTPSampler.implementation">HttpClient4</stringProp>
           <stringProp name="HTTPSampler.connect_timeout">5000</stringProp><stringProp name="HTTPSampler.response_timeout">10000</stringProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments"><collectionProp name="Arguments.arguments"/></elementProp>
         </ConfigTestElement><hashTree/>
+          <hashTree/>
         <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Headers (Auth动态)">
           <collectionProp name="HeaderManager.headers">
             <elementProp name="" elementType="Header"><stringProp name="Header.name">Accept</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
             <elementProp name="" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
+            <elementProp name="" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${admin_token}</stringProp></elementProp>
           </collectionProp>
         </HeaderManager><hashTree/>
+          <hashTree/>
         <UniformRandomTimer guiclass="UniformRandomTimerGui" testclass="UniformRandomTimer" testname="操作间隔 1-3秒（压力模式）">
           <stringProp name="RandomTimer.range">2000</stringProp><stringProp name="ConstantTimer.delay">1000</stringProp>
         </UniformRandomTimer><hashTree/>
+          <hashTree/>
         <!-- A1 登录+提取token -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="A1-管理员登录 POST /api/admin/auth/login">
           <stringProp name="HTTPSampler.path">/api/admin/auth/login</stringProp>
@@ -288,28 +325,29 @@ sampler.getHeaderManager().add(new Header("Authorization", "Bearer " + vars.get(
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{"username":"${admin_user}","password":"${__P(admin_password, )}"}</stringProp>
+                <stringProp name="Argument.value">{"username":"${admin_user}","password":"${admin_password}"}</stringProp>
               </elementProp>
             </collectionProp>
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree>
-          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200/429"><collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp><stringProp name="-1">429</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200"><collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp><stringProp name="-1">429</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/>
+            <hashTree/>
           <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取 admin_token"><stringProp name="JSONPostProcessor.referenceNames">admin_token</stringProp><stringProp name="JSONPostProcessor.jsonPathExprs">$.token</stringProp><stringProp name="JSONPostProcessor.match_numbers">1</stringProp><stringProp name="JSONPostProcessor.defaultValues">NOT_FOUND</stringProp></JSONPostProcessor><hashTree/>
+            <hashTree/>
         </hashTree>
-        <BeanShellPreProcessor guiclass="TestBeanGUI" testclass="BeanShellPreProcessor" testname="设置 Admin Bearer Token">
-          <stringProp name="BeanShellPreProcessor.query">import org.apache.jmeter.protocol.http.control.Header;
-sampler.getHeaderManager().removeHeaderNamed("Authorization");
-sampler.getHeaderManager().add(new Header("Authorization", "Bearer " + vars.get("admin_token")));</stringProp>
-        </BeanShellPreProcessor>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="A2-仪表盘 GET /api/admin/dashboard"><stringProp name="HTTPSampler.path">/api/admin/dashboard</stringProp><stringProp name="HTTPSampler.method">GET</stringProp><boolProp name="HTTPSampler.follow_redirects">true</boolProp></HTTPSamplerProxy>
-        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200"><collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/></hashTree>
+        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200"><collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/></hashTree>
+          <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="A3-战术管理 GET /api/admin/tactics"><stringProp name="HTTPSampler.path">/api/admin/tactics</stringProp><stringProp name="HTTPSampler.method">GET</stringProp><boolProp name="HTTPSampler.follow_redirects">true</boolProp></HTTPSamplerProxy>
-        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200"><collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/></hashTree>
+        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200"><collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/></hashTree>
+          <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="A4-地图管理 GET /api/admin/maps"><stringProp name="HTTPSampler.path">/api/admin/maps</stringProp><stringProp name="HTTPSampler.method">GET</stringProp><boolProp name="HTTPSampler.follow_redirects">true</boolProp></HTTPSamplerProxy>
-        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200"><collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/></hashTree>
+        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200"><collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/></hashTree>
+          <hashTree/>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="A5-用户列表 GET /api/admin/users"><stringProp name="HTTPSampler.path">/api/admin/users</stringProp><stringProp name="HTTPSampler.method">GET</stringProp><boolProp name="HTTPSampler.follow_redirects">true</boolProp></HTTPSamplerProxy>
-        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200"><collectionProp name="Asserion.test_strings"><stringProp name="-1">200</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/></hashTree>
+        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="HTTP 200"><collectionProp name="Assertion.test_strings"><stringProp name="-1">200</stringProp></collectionProp><stringProp name="Assertion.test_field">Assertion.response_code</stringProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/></hashTree>
+          <hashTree/>
         <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="管理员-聚合报告"><boolProp name="ResultCollector.error_logging">false</boolProp></ResultCollector><hashTree/>
       </hashTree>
 
