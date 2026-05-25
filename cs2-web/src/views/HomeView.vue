@@ -3,12 +3,13 @@ import { computed, onMounted, ref } from 'vue';
 
 import { api, resolveAssetUrl } from '../api';
 import TacticCard from '../components/TacticCard.vue';
-import type { MapSummary, TacticCard as TacticCardType } from '../types';
+import type { CollectionSummary, MapSummary, TacticCard as TacticCardType } from '../types';
 
 const loading = ref(true);
 const loadError = ref('');
 const maps = ref<MapSummary[]>([]);
 const allTactics = ref<TacticCardType[]>([]);
+const collections = ref<CollectionSummary[]>([]);
 
 // Filters for the tactic grid
 const filterMapSlug = ref('');
@@ -21,6 +22,7 @@ onMounted(async () => {
       api.getTactics({}),
     ]);
     maps.value = homeData.featured_maps;
+    collections.value = (homeData as any).collections || [];
     allTactics.value = tacticsData.items;
   } catch {
     loadError.value = '加载失败，请刷新重试';
@@ -81,6 +83,27 @@ const filteredTactics = computed(() => {
           <div class="map-entry-body">
             <strong>{{ map.name }}</strong>
             <span class="chip">{{ map.tactic_count }} 条战术</span>
+          </div>
+        </router-link>
+      </div>
+    </section>
+
+    <!-- ── Collections ─────────────────────────────────────── -->
+    <section v-if="!loading && collections.length" class="section-block">
+      <div class="section-heading">
+        <h2>战术合集</h2>
+        <router-link to="/collections" class="chip">全部</router-link>
+      </div>
+      <div class="collection-scroll">
+        <router-link
+          v-for="col in collections" :key="col.id"
+          :to="`/collections/${col.slug}`"
+          class="collection-card"
+        >
+          <img v-if="col.cover_url" :src="resolveAssetUrl(col.cover_url)" alt="" />
+          <div class="collection-info">
+            <strong>{{ col.title }}</strong>
+            <span class="muted">{{ col.tactic_count }} 条战术</span>
           </div>
         </router-link>
       </div>
@@ -324,6 +347,54 @@ const filteredTactics = computed(() => {
   }
   .home-root {
     gap: 20px;
+  }
+}
+
+/* ── Collections ─────────────────────────── */
+.collection-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+.collection-card {
+  flex: 0 0 260px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s;
+}
+.collection-card:hover {
+  border-color: #ff7a18;
+}
+.collection-card img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  display: block;
+}
+.collection-info {
+  padding: 12px 14px;
+}
+.collection-info strong {
+  display: block;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+.collection-info .muted {
+  font-size: 0.75rem;
+}
+
+@media (max-width: 480px) {
+  .collection-card {
+    flex: 0 0 200px;
+  }
+  .collection-card img {
+    height: 100px;
   }
 }
 </style>

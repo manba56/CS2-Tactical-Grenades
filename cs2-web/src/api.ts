@@ -1,4 +1,6 @@
 import type {
+  CollectionDetail,
+  CollectionSummary,
   FavoriteBundle,
   MapDetail,
   MapSummary,
@@ -98,5 +100,11 @@ export const api = {
   },
   trackRecent(tacticId: number, token: string) {
     return request('/api/public/me/recent/' + tacticId, { method: 'POST' }, token);
+  },
+  getCollections() {
+    return request<CollectionSummary[]>('/api/public/collections');
+  },
+  getCollection(slug: string) {
+    return request<CollectionDetail>(`/api/public/collections/${slug}`);
   },
 };

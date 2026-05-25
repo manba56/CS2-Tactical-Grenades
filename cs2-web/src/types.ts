@@ -133,4 +133,23 @@ export interface MapDetail extends MapSummary {
 export interface FavoriteBundle {
   favorites: TacticDetail[];
   recent: TacticDetail[];
+  collections: CollectionSummary[];
+}
+
+export interface CollectionSummary {
+  id: number;
+  title: string;
+  slug: string;
+  description: string;
+  cover_url: string;
+  tactic_count: number;
+}
+
+export interface CollectionDetail {
+  id: number;
+  title: string;
+  slug: string;
+  description: string;
+  cover_url: string;
+  tactics: TacticCard[];
 }

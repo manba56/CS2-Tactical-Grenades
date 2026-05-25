@@ -1,4 +1,5 @@
 import type {
+  AdminCollection,
   AdminLineup,
   AdminMap,
   AdminPoint,
@@ -113,5 +114,17 @@ export const api = {
       method: 'POST',
       body: formData,
     }, token);
+  },
+  collections(token: string) {
+    return request<AdminCollection[]>('/api/admin/collections', {}, token);
+  },
+  createCollection(payload: Omit<AdminCollection, 'id' | 'created_at'>, token: string) {
+    return request<AdminCollection>('/api/admin/collections', { method: 'POST', body: JSON.stringify(payload) }, token);
+  },
+  updateCollection(id: number, payload: Omit<AdminCollection, 'id' | 'created_at'>, token: string) {
+    return request<AdminCollection>(`/api/admin/collections/${id}`, { method: 'PUT', body: JSON.stringify(payload) }, token);
+  },
+  deleteCollection(id: number, token: string) {
+    return request<{ status: string }>(`/api/admin/collections/${id}`, { method: 'DELETE' }, token);
   },
 };

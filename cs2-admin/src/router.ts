@@ -18,6 +18,7 @@ const router = createRouter({
         { path: '/tactics', component: () => import('./views/TacticsAdminView.vue') },
         { path: '/assets', component: () => import('./views/AssetsAdminView.vue') },
         { path: '/users', component: () => import('./views/UsersAdminView.vue') },
+        { path: '/collections', component: () => import('./views/CollectionsAdminView.vue') },
       ],
     },
   ],

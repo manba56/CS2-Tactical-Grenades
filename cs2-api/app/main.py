@@ -254,11 +254,21 @@ def public_home() -> dict[str, Any]:
             continue
         utility_counts[lineup["utility_type"]] = utility_counts.get(lineup["utility_type"], 0) + 1
     utility_quick_links = [{"type": key, "count": value} for key, value in sorted(utility_counts.items())]
+    collections = []
+    for col in state.get("collections", []):
+        if col["status"] != "published":
+            continue
+        tactic_ids = col.get("tactic_ids", [])
+        col_tactics = [summarize_tactic(state, t) for t in published_tactics if t["id"] in tactic_ids]
+        if col_tactics:
+            collections.append({**col, "tactic_count": len(col_tactics)})
+    collections = sorted(collections, key=lambda c: c.get("created_at", ""), reverse=True)[:4]
     return {
         "featured_maps": maps,
         "featured_tactics": featured,
         "latest_tactics": latest,
         "utility_quick_links": utility_quick_links,
+        "collections": collections,
     }
 
 
@@ -322,13 +332,26 @@ def list_tactics(
         tactics = [item for item in tactics if tag in item["tags"]]
     if search:
         normalized = search.strip().lower()
-        tactics = [
-            item
-            for item in tactics
-            if normalized in item["title"].lower()
-            or normalized in item["summary"].lower()
-            or normalized in " ".join(item["tags"]).lower()
-        ]
+        filtered = []
+        for item in tactics:
+            if (
+                normalized in item["title"].lower()
+                or normalized in item["summary"].lower()
+                or normalized in " ".join(item["tags"]).lower()
+                or normalized in item["goal"].lower()
+            ):
+                filtered.append(item)
+                continue
+            # Also search lineup utility type names
+            lineup_ids = [step["lineup_id"] for step in item["step_items"] if step.get("lineup_id")]
+            util_names = [
+                lineup["utility_type"]
+                for lineup in state["lineups"]
+                if lineup["id"] in lineup_ids
+            ]
+            if any(normalized in name for name in util_names):
+                filtered.append(item)
+        tactics = filtered
     if utility_type:
         filtered = []
         for tactic in tactics:
@@ -539,6 +562,75 @@ def track_recent(tactic_id: int, user: dict[str, Any] = Depends(get_current_user
         find_by_id(state["tactics"], tactic_id)
         existing = [item for item in db_user["recent_tactic_ids"] if item != tactic_id]
         db_user["recent_tactic_ids"] = [tactic_id, *existing][:8]
+        return {"status": "ok"}
+
+    return STORE.mutate(mutate)
+
+
+# ═══════════════════════════════════════════════════════════
+# Collections
+# ═══════════════════════════════════════════════════════════
+
+@app.get("/api/public/collections")
+def list_collections() -> list[dict[str, Any]]:
+    state = STORE.snapshot()
+    result = []
+    for col in state.get("collections", []):
+        if col["status"] != "published":
+            continue
+        tactic_ids = col.get("tactic_ids", [])
+        tactics = [summarize_tactic(state, t) for t in state["tactics"] if t["id"] in tactic_ids]
+        result.append({**col, "tactics": tactics})
+    return sorted(result, key=lambda c: c.get("created_at", ""), reverse=True)
+
+
+@app.get("/api/public/collections/{slug}")
+def get_collection(slug: str) -> dict[str, Any]:
+    state = STORE.snapshot()
+    col = find_by_slug(state.get("collections", []), slug)
+    tactic_ids = col.get("tactic_ids", [])
+    tactics = [build_tactic_detail(state, t) for t in state["tactics"] if t["id"] in tactic_ids]
+    return {**col, "tactics": tactics}
+
+
+# ═══════════════════════════════════════════════════════════
+# Admin Collections
+# ═══════════════════════════════════════════════════════════
+
+@app.get("/api/admin/collections")
+def admin_collections(_: dict[str, Any] = Depends(get_admin_user)) -> list[dict[str, Any]]:
+    state = STORE.snapshot()
+    return state.get("collections", [])
+
+
+@app.post("/api/admin/collections")
+def create_collection(payload: dict[str, Any], _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, Any]:
+    def mutate(state: dict[str, Any]) -> dict[str, Any]:
+        item = dict(payload)
+        item["id"] = next_id(state, "collections")
+        item["created_at"] = item.get("created_at", datetime.now(timezone.utc).isoformat())
+        item["slug"] = _auto_slug(payload.get("slug", ""), payload.get("title", ""), item["id"])
+        state.setdefault("collections", []).append(item)
+        return item
+
+    return STORE.mutate(mutate)
+
+
+@app.put("/api/admin/collections/{col_id}")
+def update_collection(col_id: int, payload: dict[str, Any], _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, Any]:
+    def mutate(state: dict[str, Any]) -> dict[str, Any]:
+        item = find_by_id(state["collections"], col_id)
+        item.update(payload)
+        item["slug"] = _auto_slug(payload.get("slug", ""), payload.get("title", ""), item["id"])
+        return item
+
+    return STORE.mutate(mutate)
+
+
+@app.delete("/api/admin/collections/{col_id}")
+def delete_collection(col_id: int, _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, str]:
+    def mutate(state: dict[str, Any]) -> dict[str, str]:
+        state["collections"] = [c for c in state["collections"] if c["id"] != col_id]
         return {"status": "ok"}
 
     return STORE.mutate(mutate)

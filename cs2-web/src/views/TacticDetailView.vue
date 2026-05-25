@@ -50,6 +50,13 @@ async function toggleFavorite() {
   }
 }
 
+function copyShareLink() {
+  const text = tactic.value
+    ? `${tactic.value.title} — CS2 Tactics Lab\n${window.location.href}`
+    : window.location.href;
+  navigator.clipboard.writeText(text);
+}
+
 // Auto-favorite after login redirect
 onMounted(async () => {
   await load();
@@ -92,6 +99,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
             <button class="primary-button" @click="toggleFavorite">
               {{ isFavorite ? '取消收藏' : '收藏战术' }}
             </button>
+            <button class="secondary-button" @click="copyShareLink">复制链接</button>
             <router-link class="secondary-button" :to="`/maps/${tactic.map.slug}`">返回地图页</router-link>
           </div>
         </div>

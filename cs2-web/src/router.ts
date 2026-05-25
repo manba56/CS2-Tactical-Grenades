@@ -10,6 +10,7 @@ const router = createRouter({
     { path: '/maps/:mapSlug', component: () => import('./views/MapDetailView.vue') },
     { path: '/tactics/:tacticSlug', component: () => import('./views/TacticDetailView.vue') },
     { path: '/favorites', component: () => import('./views/FavoritesView.vue'), meta: { requiresAuth: true } },
+    { path: '/collections/:slug', component: () => import('./views/CollectionDetailView.vue') },
     { path: '/login', component: () => import('./views/LoginView.vue') },
   ],
   scrollBehavior() {

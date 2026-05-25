@@ -77,6 +77,13 @@ CREATE TABLE IF NOT EXISTS login_log (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS collections (
+    id INTEGER PRIMARY KEY,
+    title TEXT, slug TEXT, description TEXT,
+    cover_url TEXT, tactic_ids TEXT, status TEXT,
+    created_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS counters (
     table_name TEXT PRIMARY KEY,
     next_id INTEGER
@@ -97,6 +104,7 @@ TABLE_COLUMNS: dict[str, list[str]] = {
                   "status", "created_at", "step_items", "routes", "screenshots"],
     "users":     ["username", "email", "password_hash", "role",
                   "favorite_ids", "recent_tactic_ids"],
+    "collections": ["title", "slug", "description", "cover_url", "tactic_ids", "status", "created_at"],
     "assets":    ["filename", "original_name", "url", "width", "height", "type"],
     "tokens":    ["user_id", "token_hash", "created_at", "expires_at"],
     "login_log": ["user_id", "username", "ip", "success", "created_at"],
@@ -108,6 +116,7 @@ JSON_COLUMNS: dict[str, set[str]] = {
     "lineups":   {"steps", "media"},
     "tactics":   {"tags", "step_items", "routes", "screenshots"},
     "users":     {"favorite_ids", "recent_tactic_ids"},
+    "collections": {"tactic_ids"},
 }
 
 

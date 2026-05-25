@@ -38,6 +38,7 @@ onMounted(loadSummary);
         <router-link to="/tactics">战术管理</router-link>
         <router-link to="/assets">媒体资源</router-link>
         <router-link to="/users">前台用户</router-link>
+        <router-link to="/collections">战术合集</router-link>
       </nav>
 
       <div v-if="summary" class="stat-grid">

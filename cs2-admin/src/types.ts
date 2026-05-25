@@ -108,3 +108,14 @@ export interface AdminTactic {
   routes: RouteData[];
   screenshots: ScreenshotItem[];
 }
+
+export interface AdminCollection {
+  id: number;
+  title: string;
+  slug: string;
+  description: string;
+  cover_url: string;
+  tactic_ids: number[];
+  status: string;
+  created_at: string;
+}
