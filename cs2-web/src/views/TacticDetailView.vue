@@ -104,8 +104,18 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
           </div>
         </div>
 
-        <!-- B站视频演示 -->
-        <div v-if="bilibiliEmbedUrl" class="glass-panel bilibili-stage">
+        <!-- Anchor nav -->
+        <nav class="anchor-nav">
+          <a v-if="bilibiliEmbedUrl" href="#video">视频</a>
+          <a v-if="routeShots.length" href="#routes">路线截图</a>
+          <a href="#note">注意事项</a>
+          <a v-if="tactic.routes?.length" href="#path">进攻路线</a>
+          <a v-if="tactic.steps?.length" href="#steps">执行顺序</a>
+          <a v-if="tactic.related?.length" href="#related">相关战术</a>
+        </nav>
+
+      <!-- B站视频演示 -->
+      <div v-if="bilibiliEmbedUrl" id="video" class="glass-panel bilibili-stage">
           <div class="section-heading">
             <h2>视频演示</h2>
           </div>
@@ -123,7 +133,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
         </div>
 
         <!-- Route screenshots as primary map view -->
-        <div v-if="routeShots.length" class="glass-panel map-stage">
+        <div v-if="routeShots.length" id="routes" class="glass-panel map-stage">
           <div class="section-heading">
             <h2>路线截图</h2>
             <button class="secondary-button" @click="showRadar = !showRadar">
@@ -162,7 +172,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
         </div>
       </div>
 
-      <aside class="glass-panel">
+      <aside id="note" class="glass-panel">
         <div class="section-heading">
           <h2>执行注意事项</h2>
         </div>
@@ -187,7 +197,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
       </aside>
     </section>
 
-    <section v-if="tactic.routes && tactic.routes.length" class="glass-panel section-block">
+    <section v-if="tactic.routes && tactic.routes.length" id="path" class="glass-panel section-block">
       <div class="section-heading">
         <h2>进攻路线</h2>
       </div>
@@ -224,7 +234,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
       </div>
     </section>
 
-    <section class="section-block glass-panel">
+    <section id="steps" class="section-block glass-panel">
       <div class="section-heading">
         <h2>执行顺序</h2>
       </div>
@@ -262,7 +272,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
       </div>
     </section>
 
-    <section class="section-block" v-if="tactic.related.length">
+    <section id="related" v-if="tactic.related?.length" class="section-block">
       <div class="section-heading">
         <h2>相关战术</h2>
       </div>
@@ -301,6 +311,46 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
   }
   .section-heading h2 {
     font-size: 1.1rem;
+  }
+}
+
+/* ── Anchor nav ───────────────────────────── */
+.anchor-nav {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 12px 0 4px;
+  margin-top: 8px;
+}
+.anchor-nav a {
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  color: #aaa;
+  font-size: 0.78rem;
+  text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: all 0.15s;
+  scroll-behavior: smooth;
+}
+.anchor-nav a:hover {
+  background: rgba(255,122,24,0.15);
+  border-color: #ff7a18;
+  color: #ff7a18;
+}
+html {
+  scroll-behavior: smooth;
+}
+
+@media (max-width: 480px) {
+  .anchor-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+  }
+  .anchor-nav a {
+    flex-shrink: 0;
   }
 }
 </style>

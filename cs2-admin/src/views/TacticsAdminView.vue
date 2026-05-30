@@ -59,8 +59,12 @@ const _skipAutoFill = ref(false);
 function _syncCoverUrl() {
   if (_skipAutoFill.value || editingId.value) return;
   const map = maps.value.find(m => m.id === form.map_id);
-  if (map && !form.cover_url) {
-    form.cover_url = map.cover_url;
+  if (!map) return;
+  // Auto-fill: map cover > map radar > map layout
+  if (!form.cover_url) {
+    form.cover_url = map.cover_url
+      || `/static/assets/maps/radars/${map.slug}-radar.png`
+      || map.layout_url;
   }
 }
 
