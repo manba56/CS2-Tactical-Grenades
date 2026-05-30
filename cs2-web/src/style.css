@@ -1,10 +1,7 @@
 :root {
-  font-family: "Bahnschrift", "Trebuchet MS", sans-serif;
+  font-family: "Bahnschrift", "Segoe UI", "Trebuchet MS", sans-serif;
   color: #f3f6fb;
-  background:
-    radial-gradient(circle at top left, rgba(255, 122, 24, 0.18), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(101, 214, 206, 0.12), transparent 32%),
-    #091019;
+  background: #080d17;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: dark;
@@ -19,10 +16,116 @@ body {
   min-width: 320px;
   min-height: 100vh;
   min-height: 100dvh;
-  background: transparent;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255, 122, 24, 0.1), transparent 50%),
+    radial-gradient(ellipse 60% 50% at 80% 30%, rgba(101, 214, 206, 0.06), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 20% 70%, rgba(255, 122, 24, 0.05), transparent 50%),
+    #080d17;
+  background-attachment: fixed;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  overflow-x: hidden;
+}
+
+/* ── Subtle animated bg particles ──── */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.2), transparent),
+    radial-gradient(1.5px 1.5px at 50% 10%, rgba(255,255,255,0.25), transparent),
+    radial-gradient(1px 1px at 70% 80%, rgba(255,255,255,0.2), transparent),
+    radial-gradient(1.5px 1.5px at 90% 40%, rgba(255,255,255,0.25), transparent),
+    radial-gradient(1px 1px at 15% 85%, rgba(255,122,24,0.3), transparent),
+    radial-gradient(1px 1px at 65% 35%, rgba(101,214,206,0.3), transparent),
+    radial-gradient(1px 1px at 40% 95%, rgba(255,255,255,0.2), transparent);
+}
+
+/* ── Fade-in-up animation ────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-shell > * {
+  animation: fadeInUp 0.5s ease-out both;
+}
+.page-shell > *:nth-child(1) { animation-delay: 0.05s; }
+.page-shell > *:nth-child(2) { animation-delay: 0.1s; }
+.page-shell > *:nth-child(3) { animation-delay: 0.15s; }
+.page-shell > *:nth-child(4) { animation-delay: 0.2s; }
+
+/* ── Glass panel upgrade ─────────────── */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.025) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(16px);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 0 40px rgba(255, 122, 24, 0.04);
+}
+
+/* ── Card hover lift ─────────────────── */
+.card-grid .tactic-card,
+.maps-grid .map-card {
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              box-shadow 0.3s;
+}
+.card-grid .tactic-card:hover,
+.maps-grid .map-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 122, 24, 0.15);
+}
+
+/* ── Button glow ─────────────────────── */
+.primary-button {
+  position: relative;
+  overflow: hidden;
+}
+.primary-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent 60%);
+  pointer-events: none;
+}
+.primary-button:hover {
+  box-shadow: 0 0 24px rgba(255, 122, 24, 0.35);
+}
+
+/* ── Scrollbar ───────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 122, 24, 0.4);
+}
+
+/* ── Chip upgrade ────────────────────── */
+.chip.strong {
+  background: rgba(255, 122, 24, 0.15);
+  color: #ff9a3d;
+  border: 1px solid rgba(255, 122, 24, 0.2);
+}
+.chip {
+  transition: all 0.2s;
+}
+.chip:hover {
+  border-color: rgba(255, 122, 24, 0.3);
 }
 
 a {
@@ -60,20 +163,27 @@ button {
   justify-content: space-between;
   gap: 16px;
   padding: 18px min(40px, 4vw);
-  backdrop-filter: blur(18px);
-  background: rgba(7, 12, 19, 0.76);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(7, 12, 19, 0.82);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 1px 0 rgba(255, 122, 24, 0.08);
+  transition: background 0.3s, box-shadow 0.3s;
 }
 
 .brand {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  text-decoration: none;
 }
 
 .brand strong {
   font-size: 1.35rem;
   letter-spacing: 0.06em;
+  background: linear-gradient(135deg, #fff, #e0c8a0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .brand-kicker {
@@ -219,13 +329,27 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .section-heading h2,
 .section-heading h1 {
   margin: 0;
-  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-size: clamp(1.3rem, 2.5vw, 1.7rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.section-heading h2::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 1em;
+  background: linear-gradient(180deg, #ff7a18, #ffb866);
+  border-radius: 2px;
+  margin-right: 10px;
+  vertical-align: -0.12em;
 }
 
 .stats-grid {
@@ -277,11 +401,40 @@ button {
   overflow: hidden;
 }
 
+.tactic-card {
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              box-shadow 0.3s,
+              border-color 0.3s;
+}
+.tactic-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 122, 24, 0.2);
+  border-color: rgba(255, 122, 24, 0.3);
+}
 .tactic-card-cover {
   width: 100%;
   aspect-ratio: 16 / 9;
   object-fit: cover;
   display: block;
+  position: relative;
+}
+.tactic-card-cover-wrapper {
+  position: relative;
+  overflow: hidden;
+}
+.tactic-card-cover-wrapper::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.6) 100%);
+  pointer-events: none;
+}
+.tactic-card-body {
+  position: relative;
 }
 
 .tactic-card-body,

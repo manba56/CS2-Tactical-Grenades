@@ -9,7 +9,9 @@ defineProps<{
 
 <template>
   <article class="tactic-card">
-    <img :src="resolveAssetUrl(tactic.cover_url)" :alt="tactic.title" class="tactic-card-cover" />
+    <div class="tactic-card-cover-wrapper">
+      <img :src="resolveAssetUrl(tactic.cover_url)" :alt="tactic.title" class="tactic-card-cover" />
+    </div>
     <div class="tactic-card-body">
       <div class="eyebrow-row">
         <span>{{ tactic.map.name }}</span>

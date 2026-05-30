@@ -179,42 +179,83 @@ const filteredTactics = computed(() => {
   justify-content: space-between;
   align-items: flex-end;
   gap: 24px;
-  padding: 40px 0 8px;
+  padding: 48px 0 16px;
+  position: relative;
+}
+.hero-panel::before {
+  content: "";
+  position: absolute;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 400px;
+  background: radial-gradient(ellipse, rgba(255, 122, 24, 0.08), transparent 70%);
+  pointer-events: none;
 }
 .hero-text {
   max-width: 600px;
+  position: relative;
+  z-index: 1;
 }
 .hero-title {
-  margin: 4px 0 12px;
-  font-size: clamp(2rem, 5vw, 3rem);
-  font-weight: 800;
+  margin: 0 0 16px;
+  font-size: clamp(2.4rem, 6vw, 3.6rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #fff 0%, #ffc08a 50%, #ff7a18 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 .hero-subtitle {
-  color: #aeb9cb;
-  font-size: 1.05rem;
-  line-height: 1.6;
-  margin-bottom: 18px;
+  color: #8896ad;
+  font-size: 1.1rem;
+  line-height: 1.7;
+  margin-bottom: 22px;
+  max-width: 480px;
 }
 .hero-actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
+}
+.hero-actions .primary-button {
+  padding: 12px 28px;
+  font-size: 1rem;
+  font-weight: 700;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ff7a18, #e06810);
+  border: none;
+  box-shadow: 0 4px 24px rgba(255, 122, 24, 0.3);
 }
 .hero-stats {
   display: flex;
-  gap: 28px;
+  gap: 32px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 .hero-stat {
   text-align: center;
+  padding: 16px 24px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
 }
 .hero-stat strong {
   display: block;
-  font-size: 2rem;
-  color: #ff7a18;
+  font-size: 2.2rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ff7a18, #ffb866);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 .hero-stat span {
-  font-size: 0.82rem;
-  color: #888;
+  font-size: 0.8rem;
+  color: #7788a0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 /* ── Map scroll ────────────────────────── */
