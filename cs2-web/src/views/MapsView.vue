@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue';
 
 import { api, resolveAssetUrl } from '../api';
+import { useHead } from '../composables/useHead';
 import TacticCard from '../components/TacticCard.vue';
 import type { MapSummary, TacticCard as TacticCardType } from '../types';
 
@@ -27,7 +28,10 @@ async function load() {
   }
 }
 
-onMounted(load);
+onMounted(() => {
+  useHead('地图库', '浏览全部CS2现役地图，按地图查找战术');
+  load();
+});
 </script>
 
 <template>

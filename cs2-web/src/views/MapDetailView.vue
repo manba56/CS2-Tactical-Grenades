@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 
 import { api, resolveAssetUrl } from '../api';
+import { useHead } from '../composables/useHead';
 import TacticCard from '../components/TacticCard.vue';
 import type { MapDetail } from '../types';
 
@@ -51,6 +52,7 @@ const loadError = ref('');
 onMounted(async () => {
   try {
     mapDetail.value = await api.getMapDetail(route.params.mapSlug as string);
+    useHead(mapDetail.value?.name || '地图详情', `${mapDetail.value?.name || '地图'}的全部战术——包含烟雾弹、闪光弹、燃烧弹线路`);
   } catch {
     loadError.value = '加载失败，请刷新重试';
   }

@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 
 import { api, resolveAssetUrl } from '../api';
+import { useHead } from '../composables/useHead';
 import TacticCard from '../components/TacticCard.vue';
 import type { CollectionSummary, MapSummary, TacticCard as TacticCardType } from '../types';
 
@@ -16,6 +17,7 @@ const filterMapSlug = ref('');
 const filterSide = ref('');
 
 onMounted(async () => {
+  useHead('CS2战术百科', '以地图为入口的CS2战术手册，浏览投掷物线路、团队配合战术');
   try {
     const [homeData, tacticsData] = await Promise.all([
       api.getHome(),

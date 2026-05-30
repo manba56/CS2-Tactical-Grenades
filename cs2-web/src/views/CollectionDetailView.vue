@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 
 import { api } from '../api';
+import { useHead } from '../composables/useHead';
 import TacticCard from '../components/TacticCard.vue';
 import type { CollectionDetail } from '../types';
 
@@ -13,6 +14,7 @@ const error = ref('');
 onMounted(async () => {
   try {
     collection.value = await api.getCollection(route.params.slug as string);
+    useHead(collection.value?.title || '战术合集', collection.value?.description || '战术合集');
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载失败';
   }

@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { api, resolveAssetUrl } from '../api';
+import { useHead } from '../composables/useHead';
 import TacticCard from '../components/TacticCard.vue';
 import { useSessionStore } from '../stores/session';
 import type { TacticDetail } from '../types';
@@ -60,6 +61,10 @@ function copyShareLink() {
 // Auto-favorite after login redirect
 onMounted(async () => {
   await load();
+  if (tactic.value) {
+    const cover = tactic.value.cover_url || '';
+    useHead(tactic.value.title, tactic.value.summary, cover || undefined);
+  }
   if (route.query.action === 'favorite' && session.token && tactic.value && !tactic.value.is_favorite) {
     try {
       await api.addFavorite(tactic.value.id, session.token);

@@ -12,6 +12,7 @@ const router = createRouter({
     { path: '/favorites', component: () => import('./views/FavoritesView.vue'), meta: { requiresAuth: true } },
     { path: '/collections/:slug', component: () => import('./views/CollectionDetailView.vue') },
     { path: '/login', component: () => import('./views/LoginView.vue') },
+    { path: '/:pathMatch(.*)*', component: () => import('./views/NotFoundView.vue') },
   ],
   scrollBehavior() {
     return { top: 0 };

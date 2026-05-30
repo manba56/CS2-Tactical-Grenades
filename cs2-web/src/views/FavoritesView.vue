@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue';
 
 import { api } from '../api';
+import { useHead } from '../composables/useHead';
 import TacticCard from '../components/TacticCard.vue';
 import { useSessionStore } from '../stores/session';
 import type { FavoriteBundle } from '../types';
@@ -11,6 +12,8 @@ const bundle = ref<FavoriteBundle | null>(null);
 const error = ref('');
 
 onMounted(async () => {
+  useHead('我的收藏', '已收藏的战术和最近浏览记录');
+
   try {
     bundle.value = await api.getFavorites(session.token);
   } catch (err) {

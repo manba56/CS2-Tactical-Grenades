@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { api } from '../api';
+import { useHead } from '../composables/useHead';
 import { useSessionStore } from '../stores/session';
 
 const route = useRoute();
 const router = useRouter();
+
+onMounted(() => {
+  useHead('登录/注册', '登录或注册CS2 Tactics Lab账号');
+});
 const session = useSessionStore();
 
 const mode = ref<'login' | 'register'>('login');
