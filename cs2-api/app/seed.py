@@ -287,6 +287,7 @@ def build_seed_state() -> dict:
                 {"order": 2, "role": "协防位", "type": "move", "instruction": "烟封后前压拿信息，确定T位置后报点撤退。", "lineup_id": None},
             ],
         },
+    ]
 
     users = [
         {
