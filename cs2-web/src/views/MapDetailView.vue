@@ -6,6 +6,7 @@ import { api, resolveAssetUrl } from '../api';
 import { useHead } from '../composables/useHead';
 import TacticCard from '../components/TacticCard.vue';
 import type { MapDetail } from '../types';
+import { label, UTILITY_LABELS, SIDE_LABELS, DIFFICULTY_LABELS } from '../utils/labels';
 
 const route = useRoute();
 const mapDetail = ref<MapDetail | null>(null);
@@ -47,6 +48,13 @@ const filterOptions = computed(() => {
   };
 });
 
+function filterLabel(key: string, val: string) {
+  if (key === 'side') return label(val, SIDE_LABELS);
+  if (key === 'utility_type') return label(val, UTILITY_LABELS);
+  if (key === 'difficulty') return label(val, DIFFICULTY_LABELS);
+  return val;
+}
+
 const loadError = ref('');
 
 onMounted(async () => {
@@ -68,7 +76,7 @@ onMounted(async () => {
         <span class="filter-label-text">{{ filterLabels[key] }}</span>
         <select v-model="activeFilters[key]" class="filter-select">
           <option value="">全部</option>
-          <option v-for="val in filterOptions[key]" :key="val" :value="val">{{ val }}</option>
+          <option v-for="val in filterOptions[key]" :key="val" :value="val">{{ filterLabel(key, val) }}</option>
         </select>
       </label>
       <span class="filter-count">{{ filteredTactics.length }} 条</span>

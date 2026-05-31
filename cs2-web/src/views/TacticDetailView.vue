@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { api, resolveAssetUrl } from '../api';
 import { useHead } from '../composables/useHead';
+import { label, DIFFICULTY_LABELS, SIDE_LABELS, UTILITY_LABELS } from '../utils/labels';
 import TacticCard from '../components/TacticCard.vue';
 import { useSessionStore } from '../stores/session';
 import type { TacticDetail } from '../types';
@@ -89,9 +90,9 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
         <div class="glass-panel">
           <div class="eyebrow-row">
             <span class="chip strong">{{ tactic.map.name }}</span>
-            <span class="chip">{{ tactic.side }}</span>
+            <span class="chip">{{ label(tactic.side, SIDE_LABELS) }}</span>
             <span class="chip">{{ tactic.phase }}</span>
-            <span class="chip">{{ tactic.difficulty }}</span>
+            <span class="chip">{{ label(tactic.difficulty, DIFFICULTY_LABELS) }}</span>
           </div>
           <h1 class="detail-title">{{ tactic.title }}</h1>
           <p class="section-intro">{{ tactic.summary }}</p>
@@ -185,7 +186,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
         <div class="section-block">
           <div class="muted">所需道具</div>
           <div class="chip-row">
-            <span v-for="utility in tactic.utility_types" :key="utility" class="chip strong">{{ utility }}</span>
+            <span v-for="utility in tactic.utility_types" :key="utility" class="chip strong">{{ label(utility, UTILITY_LABELS) }}</span>
           </div>
         </div>
 
@@ -253,7 +254,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
           <div v-if="step.lineup" class="section-block">
             <div class="chip-row">
               <span class="chip strong">{{ step.lineup.title }}</span>
-              <span class="chip">{{ step.lineup.utility_type }}</span>
+              <span class="chip">{{ label(step.lineup.utility_type, UTILITY_LABELS) }}</span>
               <span class="chip">{{ step.lineup.difficulty }}</span>
             </div>
             <p class="muted">{{ step.lineup.purpose }}</p>

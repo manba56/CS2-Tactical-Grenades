@@ -158,6 +158,34 @@ def build_seed_state() -> dict:
             "steps": ["红箱边缘对齐", "对准车库屋顶分界", "跳投完成切线"],
             "media": ["/static/assets/maps/nuke-lineup-secret.svg"], "status": "published",
         },
+        # ── CT防线 ──
+        {
+            "id": 5, "map_id": 5, "title": "Mirage B小反清闪", "slug": "mirage-b-short-flash",
+            "side": "CT", "utility_type": "flash",
+            "start_point_id": 22, "aim_point_id": 20, "land_point_id": 20,
+            "purpose": "CT默认反清B小，打断T方默认节奏。",
+            "difficulty": "easy", "summary": "B小窗口右侧贴墙反抛闪光，清B小近点。",
+            "steps": ["贴B小右墙", "准星对准窗口上沿", "右键低抛反弹闪"],
+            "media": [], "status": "published",
+        },
+        {
+            "id": 6, "map_id": 3, "title": "Dust2 A大反清破点火", "slug": "dust2-a-long-molotov",
+            "side": "CT", "utility_type": "molotov",
+            "start_point_id": 12, "aim_point_id": 10, "land_point_id": 10,
+            "purpose": "阻止T方A大Rush，拖延进攻节奏。",
+            "difficulty": "medium", "summary": "A包点抛向A门的防守火，适合开局默认站位。",
+            "steps": ["A包点蓝箱后站定", "瞄准A门外侧墙壁", "跳投让火覆盖A门出口"],
+            "media": [], "status": "published",
+        },
+        {
+            "id": 7, "map_id": 4, "title": "Inferno 香蕉道反清烟", "slug": "inferno-banana-smoke-ct",
+            "side": "CT", "utility_type": "smoke",
+            "start_point_id": 17, "aim_point_id": 15, "land_point_id": 15,
+            "purpose": "封香蕉道口，防止T方快速抢占近点。",
+            "difficulty": "easy", "summary": "CT开局速封香蕉道烟，安全前压拿信息。",
+            "steps": ["B点出门右转", "准星瞄准路灯上方", "跑两步左键投掷封香蕉道口"],
+            "media": [], "status": "published",
+        },
     ]
 
     tactics = [
@@ -211,7 +239,54 @@ def build_seed_state() -> dict:
                 {"order": 3, "role": "补枪位", "type": "trade", "instruction": "第二身位沿烟边补枪，防止CT穿烟前压。", "lineup_id": None},
             ],
         },
-    ]
+        # ── CT防守战术 ──
+        {
+            "id": 4, "map_id": 5, "title": "Mirage CT默认防A爆弹",
+            "slug": "mirage-ct-a-hold", "side": "CT",
+            "goal": "A点防守", "phase": "default", "difficulty": "medium", "players": 3,
+            "summary": "B小反清闪拿信息，A包点双人站位防爆弹，一人随时回防B点。",
+            "note": "如果T方多次爆A，可以让B点队员提前回防短A。",
+            "tags": ["防守", "反清", "A点"],
+            "cover_url": "/static/assets/maps/icons/de_mirage.png",
+            "status": "published", "featured": True,
+            "created_at": (now - timedelta(days=1)).isoformat(),
+            "step_items": [
+                {"order": 1, "role": "B小防守", "type": "utility", "instruction": "开局反清闪拿B小信息，确认T默认位置。", "lineup_id": 5},
+                {"order": 2, "role": "A包点主守", "type": "hold", "instruction": "占据默认箱位置，看A坡出口。", "lineup_id": None},
+                {"order": 3, "role": "连接位", "type": "trade", "instruction": "站位连接入口，随时支援A或回防B。", "lineup_id": None},
+            ],
+        },
+        {
+            "id": 5, "map_id": 3, "title": "Dust2 CT标准防Rush",
+            "slug": "dust2-ct-default-hold", "side": "CT",
+            "goal": "防Rush", "phase": "default", "difficulty": "medium", "players": 3,
+            "summary": "A大火封门阻止T Rush，中路狙击看中门，B点防B洞。",
+            "note": "T如果连续Rush B洞，中路队员可提前转B。",
+            "tags": ["防守", "防Rush", "A大"],
+            "cover_url": "/static/assets/maps/icons/de_dust2.png",
+            "status": "published", "featured": False,
+            "created_at": (now - timedelta(days=3)).isoformat(),
+            "step_items": [
+                {"order": 1, "role": "A大防守", "type": "utility", "instruction": "开局速封A大火，防止T速攻A大。", "lineup_id": 6},
+                {"order": 2, "role": "中路狙击", "type": "hold", "instruction": "开局观察中门过点，报T的动向。", "lineup_id": None},
+                {"order": 3, "role": "B点防守", "type": "hold", "instruction": "站位B洞外侧，听声音判断T是否压B。", "lineup_id": None},
+            ],
+        },
+        {
+            "id": 6, "map_id": 4, "title": "Inferno CT香蕉道反压制",
+            "slug": "inferno-ct-banana-control", "side": "CT",
+            "goal": "香蕉道控制", "phase": "default", "difficulty": "easy", "players": 2,
+            "summary": "开局速封香蕉道烟+闪光反清，抢回香蕉道控制权。",
+            "note": "如果T方给棺材火，等火灭再出烟，不要硬顶。",
+            "tags": ["防守", "香蕉道", "反压制"],
+            "cover_url": "/static/assets/maps/icons/de_inferno.png",
+            "status": "published", "featured": False,
+            "created_at": (now - timedelta(hours=12)).isoformat(),
+            "step_items": [
+                {"order": 1, "role": "B点防守", "type": "utility", "instruction": "开局速封香蕉道口烟，阻断T方推进。", "lineup_id": 7},
+                {"order": 2, "role": "协防位", "type": "move", "instruction": "烟封后前压拿信息，确定T位置后报点撤退。", "lineup_id": None},
+            ],
+        },
 
     users = [
         {

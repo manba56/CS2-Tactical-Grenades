@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { resolveAssetUrl } from '../api';
-import type { TacticCard } from '../types';
+import type { TacticCard as TacticCardType } from '../types';
+import { label, DIFFICULTY_LABELS, SIDE_LABELS, UTILITY_LABELS } from '../utils/labels';
 
 defineProps<{
-  tactic: TacticCard;
+  tactic: TacticCardType;
 }>();
 </script>
 
@@ -15,15 +16,15 @@ defineProps<{
     <div class="tactic-card-body">
       <div class="eyebrow-row">
         <span>{{ tactic.map.name }}</span>
-        <span>{{ tactic.side }}</span>
-        <span>{{ tactic.difficulty }}</span>
+        <span>{{ label(tactic.side, SIDE_LABELS) }}</span>
+        <span>{{ label(tactic.difficulty, DIFFICULTY_LABELS) }}</span>
       </div>
       <h3>{{ tactic.title }}</h3>
       <p>{{ tactic.summary }}</p>
       <div class="chip-row">
         <span class="chip strong">{{ tactic.goal }}</span>
         <span v-for="utility in tactic.utility_types" :key="utility" class="chip">
-          {{ utility }}
+          {{ label(utility, UTILITY_LABELS) }}
         </span>
       </div>
       <router-link class="text-link" :to="`/tactics/${tactic.slug}`">查看战术详情</router-link>
