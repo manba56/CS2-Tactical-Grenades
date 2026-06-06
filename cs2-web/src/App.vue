@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import TopNav from './components/TopNav.vue';
 import BottomNav from './components/BottomNav.vue';
+import BackToTop from './components/BackToTop.vue';
 </script>
 
 <template>
@@ -10,5 +11,6 @@ import BottomNav from './components/BottomNav.vue';
       <router-view />
     </main>
     <BottomNav />
+    <BackToTop />
   </div>
 </template>

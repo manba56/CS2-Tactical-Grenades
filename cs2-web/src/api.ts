@@ -57,12 +57,34 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string):
   }
 
   const promise = (async () => {
-    const response = await fetch(`${API_BASE}${path}`, { ...init, headers });
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({ detail: '请求失败' }));
-      throw new Error(data.detail || '请求失败');
+    const MAX_RETRIES = 2;
+    const TIMEOUT_MS = 15_000;
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+        const response = await fetch(`${API_BASE}${path}`, {
+          ...init, headers, signal: ctrl.signal,
+        });
+        clearTimeout(timer);
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({ detail: '请求失败' }));
+          throw new Error(data.detail || '请求失败');
+        }
+        return response.json() as Promise<T>;
+      } catch (err: any) {
+        lastError = err;
+        if (attempt < MAX_RETRIES && (err.name === 'AbortError' || err.message?.includes('fetch') || err.message?.includes('network'))) {
+          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          continue;
+        }
+        throw new Error(lastError?.message || '网络异常，请稍后重试');
+      }
     }
-    return response.json() as Promise<T>;
+    throw lastError || new Error('请求失败');
   })();
 
   if (cacheKey) {

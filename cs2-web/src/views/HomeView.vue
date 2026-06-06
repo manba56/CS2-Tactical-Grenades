@@ -83,6 +83,17 @@ const filteredTactics = computed(() => {
       </div>
     </section>
 
+    <!-- ── Loading skeleton ──────────────────────────────────── -->
+    <section v-if="loading" class="section-block">
+      <div class="loading-grid">
+        <div v-for="n in 4" :key="'sk'+n" class="skeleton-card">
+          <div class="skeleton-box" style="aspect-ratio:16/9"></div>
+          <div class="skeleton-box skeleton-line" style="width:60%;margin-top:12px"></div>
+          <div class="skeleton-box skeleton-line" style="width:80%;margin-top:6px"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ── Search info ──────────────────────────────────────── -->
     <div v-if="searchWord && !loading" class="glass-panel" style="padding:12px 18px;margin-bottom:0">
       <span class="muted">搜索"<strong>{{ searchWord }}</strong>"的结果 — {{ allTactics.length }} 条战术</span>

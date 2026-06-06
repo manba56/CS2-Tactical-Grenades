@@ -99,6 +99,33 @@ body::before {
   box-shadow: 0 0 24px rgba(255, 122, 24, 0.35);
 }
 
+/* ── Skeleton loading ─────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -300px 0; }
+  100% { background-position: 300px 0; }
+}
+.skeleton-box {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+  background-size: 600px 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+.skeleton-line {
+  height: 14px;
+  border-radius: 7px;
+}
+.loading-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+.skeleton-card {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+}
+
 /* ── Scrollbar ───────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
