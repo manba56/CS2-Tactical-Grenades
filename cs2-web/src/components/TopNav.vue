@@ -7,6 +7,7 @@ import { useSessionStore } from '../stores/session';
 const router = useRouter();
 const session = useSessionStore();
 const menuOpen = ref(false);
+const searchText = ref('');
 
 const navItems = computed(() => [
   { label: '首页', to: '/' },
@@ -23,6 +24,14 @@ function logout() {
   router.push('/');
   closeMenu();
 }
+
+function doSearch() {
+  const q = searchText.value.trim();
+  if (q) {
+    closeMenu();
+    router.push(`/?search=${encodeURIComponent(q)}`);
+  }
+}
 </script>
 
 <template>
@@ -31,6 +40,19 @@ function logout() {
       <span class="brand-kicker">CSGO / CS2</span>
       <strong>Tactics Lab</strong>
     </router-link>
+
+    <!-- Search bar -->
+    <form class="nav-search" @submit.prevent="doSearch">
+      <input
+        v-model="searchText"
+        class="nav-search-input"
+        placeholder="搜索战术..."
+        aria-label="搜索战术"
+      />
+      <button type="submit" class="nav-search-btn" aria-label="搜索">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+    </form>
 
     <!-- Desktop nav -->
     <div class="nav-menu desktop-only">
@@ -66,6 +88,12 @@ function logout() {
   <Teleport to="body">
     <div v-if="menuOpen" class="mobile-overlay" @click.self="closeMenu">
       <div class="mobile-menu">
+        <form class="nav-search mobile-search" @submit.prevent="doSearch">
+          <input v-model="searchText" class="nav-search-input" placeholder="搜索战术..." />
+          <button type="submit" class="nav-search-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </button>
+        </form>
         <nav class="mobile-nav-links">
           <router-link
             v-for="item in navItems" :key="item.to" :to="item.to"
@@ -90,96 +118,40 @@ function logout() {
 </template>
 
 <style scoped>
-/* Desktop nav */
-.desktop-only {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
+.desktop-only { display: flex; align-items: center; gap: 16px; }
 
-/* Hamburger */
-.hamburger {
-  display: none;
-  flex-direction: column;
-  justify-content: center;
-  gap: 5px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  z-index: 30;
-}
-.hamburger span {
-  display: block;
-  width: 22px;
-  height: 2px;
-  background: #f3f6fb;
-  border-radius: 2px;
-  transition: transform 0.2s, opacity 0.2s;
-}
+.hamburger { display: none; flex-direction: column; justify-content: center; gap: 5px; background: none; border: none; cursor: pointer; padding: 8px; z-index: 30; }
+.hamburger span { display: block; width: 22px; height: 2px; background: #f3f6fb; border-radius: 2px; transition: transform 0.2s, opacity 0.2s; }
 .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
 .hamburger.open span:nth-child(2) { opacity: 0; }
 .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
-/* Mobile overlay (teleported to body) */
-.mobile-overlay {
-  display: none;
-}
+/* Search */
+.nav-search { position: relative; display: flex; align-items: center; flex: 1; max-width: 260px; margin: 0 8px; }
+.nav-search-input { width: 100%; padding: 6px 36px 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); color: #f3f6fb; font-size: 0.85rem; outline: none; transition: border-color 0.2s; }
+.nav-search-input:focus { border-color: #ff7a18; }
+.nav-search-input::placeholder { color: #555; }
+.nav-search-btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: none; border: none; padding: 6px; color: #888; cursor: pointer; }
+.nav-search-btn:hover { color: #ff7a18; }
+
+.mobile-search { display: none; max-width: 280px; margin-bottom: 8px; }
+
+.mobile-overlay { display: none; }
 
 @media (max-width: 640px) {
-  .desktop-only {
-    display: none;
-  }
-
-  .hamburger {
-    display: flex;
-  }
-
+  .desktop-only { display: none; }
+  .nav-search:not(.mobile-search) { display: none; }
+  .mobile-search { display: flex; }
+  .hamburger { display: flex; }
   .mobile-overlay {
-    display: flex;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 100;
-    background: rgba(7, 12, 19, 0.97);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 32px;
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
+    display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 100;
+    background: rgba(7,12,19,0.97); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    flex-direction: column; justify-content: center; align-items: center; gap: 32px;
+    padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
   }
-
-  .mobile-menu {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 32px;
-  }
-
-  .mobile-nav-links {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-  }
-
-  .mobile-nav-links a {
-    font-size: 1.4rem;
-    padding: 10px 24px;
-    color: #f3f6fb;
-    text-decoration: none;
-  }
-
-  .mobile-nav-user {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-  }
+  .mobile-menu { display: flex; flex-direction: column; align-items: center; gap: 32px; }
+  .mobile-nav-links { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  .mobile-nav-links a { font-size: 1.4rem; padding: 10px 24px; color: #f3f6fb; text-decoration: none; }
+  .mobile-nav-user { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 }
 </style>

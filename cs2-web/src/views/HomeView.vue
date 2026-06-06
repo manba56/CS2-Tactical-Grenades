@@ -1,29 +1,34 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
 import { api, resolveAssetUrl } from '../api';
 import { useHead } from '../composables/useHead';
 import TacticCard from '../components/TacticCard.vue';
 import type { CollectionSummary, MapSummary, TacticCard as TacticCardType } from '../types';
 
+const route = useRoute();
 const loading = ref(true);
 const loadError = ref('');
 const maps = ref<MapSummary[]>([]);
 const allTactics = ref<TacticCardType[]>([]);
 const collections = ref<CollectionSummary[]>([]);
 
-// Filters for the tactic grid
 const filterMapSlug = ref('');
 const filterSide = ref('');
+const searchWord = ref('');
 
 onMounted(async () => {
   useHead('CS2战术百科', '以地图为入口的CS2战术手册，浏览投掷物线路、团队配合战术');
+  // Read search query from URL
+  const q = (route.query.search as string) || '';
+  if (q) searchWord.value = q;
   try {
     const [homeData, tacticsData] = await Promise.all([
       api.getHome(),
-      api.getTactics({}),
+      api.getTactics(q ? { search: q } : {}),
     ]);
-    maps.value = homeData.featured_maps;
+    maps.value = (homeData.featured_maps || []).filter((m: MapSummary) => (m as any).tactic_count > 0);
     collections.value = (homeData as any).collections || [];
     allTactics.value = tacticsData.items;
   } catch {
@@ -33,8 +38,17 @@ onMounted(async () => {
   }
 });
 
+// Watch URL search param changes
+watch(() => route.query.search, (val) => {
+  searchWord.value = (val as string) || '';
+});
+
+const featuredTactics = computed(() => allTactics.value.filter(t => t.featured).slice(0, 6));
+const nonFeaturedTactics = computed(() => allTactics.value.filter(t => !t.featured));
+
 const filteredTactics = computed(() => {
-  return allTactics.value.filter(t => {
+  const source = nonFeaturedTactics.value;
+  return source.filter(t => {
     if (filterMapSlug.value && t.map.slug !== filterMapSlug.value) return false;
     if (filterSide.value && t.side !== filterSide.value) return false;
     return true;
@@ -69,8 +83,24 @@ const filteredTactics = computed(() => {
       </div>
     </section>
 
+    <!-- ── Search info ──────────────────────────────────────── -->
+    <div v-if="searchWord && !loading" class="glass-panel" style="padding:12px 18px;margin-bottom:0">
+      <span class="muted">搜索"<strong>{{ searchWord }}</strong>"的结果 — {{ allTactics.length }} 条战术</span>
+      <button class="ghost-button" style="margin-left:12px" @click="searchWord='';filterMapSlug='';filterSide=''">清除</button>
+    </div>
+
+    <!-- ── 推荐战术 ──────────────────────────────────────────── -->
+    <section v-if="!loading && featuredTactics.length" class="section-block">
+      <div class="section-heading">
+        <h2>推荐战术</h2>
+      </div>
+      <div class="card-grid">
+        <TacticCard v-for="t in featuredTactics" :key="'feat-'+t.id" :tactic="t" />
+      </div>
+    </section>
+
     <!-- ── Map entry cards (horizontal scroll) ─────────────── -->
-    <section class="section-block" v-if="!loading">
+    <section class="section-block" v-if="!loading && maps.length">
       <div class="section-heading">
         <h2>快速选图</h2>
       </div>
