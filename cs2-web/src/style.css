@@ -95,28 +95,45 @@ body::before {
 .page-shell > *:nth-child(3) { animation-delay: 0.15s; }
 .page-shell > *:nth-child(4) { animation-delay: 0.2s; }
 
-/* ── Glass panel upgrade ─────────────── */
-.glass-panel {
-  background: rgba(255, 255, 255, 0.025) !important;
-  border: 1px solid rgba(255, 255, 255, 0.06) !important;
-  backdrop-filter: blur(16px);
-  transition: border-color 0.3s, box-shadow 0.3s;
+/* ── Clean card style (B站-inspired) ─── */
+.glass-panel,
+.tactic-card,
+.user-chip,
+.stat-card,
+.empty-card,
+.form-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  backdrop-filter: none;
+  transition: border-color 0.2s, transform 0.2s;
 }
-.glass-panel:hover {
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  box-shadow: 0 0 40px rgba(255, 122, 24, 0.04);
+.glass-panel:hover,
+.tactic-card:hover {
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
-/* ── Card hover lift ─────────────────── */
-.card-grid .tactic-card,
-.maps-grid .map-card {
-  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              box-shadow 0.3s;
+.user-chip {
+  padding: 8px 14px;
+  border-radius: 10px;
 }
-.card-grid .tactic-card:hover,
-.maps-grid .map-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 122, 24, 0.15);
+
+.empty-card {
+  padding: 32px 20px;
+  text-align: center;
+  color: #6b7d95;
+}
+
+/* ── Map card (B站-style thumbnail) ──── */
+.map-card {
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.2s ease, border-color 0.2s;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.map-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255,255,255,0.15);
 }
 
 /* ── Button glow ─────────────────────── */
@@ -236,9 +253,9 @@ button {
 }
 
 .page-shell {
-  width: min(1200px, calc(100vw - 32px));
+  width: min(1200px, calc(100vw - 48px));
   margin: 0 auto;
-  padding: 24px 0 72px;
+  padding: 28px 0 80px;
 }
 
 .top-nav {
@@ -248,13 +265,13 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 18px min(40px, 4vw);
-  backdrop-filter: blur(20px) saturate(180%);
-  background: rgba(7, 12, 19, 0.82);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 1px 0 rgba(255, 122, 24, 0.08);
-  transition: background 0.3s, box-shadow 0.3s;
+  gap: 20px;
+  padding: 12px min(48px, 4vw);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  background: rgba(8, 13, 22, 0.88);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: none;
 }
 
 .brand {
@@ -511,18 +528,15 @@ button {
 }
 
 .tactic-card {
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              box-shadow 0.3s,
-              border-color 0.3s;
+  transition: transform 0.2s ease, border-color 0.2s;
 }
 .tactic-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 122, 24, 0.2);
-  border-color: rgba(255, 122, 24, 0.3);
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 .tactic-card-cover {
   width: 100%;
@@ -534,16 +548,18 @@ button {
 .tactic-card-cover-wrapper {
   position: relative;
   overflow: hidden;
+  background: rgba(255,255,255,0.02);
 }
 .tactic-card-cover-wrapper::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.6) 100%);
+  background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.5) 100%);
   pointer-events: none;
 }
 .tactic-card-body {
   position: relative;
+  padding: 14px 16px;
 }
 
 .tactic-card-body,

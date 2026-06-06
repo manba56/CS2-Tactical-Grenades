@@ -263,13 +263,9 @@ const filteredTactics = computed(() => {
   gap: 12px;
 }
 .hero-actions .primary-button {
-  padding: 12px 28px;
-  font-size: 1rem;
-  font-weight: 700;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #ff7a18, #e06810);
-  border: none;
-  box-shadow: 0 4px 24px rgba(255, 122, 24, 0.3);
+  padding: 10px 24px;
+  font-size: 0.95rem;
+  border-radius: 10px;
 }
 .hero-stats {
   display: flex;
