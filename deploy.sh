@@ -30,15 +30,23 @@ fi
 
 # ── 3. 构建管理后台 ─────────────────────────────
 echo "[3/5] 构建管理后台..."
-cd "$PROJECT_DIR/cs2-admin"
-npm install --silent 2>/dev/null || npm install
-npm run build
+cd "$PROJECT_DIR/cs2-admin" || { echo "  ✗ cs2-admin 目录不存在"; }
+if [ -f package.json ]; then
+  npm install --silent 2>/dev/null || npm install || true
+  npm run build 2>&1 || echo "  ✗ 管理后台构建失败"
+else
+  echo "  ⚠ 未找到 package.json，跳过"
+fi
 
 # ── 4. 构建玩家端 ───────────────────────────────
 echo "[4/5] 构建玩家端..."
-cd "$PROJECT_DIR/cs2-web"
-npm install --silent 2>/dev/null || npm install
-npm run build
+cd "$PROJECT_DIR/cs2-web" || { echo "  ✗ cs2-web 目录不存在"; }
+if [ -f package.json ]; then
+  npm install --silent 2>/dev/null || npm install || true
+  npm run build 2>&1 || echo "  ✗ 玩家端构建失败"
+else
+  echo "  ⚠ 未找到 package.json，跳过"
+fi
 
 # ── 5. 验证 ─────────────────────────────────────
 echo "[5/5] 验证服务状态..."
