@@ -2,7 +2,7 @@
 # ═══════════════════════════════════════════════════════════════
 # CS2 Tactics Suite — 一键更新部署
 # ═══════════════════════════════════════════════════════════════
-set -euo pipefail
+# set -e removed — webhook runs this in background, errors must not kill the script
 
 PROJECT_DIR="/www/wwwroot/cs2-tactics"
 cd "$PROJECT_DIR"
