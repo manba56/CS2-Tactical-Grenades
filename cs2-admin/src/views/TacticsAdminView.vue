@@ -27,10 +27,35 @@ const form = reactive({
   video_url: '',
   featured: false,
   status: 'draft',
-  stepsText: '1|主道具位|utility|补首颗关键烟|',
   routes: [] as RouteData[],
   screenshots: [] as ScreenshotItem[],
 });
+
+const stepItems = ref<{ order: number; role: string; type: string; instruction: string; lineup_id: number | null }[]>(
+  [{ order: 1, role: '主道具位', type: 'utility', instruction: '补首颗关键烟', lineup_id: null }]
+);
+
+const quickLineup = reactive({ title: '', utility_type: 'smoke', difficulty: 'easy' });
+async function createInlineLineup() {
+  if (!quickLineup.title) return;
+  const map_points = await api.points(session.token);
+  const mapId = form.map_id;
+  const firstPoint = map_points.find((p: any) => p.map_id === mapId);
+  const pid = firstPoint?.id || 1;
+  const result = await api.createLineup({
+    map_id: mapId, title: quickLineup.title, slug: '',
+    side: form.side, utility_type: quickLineup.utility_type,
+    start_point_id: pid, aim_point_id: pid, land_point_id: pid,
+    purpose: '', difficulty: quickLineup.difficulty,
+    summary: '', steps: [], media: [], video_url: '', status: 'published',
+  } as any, session.token);
+  await load();
+  // Auto-select the new lineup in the last step
+  const lastStep = stepItems.value[stepItems.value.length - 1];
+  if (lastStep && !lastStep.lineup_id) lastStep.lineup_id = (result as any).id;
+  quickLineup.title = '';
+  alert(`线路"${(result as any).title}"已创建并关联`);
+}
 
 const currentMapSlug = computed(() => {
   const map = maps.value.find(m => m.id === form.map_id);
@@ -79,21 +104,8 @@ function serializeSteps(stepItems: AdminTactic['step_items']) {
     .join('\n');
 }
 
-function parseSteps() {
-  return form.stepsText
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [order, role, type, instruction, lineupId] = line.split('|');
-      return {
-        order: Number(order),
-        role,
-        type,
-        instruction,
-        lineup_id: lineupId ? Number(lineupId) : null,
-      };
-    });
+function getStepPayload() {
+  return stepItems.value.map((s, i) => ({ ...s, order: i + 1 }));
 }
 
 function addScreenshot(type: 'route' | 'spot' = 'spot') {
@@ -119,16 +131,22 @@ const spotScreenshots = computed(() =>
   form.screenshots.flatMap((s, i) => s.type === 'spot' ? [{ shot: s, formIdx: i }] : [])
 );
 
+const slugPreview = computed(() => {
+  if (form.slug) return form.slug;
+  return (form.title || 'tactic').replace(/[^\\w\\-\\u4e00-\\u9fff]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'tactic';
+});
+
 function edit(item: AdminTactic) {
   editingId.value = item.id;
   Object.assign(form, {
     ...item,
     tagsText: item.tags.join(', '),
     video_url: item.video_url || '',
-    stepsText: serializeSteps(item.step_items),
     routes: item.routes ? JSON.parse(JSON.stringify(item.routes)) : [],
     screenshots: item.screenshots ? JSON.parse(JSON.stringify(item.screenshots)) : [],
   });
+  stepItems.value = (item.step_items || [{ order: 1, role: '主道具位', type: 'utility', instruction: '', lineup_id: null }])
+    .map((s: any) => ({ order: s.order, role: s.role, type: s.type, instruction: s.instruction, lineup_id: s.lineup_id }));
 }
 
 function resetForm() {
@@ -151,13 +169,19 @@ function resetForm() {
     video_url: '',
     featured: false,
     status: 'draft',
-    stepsText: '1|主道具位|utility|补首颗关键烟|',
     routes: [] as RouteData[],
     screenshots: [] as ScreenshotItem[],
   });
+  stepItems.value = [{ order: 1, role: '主道具位', type: 'utility', instruction: '补首颗关键烟', lineup_id: null }];
 }
 
 async function submit() {
+  // Duplicate detection
+  if (!editingId.value) {
+    const dup = tactics.value.find(t => t.title === form.title);
+    if (dup && !confirm(`已有同名战术"${form.title}"（ID: ${dup.id}），确定创建副本？`)) return;
+  }
+
   const payload = {
     map_id: form.map_id,
     title: form.title,
@@ -174,7 +198,7 @@ async function submit() {
     video_url: form.video_url,
     featured: form.featured,
     status: form.status,
-    step_items: parseSteps(),
+    step_items: getStepPayload(),
     routes: form.routes,
     screenshots: form.screenshots,
   };
@@ -247,8 +271,8 @@ onMounted(load);
           <input v-model="form.title" class="field" />
         </label>
         <label>
-          Slug
-          <input v-model="form.slug" class="field" />
+          Slug <span class="muted" style="font-size:11px">预览: {{ slugPreview }}</span>
+          <input v-model="form.slug" class="field" :placeholder="slugPreview" />
         </label>
         <label>
           阵营
@@ -322,10 +346,40 @@ onMounted(load);
             <option value="archived">archived</option>
           </select>
         </label>
-        <label class="full">
-          步骤定义（每行：序号|角色|类型|说明|lineupId）
-          <textarea v-model="form.stepsText" class="textarea" />
-        </label>
+        <!-- Visual step editor -->
+        <div class="full steps-editor">
+          <h3>执行步骤</h3>
+          <div v-for="(step, i) in stepItems" :key="i" class="step-row">
+            <span class="step-num">{{ i + 1 }}</span>
+            <select v-model="step.role" class="select" style="min-width:100px">
+              <option value="主道具位">主道具位</option><option value="二道具位">二道具位</option>
+              <option value="主突破">主突破</option><option value="补枪位">补枪位</option>
+              <option value="侦查位">侦查位</option><option value="辅助位">辅助位</option>
+            </select>
+            <select v-model="step.type" class="select" style="min-width:90px">
+              <option value="utility">utility</option><option value="move">move</option>
+              <option value="hold">hold</option><option value="trade">trade</option>
+            </select>
+            <select v-model="step.lineup_id" class="select" style="min-width:120px">
+              <option :value="null">无线路</option>
+              <option v-for="l in filteredLineups" :key="l.id" :value="l.id">{{ l.title }}</option>
+            </select>
+            <input v-model="step.instruction" class="field" placeholder="步骤说明" style="flex:1" />
+            <button type="button" class="ghost-button" @click="stepItems.splice(i,1)" :disabled="stepItems.length<=1">✕</button>
+          </div>
+          <button type="button" class="ghost-button" @click="stepItems.push({order:stepItems.length+1,role:'主道具位',type:'utility',instruction:'',lineup_id:null})">+ 添加步骤</button>
+          <p class="muted" style="font-size:11px;margin-top:4px">选择角色和动作类型，绑定已有的线路道具</p>
+          <!-- Quick-create lineup inline -->
+          <details style="margin-top:8px">
+            <summary class="ghost-button" style="cursor:pointer;font-size:12px">+ 快速新建线路</summary>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;padding:10px;border:1px solid rgba(255,255,255,0.08);border-radius:8px">
+              <input v-model="quickLineup.title" class="field" placeholder="线路标题" style="flex:1;min-width:140px" />
+              <select v-model="quickLineup.utility_type" class="select"><option value="smoke">smoke</option><option value="flash">flash</option><option value="molotov">molotov</option><option value="he">he</option><option value="decoy">decoy</option></select>
+              <select v-model="quickLineup.difficulty" class="select"><option value="easy">easy</option><option value="medium">medium</option><option value="hard">hard</option></select>
+              <button type="button" class="primary-button small" @click="createInlineLineup()" :disabled="!quickLineup.title">创建并关联</button>
+            </div>
+          </details>
+        </div>
         <div class="full">
           <RouteEditor v-model="form.routes" :map-slug="currentMapSlug" />
         </div>
