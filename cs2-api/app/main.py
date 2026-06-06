@@ -152,7 +152,7 @@ def download_database(_: dict[str, Any] = Depends(get_admin_user)):
 
 @app.post("/api/webhook/deploy")
 async def webhook_deploy(request: Request):
-    """GitHub push → auto git pull + deploy."""
+    """GitHub push → auto git pull + deploy (async, responds immediately)."""
     import subprocess
 
     try:
@@ -160,26 +160,19 @@ async def webhook_deploy(request: Request):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON")
 
-    # Optional: verify secret
-    # import hmac, hashlib
-    # signature = request.headers.get("X-Hub-Signature-256", "")
-    # expected = "sha256=" + hmac.new(WEBHOOK_SECRET.encode(), await request.body(), hashlib.sha256).hexdigest()
-    # if not hmac.compare_digest(signature, expected):
-    #     raise HTTPException(status_code=403)
-
     ref = body.get("ref", "")
     if "main" not in ref and "master" not in ref:
         return {"status": "skipped", "ref": ref}
 
-    try:
-        subprocess.run(["git", "-C", str(BASE_DIR.parent), "pull", "origin", "main"],
-                       capture_output=True, text=True, timeout=30)
-        subprocess.run([str(BASE_DIR.parent / "deploy.sh")],
-                       capture_output=True, text=True, timeout=120, shell=True)
-    except Exception as e:
-        return {"status": "deploy_error", "detail": str(e)}
+    # Fire-and-forget: run deploy.sh in background so GitHub doesn't timeout
+    log_path = BASE_DIR.parent / "deploy.log"
+    subprocess.Popen(
+        f"git pull origin main && bash deploy.sh >> {log_path} 2>&1",
+        shell=True, cwd=str(BASE_DIR.parent),
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
 
-    return {"status": "deployed", "ref": ref}
+    return {"status": "deploying", "ref": ref}
 def summarize_map(state: dict[str, Any], map_item: dict[str, Any]) -> dict[str, Any]:
     tactic_count = sum(1 for tactic in state["tactics"] if tactic["map_id"] == map_item["id"] and tactic["status"] == "published")
     return {
