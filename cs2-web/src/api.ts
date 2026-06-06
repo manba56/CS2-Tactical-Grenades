@@ -28,19 +28,62 @@ interface AuthResponse {
   user: SessionUser;
 }
 
+// ── Simple in-memory cache for GET requests ──
+const cache = new Map<string, { data: unknown; ts: number }>();
+const CACHE_TTL = 30_000; // 30 seconds
+const inflight = new Map<string, Promise<unknown>>();
+
 async function request<T>(path: string, init: RequestInit = {}, token?: string): Promise<T> {
+  const isGet = !init.method || init.method === 'GET';
+  const cacheKey = isGet ? `GET:${path}:${token || ''}` : '';
+
+  // Return cached value if fresh
+  if (cacheKey) {
+    const cached = cache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+      return cached.data as T;
+    }
+    // Dedup in-flight requests
+    const flying = inflight.get(cacheKey) as Promise<T> | undefined;
+    if (flying) return flying;
+  }
+
   const headers = new Headers(init.headers || {});
-  headers.set('Content-Type', 'application/json');
+  if (!(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE}${path}`, { ...init, headers });
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({ detail: '请求失败' }));
-    throw new Error(data.detail || '请求失败');
+  const promise = (async () => {
+    const response = await fetch(`${API_BASE}${path}`, { ...init, headers });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({ detail: '请求失败' }));
+      throw new Error(data.detail || '请求失败');
+    }
+    return response.json() as Promise<T>;
+  })();
+
+  if (cacheKey) {
+    inflight.set(cacheKey, promise);
+    const result = await promise;
+    cache.set(cacheKey, { data: result, ts: Date.now() });
+    inflight.delete(cacheKey);
+    return result as T;
   }
-  return response.json() as Promise<T>;
+
+  return promise;
+}
+
+// Clean stale cache every 60s
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of cache) {
+      if (now - val.ts > CACHE_TTL) cache.delete(key);
+    }
+  }, 60_000);
 }
 
 function toQueryString(query: TacticQuery): string {
