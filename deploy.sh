@@ -13,7 +13,8 @@ echo "╚═══════════════════════�
 
 # ── 1. 拉取代码 ──────────────────────────────────
 echo "[1/5] 拉取最新代码..."
-git pull origin main
+git checkout main 2>/dev/null || true
+git pull origin main 2>&1 || echo "  ⚠ git pull 失败，使用现有代码"
 
 # ── 2. 后端重启 ─────────────────────────────────
 echo "[2/5] 重启 API 服务..."
