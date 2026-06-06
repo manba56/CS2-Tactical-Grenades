@@ -43,7 +43,7 @@ watch(() => route.query.search, (val) => {
   searchWord.value = (val as string) || '';
 });
 
-const featuredTactics = computed(() => allTactics.value.filter(t => t.featured).slice(0, 6));
+const featuredTactics = computed(() => allTactics.value.filter(t => t.featured).slice(0, 3));
 const nonFeaturedTactics = computed(() => allTactics.value.filter(t => !t.featured));
 
 const filteredTactics = computed(() => {
