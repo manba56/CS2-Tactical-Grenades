@@ -181,11 +181,19 @@ async function submit() {
 
   if (editingId.value) {
     await api.updateTactic(editingId.value, payload, session.token);
+    editingId.value = null;
   } else {
-    await api.createTactic(payload, session.token);
+    const created = await api.createTactic(payload, session.token);
+    editingId.value = (created as any).id;
+    form.slug = (created as any).slug || '';
   }
-  resetForm();
   await load();
+}
+
+function clone(item: AdminTactic) {
+  Object.assign(form, { ...item, title: item.title + ' (副本)', slug: '' });
+  editingId.value = null;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function publish(item: AdminTactic) {
@@ -218,6 +226,7 @@ onMounted(load);
         <p class="muted">{{ item.summary }}</p>
         <div class="toolbar">
           <button class="ghost-button" @click="edit(item)">编辑</button>
+          <button class="ghost-button" @click="clone(item)">克隆</button>
           <button class="ghost-button" @click="publish(item)">发布</button>
           <button class="ghost-button" @click="archive(item)">归档</button>
         </div>

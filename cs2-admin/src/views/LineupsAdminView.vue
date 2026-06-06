@@ -98,11 +98,17 @@ async function submit() {
   };
   if (editingId.value) {
     await api.updateLineup(editingId.value, payload, session.token);
+    editingId.value = null;
   } else {
     await api.createLineup(payload, session.token);
   }
-  resetForm();
   await load();
+}
+
+function clone(item: AdminLineup) {
+  Object.assign(form, { ...item, title: item.title + ' (副本)', slug: '' });
+  editingId.value = null;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function remove(item: AdminLineup) {
@@ -140,6 +146,7 @@ onMounted(load);
         <p class="muted">{{ item.summary }}</p>
         <div class="toolbar">
           <button class="ghost-button" @click="edit(item)">编辑</button>
+          <button class="ghost-button" @click="clone(item)">克隆</button>
           <button class="ghost-button" @click="archive(item)">归档</button>
           <button class="ghost-button" @click="remove(item)">删除</button>
         </div>
