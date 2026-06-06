@@ -2,12 +2,13 @@
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { api } from '../api';
+import { api, API_BASE } from '../api';
 import { useSessionStore } from '../stores/session';
 import type { DashboardSummary } from '../types';
 
 const session = useSessionStore();
 const router = useRouter();
+const apiBase = API_BASE;
 const summary = ref<DashboardSummary | null>(null);
 
 async function loadSummary() {
@@ -39,6 +40,7 @@ onMounted(loadSummary);
         <router-link to="/assets">媒体资源</router-link>
         <router-link to="/users">前台用户</router-link>
         <router-link to="/collections">战术合集</router-link>
+        <a :href="apiBase + '/api/admin/db/download'" download>数据库备份</a>
       </nav>
 
       <div v-if="summary" class="stat-grid">

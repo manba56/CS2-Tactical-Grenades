@@ -12,6 +12,8 @@ cs2-api/app/static/uploads/
 .DS_Store
 .idea/
 .vscode/
+.env
+*.local
 
 # Test artifacts
 tests/allure-results/
@@ -22,3 +24,4 @@ tests/unit-report.xml
 tests/report.xml
 tests/performance/results/
 *.jtl
+.env

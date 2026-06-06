@@ -135,6 +135,51 @@ def get_admin_user(user: dict[str, Any] = Depends(get_current_user)) -> dict[str
     return user
 
 
+@app.get("/api/admin/db/download")
+def download_database(_: dict[str, Any] = Depends(get_admin_user)):
+    """Download the SQLite database (admin only, backup)."""
+    from fastapi.responses import FileResponse
+
+    db_path = BASE_DIR / "data" / "db.sqlite"
+    if not db_path.exists():
+        raise HTTPException(status_code=404, detail="数据库文件不存在")
+    return FileResponse(str(db_path), media_type="application/octet-stream", filename="db.sqlite")
+
+
+# ═══════════════════════════════════════════════════════════
+# GitHub Webhook — auto-deploy on push
+# ═══════════════════════════════════════════════════════════
+
+@app.post("/api/webhook/deploy")
+async def webhook_deploy(request: Request):
+    """GitHub push → auto git pull + deploy."""
+    import subprocess
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    # Optional: verify secret
+    # import hmac, hashlib
+    # signature = request.headers.get("X-Hub-Signature-256", "")
+    # expected = "sha256=" + hmac.new(WEBHOOK_SECRET.encode(), await request.body(), hashlib.sha256).hexdigest()
+    # if not hmac.compare_digest(signature, expected):
+    #     raise HTTPException(status_code=403)
+
+    ref = body.get("ref", "")
+    if "main" not in ref and "master" not in ref:
+        return {"status": "skipped", "ref": ref}
+
+    try:
+        subprocess.run(["git", "-C", str(BASE_DIR.parent), "pull", "origin", "main"],
+                       capture_output=True, text=True, timeout=30)
+        subprocess.run([str(BASE_DIR.parent / "deploy.sh")],
+                       capture_output=True, text=True, timeout=120, shell=True)
+    except Exception as e:
+        return {"status": "deploy_error", "detail": str(e)}
+
+    return {"status": "deployed", "ref": ref}
 def summarize_map(state: dict[str, Any], map_item: dict[str, Any]) -> dict[str, Any]:
     tactic_count = sum(1 for tactic in state["tactics"] if tactic["map_id"] == map_item["id"] and tactic["status"] == "published")
     return {
