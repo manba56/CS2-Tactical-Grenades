@@ -210,12 +210,13 @@ async def webhook_deploy(request: Request):
     if "main" not in ref and "master" not in ref:
         return {"status": "skipped", "ref": ref}
 
-    # Fire-and-forget: run deploy.sh in background so GitHub doesn't timeout
+    # Fire deploy.sh in background, output goes to log file
     log_path = BASE_DIR.parent / "deploy.log"
     subprocess.Popen(
-        f"git pull origin main && bash deploy.sh >> {log_path} 2>&1",
-        shell=True, cwd=str(BASE_DIR.parent),
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        [str(BASE_DIR.parent / "deploy.sh")],
+        cwd=str(BASE_DIR.parent),
+        stdout=open(str(log_path), "a"), stderr=open(str(log_path), "a"),
+        start_new_session=True,
     )
 
     return {"status": "deploying", "ref": ref}
