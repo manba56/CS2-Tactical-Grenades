@@ -85,6 +85,19 @@ textarea {
   cursor: pointer;
 }
 
+.ai-btn {
+  padding: 2px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(168,130,255,0.3);
+  background: rgba(168,130,255,0.1);
+  color: #b39ddb;
+  font-size: 0.72rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.ai-btn:hover { border-color: #b39ddb; color: #d1c4e9; background: rgba(168,130,255,0.18); }
+
 .card,
 .panel,
 .login-card {
