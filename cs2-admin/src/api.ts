@@ -107,6 +107,11 @@ export const api = {
       token,
     );
   },
+  aiGenerate(description: string, field: string, token: string) {
+    return request<{ result: string }>('/api/admin/ai/generate', {
+      method: 'POST', body: JSON.stringify({ description, field }),
+    }, token);
+  },
   uploadAsset(file: File, token: string) {
     const formData = new FormData();
     formData.append('file', file);

@@ -135,6 +135,52 @@ def get_admin_user(user: dict[str, Any] = Depends(get_current_user)) -> dict[str
     return user
 
 
+# ═══════════════════════════════════════════════════════════
+# AI 辅助生成（DeepSeek Flash）
+# ═══════════════════════════════════════════════════════════
+
+import os, json as _json
+from concurrent.futures import ThreadPoolExecutor
+
+DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "")
+_ai_executor = ThreadPoolExecutor(max_workers=1)
+
+
+@app.post("/api/admin/ai/generate")
+async def ai_generate(payload: dict[str, Any], _: dict[str, Any] = Depends(get_admin_user)):
+    """DeepSeek 生成战术摘要/用途/步骤。"""
+    if not DEEPSEEK_KEY:
+        raise HTTPException(status_code=503, detail="未配置 DEEPSEEK_API_KEY")
+    d = payload.get("description", "")
+    f = payload.get("field", "summary")
+    if not d:
+        raise HTTPException(status_code=400, detail="缺少描述")
+
+    prompts = {
+        "summary": f"用中文写一段CS2战术简洁摘要（30字内），只输出摘要：{d}",
+        "purpose": f"用中文写这条CS2道具线路用途（20字内，如封窗户信息掩护过中路），只输出用途：{d}",
+        "steps": f"把这条CS2投掷物操作拆成3-5步（如贴右墙站定、准星对准窗口上沿、跳投左键），每步一行不编号：{d}",
+    }
+    prompt = prompts.get(f, prompts["summary"])
+
+    def _call():
+        import urllib.request
+        req = urllib.request.Request(
+            "https://api.deepseek.com/chat/completions",
+            data=_json.dumps({"model":"deepseek-chat","messages":[{"role":"user","content":prompt}],"max_tokens":300,"temperature":0.7}).encode(),
+            headers={"Authorization":f"Bearer {DEEPSEEK_KEY}","Content-Type":"application/json"},
+        )
+        resp = urllib.request.urlopen(req, timeout=20)
+        return _json.loads(resp.read())["choices"][0]["message"]["content"].strip()
+
+    try:
+        import asyncio
+        result = await asyncio.get_event_loop().run_in_executor(_ai_executor, _call)
+        return {"result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI 调用失败: {str(e)}")
+
+
 @app.get("/api/admin/db/download")
 def download_database(_: dict[str, Any] = Depends(get_admin_user)):
     """Download the SQLite database (admin only, backup)."""

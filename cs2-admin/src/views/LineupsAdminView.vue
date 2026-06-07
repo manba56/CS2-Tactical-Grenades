@@ -78,6 +78,20 @@ function resetForm() {
   });
 }
 
+async function aiFill(field: 'summary' | 'purpose' | 'steps') {
+  const desc = [form.title, form.title ? '——' : '', form.utility_type || 'smoke', form.side || 'T', '地图 id ' + form.map_id].join(' ');
+  try {
+    const resp = await api.aiGenerate(desc, field, session.token);
+    if (field === 'steps') {
+      form.stepsText = resp.result;
+    } else {
+      (form as any)[field] = resp.result;
+    }
+  } catch (e: any) {
+    alert('AI 生成失败：' + (e.message || '请检查 API Key'));
+  }
+}
+
 async function submit() {
   const payload = {
     map_id: form.map_id,
@@ -222,15 +236,15 @@ onMounted(load);
           </select>
         </label>
         <label class="full">
-          用途
+          用途 <button type="button" class="ai-btn" @click="aiFill('purpose')">✨ AI</button>
           <textarea v-model="form.purpose" class="textarea" />
         </label>
         <label class="full">
-          摘要
+          摘要 <button type="button" class="ai-btn" @click="aiFill('summary')">AI 生成</button>
           <textarea v-model="form.summary" class="textarea" />
         </label>
         <label class="full">
-          步骤（每行一条）
+          步骤（每行一条） <button type="button" class="ai-btn" @click="aiFill('steps')">AI 生成</button>
           <textarea v-model="form.stepsText" class="textarea" />
         </label>
         <label class="full">
