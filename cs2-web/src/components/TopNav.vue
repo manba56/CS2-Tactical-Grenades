@@ -37,8 +37,8 @@ function doSearch() {
 <template>
   <header class="top-nav">
     <router-link class="brand" to="/" @click="closeMenu">
-      <span class="brand-kicker">CSGO / CS2</span>
-      <strong>Tactics Lab</strong>
+      <span class="brand-kicker">全地图道具 & 战术手册</span>
+      <strong>CS2 战术实验室</strong>
     </router-link>
 
     <!-- Search bar -->

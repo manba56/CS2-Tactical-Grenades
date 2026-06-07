@@ -2,7 +2,7 @@
   font-family: "Bahnschrift", "Segoe UI", "Trebuchet MS", sans-serif;
   color: #f3f6fb;
   background: #080d17;
-  line-height: 1.5;
+  line-height: 1.6;
   font-weight: 400;
   color-scheme: dark;
 }
@@ -194,6 +194,19 @@ body::before {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 122, 24, 0.4);
 }
+
+/* ── Difficulty / Utility color labels ─ */
+.diff-badge { padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+.diff-easy { background: rgba(76,175,132,0.15); color: #4caf84; }
+.diff-medium { background: rgba(223,169,64,0.15); color: #dfa940; }
+.diff-hard { background: rgba(224,85,96,0.15); color: #e05560; }
+
+.util-badge { font-weight: 600; }
+.util-smoke { background: rgba(144,164,174,0.15); color: #90a4ae; }
+.util-flash { background: rgba(255,213,79,0.15); color: #ffd54f; }
+.util-molotov { background: rgba(239,108,0,0.15); color: #ef6c00; }
+.util-he { background: rgba(129,212,250,0.15); color: #81d4fa; }
+.util-decoy { background: rgba(206,147,216,0.15); color: #ce93d8; }
 
 /* ── Chip upgrade ────────────────────── */
 .chip.strong {

@@ -17,13 +17,13 @@ defineProps<{
       <div class="eyebrow-row">
         <span>{{ tactic.map.name }}</span>
         <span>{{ label(tactic.side, SIDE_LABELS) }}</span>
-        <span>{{ label(tactic.difficulty, DIFFICULTY_LABELS) }}</span>
+        <span class="diff-badge" :class="'diff-' + tactic.difficulty">{{ label(tactic.difficulty, DIFFICULTY_LABELS) }}</span>
       </div>
       <h3>{{ tactic.title }}</h3>
       <p>{{ tactic.summary }}</p>
       <div class="chip-row">
         <span class="chip strong">{{ tactic.goal }}</span>
-        <span v-for="utility in tactic.utility_types" :key="utility" class="chip">
+        <span v-for="utility in tactic.utility_types" :key="utility" class="chip util-badge" :class="'util-' + utility">
           {{ label(utility, UTILITY_LABELS) }}
         </span>
       </div>

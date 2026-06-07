@@ -105,6 +105,17 @@ onMounted(async () => {
       </div>
     </div>
 
+    <!-- ── Side Tabs ─────────────────────────────────────────── -->
+    <div class="side-tabs">
+      <button :class="{ active: !activeFilters.side }" @click="activeFilters.side=''">全部</button>
+      <button :class="{ active: activeFilters.side === 'T' }" @click="activeFilters.side='T'">
+        <span class="side-dot t"></span>进攻方
+      </button>
+      <button :class="{ active: activeFilters.side === 'CT' }" @click="activeFilters.side='CT'">
+        <span class="side-dot ct"></span>防守方
+      </button>
+    </div>
+
     <!-- ── Tactic list ───────────────────────────────────────── -->
     <section class="section-block">
       <div class="section-heading">
@@ -191,6 +202,19 @@ onMounted(async () => {
   padding-bottom: 8px;
   margin-left: auto;
 }
+
+/* ── Side tabs ────────────────────────── */
+.side-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.side-tabs button {
+  padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02); color: #8896ad; font-size: 0.85rem;
+  cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+}
+.side-tabs button:hover { border-color: rgba(255,122,24,0.3); color: #fff; }
+.side-tabs button.active { background: rgba(255,122,24,0.15); border-color: rgba(255,122,24,0.3); color: #ffb88c; }
+.side-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.side-dot.t { background: #e6a23c; }
+.side-dot.ct { background: #409eff; }
 
 /* ── Map panel ─────────────────────────────── */
 .map-panel {
