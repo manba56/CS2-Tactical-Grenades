@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 
-import { api } from '../api';
+import { api, resolveAssetUrl } from '../api';
 import { useSessionStore } from '../stores/session';
 import type { AdminLineup, AdminMap, AdminPoint } from '../types';
 
@@ -24,7 +24,7 @@ const form = reactive({
   difficulty: 'medium',
   summary: '',
   stepsText: '',
-  mediaText: '',
+  screenshots: [] as { url: string; description: string }[],
   video_url: '',
   status: 'draft',
 });
@@ -49,8 +49,8 @@ function edit(item: AdminLineup) {
   editingId.value = item.id;
   Object.assign(form, {
     ...item,
-    stepsText: item.steps.join('\n'),
-    mediaText: item.media.join('\n'),
+    stepsText: (item.steps || []).join('\n'),
+    screenshots: (item.media || []).map((url: string) => ({ url, description: '' })),
     video_url: item.video_url || '',
   });
 }
@@ -72,7 +72,7 @@ function resetForm() {
     difficulty: 'medium',
     summary: '',
     stepsText: '',
-    mediaText: '',
+    screenshots: [],
     video_url: '',
     status: 'draft',
   });
@@ -106,7 +106,7 @@ async function submit() {
     difficulty: form.difficulty,
     summary: form.summary,
     steps: form.stepsText.split('\n').map((item) => item.trim()).filter(Boolean),
-    media: form.mediaText.split('\n').map((item) => item.trim()).filter(Boolean),
+    media: form.screenshots.filter(s => s.url).map(s => s.url),
     video_url: form.video_url,
     status: form.status,
   };
@@ -123,6 +123,17 @@ function clone(item: AdminLineup) {
   Object.assign(form, { ...item, title: item.title + ' (副本)', slug: '' });
   editingId.value = null;
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function addScreenshot() { form.screenshots.push({ url: '', description: '' }); }
+function removeScreenshot(i: number) { form.screenshots.splice(i, 1); }
+async function uploadScreenshot(i: number, file: File) {
+  try {
+    const result = await api.uploadAsset(file, session.token);
+    form.screenshots[i].url = result.url;
+  } catch (err) {
+    alert('上传失败');
+  }
 }
 
 async function remove(item: AdminLineup) {
@@ -247,10 +258,26 @@ onMounted(load);
           步骤（每行一条） <button type="button" class="ai-btn" @click="aiFill('steps')">AI 生成</button>
           <textarea v-model="form.stepsText" class="textarea" />
         </label>
-        <label class="full">
-          媒体 URL（每行一条）
-          <textarea v-model="form.mediaText" class="textarea" />
-        </label>
+        <div class="full">
+          <div class="screenshots-section">
+            <h3>截图 <button type="button" class="ghost-button" @click="addScreenshot()">+ 添加</button></h3>
+            <p class="muted" style="font-size:11px">上传线路的瞄点截图或投掷示范图</p>
+            <div v-if="form.screenshots.length === 0" class="screenshot-placeholder">暂无截图</div>
+            <div v-for="(shot, idx) in form.screenshots" :key="idx" class="screenshot-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+              <input v-model="shot.description" class="field" placeholder="截图描述" style="flex:1" />
+              <label v-if="!shot.url" class="ghost-button" style="cursor:pointer;white-space:nowrap">
+                选择文件
+                <input type="file" accept="image/*" hidden @change="(e:any) => uploadScreenshot(idx, e.target.files[0])" />
+              </label>
+              <img
+                v-if="shot.url"
+                :src="resolveAssetUrl(shot.url)"
+                style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.08)"
+              />
+              <button type="button" class="ghost-button" @click="removeScreenshot(idx)">✕</button>
+            </div>
+          </div>
+        </div>
         <label class="full">
           B站视频链接（可选，如 https://www.bilibili.com/video/BVxxx）
           <input v-model="form.video_url" class="field" placeholder="粘贴B站视频链接" />
