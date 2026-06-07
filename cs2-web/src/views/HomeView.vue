@@ -50,6 +50,7 @@ watch(() => route.query.search, (val) => {
 });
 
 const featuredTactics = computed(() => allTactics.value.filter(t => t.featured).slice(0, 3));
+const hasFilters = computed(() => filterMapSlug.value || filterSide.value || filterDifficulty.value || searchWord.value);
 const nonFeaturedTactics = computed(() => allTactics.value.filter(t => !t.featured));
 
 const filteredTactics = computed(() => {
@@ -105,7 +106,7 @@ const filteredTactics = computed(() => {
 
       <div class="home-main">
         <!-- Featured -->
-        <section v-if="!searchWord && featuredTactics.length" class="section-block">
+        <section v-if="!hasFilters && featuredTactics.length" class="section-block">
           <div class="section-heading"><h2>推荐战术</h2></div>
           <div class="card-grid">
             <TacticCard v-for="t in featuredTactics" :key="'feat-'+t.id" :tactic="t" />
@@ -113,7 +114,7 @@ const filteredTactics = computed(() => {
         </section>
 
         <!-- Collections -->
-        <section v-if="!searchWord && collections.length" class="section-block">
+        <section v-if="!hasFilters && collections.length" class="section-block">
           <div class="section-heading">
             <h2>战术合集</h2>
             <router-link to="/collections" class="chip">全部</router-link>
