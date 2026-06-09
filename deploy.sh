@@ -16,6 +16,7 @@ set -Eeuo pipefail
 PROJECT_DIR="${PROJECT_DIR:-/www/wwwroot/cs2-tactics}"
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 API_SERVICE="${API_SERVICE:-cs2-api}"
+SERVICE_USER="${SERVICE_USER:-www}"
 API_HEALTH_URL="${API_HEALTH_URL:-http://127.0.0.1:8008/api/health}"
 INSTALL_BACKEND_DEPS="${INSTALL_BACKEND_DEPS:-1}"
 INSTALL_FRONTEND_DEPS="${INSTALL_FRONTEND_DEPS:-1}"
@@ -49,6 +50,23 @@ acquire_lock() {
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "Missing command: $1"
+}
+
+prepare_runtime_dirs() {
+  mkdir -p "$API_DIR/data" "$API_DIR/app/static/uploads"
+}
+
+fix_permissions_if_root() {
+  if [[ "$(id -u)" -ne 0 ]]; then
+    return 0
+  fi
+
+  if id "$SERVICE_USER" >/dev/null 2>&1; then
+    run chown -R "$SERVICE_USER:$SERVICE_USER" "$PROJECT_DIR"
+    run chmod -R u+rwX,g+rwX "$API_DIR/data" "$API_DIR/app/static/uploads"
+  else
+    log "Service user not found, skipping chown: $SERVICE_USER"
+  fi
 }
 
 update_code() {
@@ -130,10 +148,12 @@ main() {
   require_command curl
 
   log "Starting deploy: project=$PROJECT_DIR branch=$DEPLOY_BRANCH"
+  prepare_runtime_dirs
   update_code
   install_backend_deps
   build_frontend "$WEB_DIR" "cs2-web"
   build_frontend "$ADMIN_DIR" "cs2-admin"
+  fix_permissions_if_root
   restart_api
   check_health
   log "Deployment completed successfully"

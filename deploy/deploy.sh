@@ -11,6 +11,7 @@ PROJECT_DIR="/www/wwwroot/cs2-tactics"
 API_DIR="$PROJECT_DIR/cs2-api"
 WEB_DIR="$PROJECT_DIR/cs2-web"
 ADMIN_DIR="$PROJECT_DIR/cs2-admin"
+SERVICE_USER="www"
 
 echo "=== CS2 Tactics Suite Deploy ==="
 
@@ -23,6 +24,11 @@ if [ ! -d "$PROJECT_DIR" ]; then
     echo "Please upload the cs2-tactics-suite folder to /www/wwwroot/ first."
     exit 1
 fi
+
+echo "[0/4] Preparing runtime permissions..."
+mkdir -p "$API_DIR/data" "$API_DIR/app/static/uploads"
+chown -R "$SERVICE_USER:$SERVICE_USER" "$PROJECT_DIR"
+chmod -R u+rwX,g+rwX "$API_DIR/data" "$API_DIR/app/static/uploads"
 
 # ── 2. Install Python deps ──────────────────────────
 echo "[1/4] Installing Python dependencies..."
@@ -70,7 +76,7 @@ echo "[4/4] Granting webhook restart permission..."
 SYSTEMCTL_PATH="$(command -v systemctl)"
 SUDOERS_FILE="/etc/sudoers.d/cs2-deploy"
 cat > "$SUDOERS_FILE" << SUDOERS
-www ALL=(root) NOPASSWD: $SYSTEMCTL_PATH restart cs2-api
+$SERVICE_USER ALL=(root) NOPASSWD: $SYSTEMCTL_PATH restart cs2-api
 SUDOERS
 chmod 440 "$SUDOERS_FILE"
 visudo -cf "$SUDOERS_FILE"
