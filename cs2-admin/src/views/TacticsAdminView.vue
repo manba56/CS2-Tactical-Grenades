@@ -224,9 +224,6 @@ async function aiFill() {
       utility_type: stepItems.value[0]?.type || 'utility',
     }, session.token);
 
-    if (resp.title) form.title = resp.title;
-    if (resp.slug) form.slug = resp.slug;
-    if (resp.goal) form.goal = resp.goal;
     if (resp.summary) form.summary = resp.summary;
     if (resp.note) form.note = resp.note;
     if (resp.steps) {
