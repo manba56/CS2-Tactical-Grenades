@@ -186,7 +186,9 @@ onMounted(load);
     </section>
 
     <form class="panel" @submit.prevent="submit">
-      <h2>{{ editingId ? '编辑线路' : '新增线路' }}</h2>
+      <h2>{{ editingId ? '编辑线路' : '新增线路' }}
+        <button type="button" class="primary-button" style="margin-left:12px;font-size:0.85rem;padding:6px 16px" @click="aiFill()">🤖 AI 一键生成</button>
+      </h2>
       <div class="form-grid">
         <label>
           地图
@@ -254,15 +256,15 @@ onMounted(load);
           </select>
         </label>
         <label class="full">
-          用途 <button type="button" class="ai-btn" @click="aiFill()">✨ AI</button>
+          用途
           <textarea v-model="form.purpose" class="textarea" />
         </label>
         <label class="full">
-          摘要 <button type="button" class="ai-btn" @click="aiFill()">AI 生成</button>
+          摘要
           <textarea v-model="form.summary" class="textarea" />
         </label>
         <label class="full">
-          步骤（每行一条） <button type="button" class="ai-btn" @click="aiFill()">AI 生成</button>
+          步骤（每行一条）
           <textarea v-model="form.stepsText" class="textarea" />
         </label>
         <div class="full">

@@ -217,13 +217,16 @@ async function aiFill() {
     const resp = await api.aiGenerate({
       map: mapItem?.name || '',
       side: form.side,
-      goal: form.goal,
+      goal: form.goal || '',
       phase: form.phase,
       difficulty: form.difficulty,
       players: form.players,
       utility_type: stepItems.value[0]?.type || 'utility',
     }, session.token);
 
+    if (resp.title) form.title = resp.title;
+    if (resp.slug) form.slug = resp.slug;
+    if (resp.goal) form.goal = resp.goal;
     if (resp.summary) form.summary = resp.summary;
     if (resp.note) form.note = resp.note;
     if (resp.steps) {
@@ -274,7 +277,9 @@ onMounted(load);
     </section>
 
     <form class="panel" @submit.prevent="submit">
-      <h2>{{ editingId ? '编辑战术' : '新增战术' }}</h2>
+      <h2>{{ editingId ? '编辑战术' : '新增战术' }}
+        <button type="button" class="primary-button" style="margin-left:12px;font-size:0.85rem;padding:6px 16px" @click="aiFill()">🤖 AI 一键生成</button>
+      </h2>
       <div class="form-grid">
         <label>
           地图
@@ -298,7 +303,7 @@ onMounted(load);
           </select>
         </label>
         <label>
-          目标 <button type="button" class="ai-btn" @click="aiFill()">AI 生成</button>
+          目标
           <input v-model="form.goal" class="field" placeholder="A 点爆弹 / 外场转地下" />
         </label>
         <label>
@@ -325,7 +330,7 @@ onMounted(load);
           <input v-model.number="form.players" type="number" min="1" max="5" class="field" />
         </label>
         <label class="full">
-          摘要 <button type="button" class="ai-btn" @click="aiFill()">AI 生成</button>
+          摘要
           <textarea v-model="form.summary" class="textarea" />
         </label>
         <label class="full">
@@ -364,7 +369,7 @@ onMounted(load);
         </label>
         <!-- Visual step editor -->
         <div class="full steps-editor">
-          <h3>执行步骤 <button type="button" class="ai-btn" @click="aiFill()">AI 生成</button></h3>
+          <h3>执行步骤</h3>
           <div v-for="(step, i) in stepItems" :key="i" class="step-row">
             <span class="step-num">{{ i + 1 }}</span>
             <select v-model="step.role" class="select" style="min-width:100px">

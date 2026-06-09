@@ -108,7 +108,7 @@ export const api = {
     );
   },
   aiGenerate(form: Record<string, any>, token: string) {
-    return request<{ summary: string; steps: string; note: string }>('/api/admin/ai/generate', {
+    return request<{ title:string; slug:string; goal:string; summary:string; steps:string; note:string }>('/api/admin/ai/generate', {
       method: 'POST', body: JSON.stringify(form),
     }, token);
   },

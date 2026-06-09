@@ -153,33 +153,30 @@ async def ai_generate(payload: dict[str, Any], _: dict[str, Any] = Depends(get_a
         raise HTTPException(status_code=503, detail="未配置 DEEPSEEK_API_KEY")
 
     # 版本1 通用标准版 Prompt
-    prompt = f"""你是专业CS战术编辑，根据下方参数编写实战战术内容，严格遵守格式与字数要求，只输出规定内容，不要额外解释、闲聊。
+    prompt = f"""你是专业CS战术编辑，根据下方参数编写实战战术，严格遵守格式，只输出规定内容，不要额外解释：
 地图：{payload.get("map","未知")}
 阵营：{payload.get("side","T")}
-战术目标：{payload.get("goal","通用")}
 执行阶段：{payload.get("phase","default")}
 难度：{payload.get("difficulty","medium")}
 参与人数：{payload.get("players",3)}
-主力道具类型：{payload.get("utility_type","smoke")}
+道具类型：{payload.get("utility_type","smoke")}
 
-输出规则：
-1. 摘要：80-110字，概括战术思路、人员分工与战术优势
-2. 执行步骤：按实战流程分条撰写，步骤清晰，贴合人数、道具与路线规则
-3. 注意事项：3-4条，围绕道具投掷、走位、团队配合、敌方反制展开
-
-固定输出格式：
-摘要：
+按以下格式输出：
+标题：[15字以内的战术名称]
+Slug：[英文slug，如mirage-a-smoke-exec]
+目标：[10字内战术目标，如A点爆弹]
+摘要：[80-110字]
 执行步骤：
-1.
-2.
-3.
+1. [步骤1]
+2. [步骤2]
+3. [步骤3]
 注意事项：
-1.
-2.
-3."""
+1. [注意1]
+2. [注意2]
+3. [注意3]"""
 
     def _call():
-        import urllib.request
+        import urllib.request, re
         req = urllib.request.Request(
             "https://api.deepseek.com/chat/completions",
             data=_json.dumps({"model":"deepseek-chat","messages":[{"role":"user","content":prompt}],"max_tokens":600,"temperature":0.7}).encode(),
@@ -188,20 +185,21 @@ async def ai_generate(payload: dict[str, Any], _: dict[str, Any] = Depends(get_a
         resp = urllib.request.urlopen(req, timeout=30)
         text = _json.loads(resp.read())["choices"][0]["message"]["content"].strip()
 
-        # Parse: 摘要 / 执行步骤 / 注意事项
-        result = {"summary":"","steps":"","note":""}
-        import re
-        m = re.search(r'摘要[：:]\s*\n?(.+?)(?=执行步骤[：:]|\Z)', text, re.S)
-        if m: result["summary"] = m.group(1).strip()
-        m = re.search(r'执行步骤[：:]\s*\n?(.+?)(?=注意事项[：:]|\Z)', text, re.S)
-        if m:
-            steps = [s.strip().lstrip('1234567890.、)。） ') for s in m.group(1).strip().split('\n') if s.strip()]
-            result["steps"] = '\n'.join([s for s in steps if s])
-        m = re.search(r'注意事项[：:]\s*\n?(.+)', text, re.S)
-        if m:
-            notes = [s.strip().lstrip('1234567890.、)。） ') for s in m.group(1).strip().split('\n') if s.strip()]
-            result["note"] = '\n'.join([s for s in notes if s])
-        return result
+        def _extract(label, text):
+            m = re.search(rf'{label}[：:]\s*\n?(.+?)(?=\n\S+[：:]|\Z)', text, re.S)
+            return m.group(1).strip() if m else ""
+        def _lines(label, text):
+            part = _extract(label, text)
+            return '\n'.join([s.strip().lstrip('1234567890.、)。） ') for s in part.split('\n') if s.strip()])
+
+        return {
+            "title": _extract("标题", text),
+            "slug": _extract("Slug", text),
+            "goal": _extract("目标", text),
+            "summary": _extract("摘要", text),
+            "steps": _lines("执行步骤", text),
+            "note": _lines("注意事项", text),
+        }
 
     try:
         import asyncio
