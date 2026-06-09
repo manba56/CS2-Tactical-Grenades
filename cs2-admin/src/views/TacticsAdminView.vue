@@ -220,16 +220,25 @@ function clone(item: AdminTactic) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-async function aiFill(field: string) {
-  const desc = [form.title, form.side, form.phase, form.goal, '地图 ' + form.map_id].join(' ');
+async function aiFill() {
+  const mapItem = maps.value.find(m => m.id === form.map_id);
   try {
-    const resp = await api.aiGenerate(desc, field, session.token);
-    if (field === 'steps') {
-      stepItems.value = resp.result.split('\n').filter(Boolean).map((line, i) => ({
-        order: i+1, role: '主道具位', type: 'utility', instruction: line.trim(), lineup_id: null
+    const resp = await api.aiGenerate({
+      map: mapItem?.name || '',
+      side: form.side,
+      goal: form.goal,
+      phase: form.phase,
+      difficulty: form.difficulty,
+      players: form.players,
+      utility_type: stepItems.value[0]?.type || 'utility',
+    }, session.token);
+
+    if (resp.summary) form.summary = resp.summary;
+    if (resp.note) form.note = resp.note;
+    if (resp.steps) {
+      stepItems.value = resp.steps.split('\n').filter(Boolean).map((line, i) => ({
+        order: i+1, role: '主道具位', type: 'utility', instruction: line, lineup_id: null
       }));
-    } else {
-      (form as any)[field] = resp.result;
     }
   } catch (e: any) {
     alert('AI 生成失败：' + (e.message || '请检查 API Key'));
@@ -298,7 +307,7 @@ onMounted(load);
           </select>
         </label>
         <label>
-          目标 <button type="button" class="ai-btn" @click="aiFill('goal')">AI 生成</button>
+          目标 <button type="button" class="ai-btn" @click="aiFill()">AI 生成</button>
           <input v-model="form.goal" class="field" placeholder="A 点爆弹 / 外场转地下" />
         </label>
         <label>
@@ -325,7 +334,7 @@ onMounted(load);
           <input v-model.number="form.players" type="number" min="1" max="5" class="field" />
         </label>
         <label class="full">
-          摘要 <button type="button" class="ai-btn" @click="aiFill('summary')">AI 生成</button>
+          摘要 <button type="button" class="ai-btn" @click="aiFill()">AI 生成</button>
           <textarea v-model="form.summary" class="textarea" />
         </label>
         <label class="full">
@@ -364,7 +373,7 @@ onMounted(load);
         </label>
         <!-- Visual step editor -->
         <div class="full steps-editor">
-          <h3>执行步骤 <button type="button" class="ai-btn" @click="aiFill('steps')">AI 生成</button></h3>
+          <h3>执行步骤 <button type="button" class="ai-btn" @click="aiFill()">AI 生成</button></h3>
           <div v-for="(step, i) in stepItems" :key="i" class="step-row">
             <span class="step-num">{{ i + 1 }}</span>
             <select v-model="step.role" class="select" style="min-width:100px">

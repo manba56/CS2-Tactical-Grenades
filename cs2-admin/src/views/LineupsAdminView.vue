@@ -78,15 +78,22 @@ function resetForm() {
   });
 }
 
-async function aiFill(field: 'summary' | 'purpose' | 'steps') {
-  const desc = [form.title, form.title ? '——' : '', form.utility_type || 'smoke', form.side || 'T', '地图 id ' + form.map_id].join(' ');
+async function aiFill() {
+  const mapItem = maps.value.find(m => m.id === form.map_id);
   try {
-    const resp = await api.aiGenerate(desc, field, session.token);
-    if (field === 'steps') {
-      form.stepsText = resp.result;
-    } else {
-      (form as any)[field] = resp.result;
-    }
+    const resp = await api.aiGenerate({
+      map: mapItem?.name || '',
+      side: form.side,
+      goal: form.purpose || '通用',
+      phase: 'default',
+      difficulty: form.difficulty,
+      players: 1,
+      utility_type: form.utility_type,
+    }, session.token);
+
+    if (resp.summary) form.summary = resp.summary;
+    if (resp.note) form.purpose = resp.note;
+    if (resp.steps) form.stepsText = resp.steps;
   } catch (e: any) {
     alert('AI 生成失败：' + (e.message || '请检查 API Key'));
   }
@@ -247,15 +254,15 @@ onMounted(load);
           </select>
         </label>
         <label class="full">
-          用途 <button type="button" class="ai-btn" @click="aiFill('purpose')">✨ AI</button>
+          用途 <button type="button" class="ai-btn" @click="aiFill()">✨ AI</button>
           <textarea v-model="form.purpose" class="textarea" />
         </label>
         <label class="full">
-          摘要 <button type="button" class="ai-btn" @click="aiFill('summary')">AI 生成</button>
+          摘要 <button type="button" class="ai-btn" @click="aiFill()">AI 生成</button>
           <textarea v-model="form.summary" class="textarea" />
         </label>
         <label class="full">
-          步骤（每行一条） <button type="button" class="ai-btn" @click="aiFill('steps')">AI 生成</button>
+          步骤（每行一条） <button type="button" class="ai-btn" @click="aiFill()">AI 生成</button>
           <textarea v-model="form.stepsText" class="textarea" />
         </label>
         <div class="full">

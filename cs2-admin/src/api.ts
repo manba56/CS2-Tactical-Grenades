@@ -107,9 +107,9 @@ export const api = {
       token,
     );
   },
-  aiGenerate(description: string, field: string, token: string) {
-    return request<{ result: string }>('/api/admin/ai/generate', {
-      method: 'POST', body: JSON.stringify({ description, field }),
+  aiGenerate(form: Record<string, any>, token: string) {
+    return request<{ summary: string; steps: string; note: string }>('/api/admin/ai/generate', {
+      method: 'POST', body: JSON.stringify(form),
     }, token);
   },
   uploadAsset(file: File, token: string) {
