@@ -300,16 +300,27 @@ async def webhook_deploy(request: Request):
     if "main" not in ref and "master" not in ref:
         return {"status": "skipped", "ref": ref}
 
-    # Fire deploy.sh in background, output goes to log file
+    # Fire deploy.sh in background, output goes to log file.
+    # Use bash explicitly so webhook delivery does not depend on executable bit
+    # or shebang handling on the deployed file.
+    deploy_script = BASE_DIR.parent / "deploy.sh"
     log_path = BASE_DIR.parent / "deploy.log"
-    subprocess.Popen(
-        [str(BASE_DIR.parent / "deploy.sh")],
-        cwd=str(BASE_DIR.parent),
-        stdout=open(str(log_path), "a"), stderr=open(str(log_path), "a"),
-        start_new_session=True,
-    )
+    if not deploy_script.exists():
+        raise HTTPException(status_code=500, detail=f"Deploy script not found: {deploy_script}")
 
-    return {"status": "deploying", "ref": ref}
+    try:
+        log_file = open(str(log_path), "a", encoding="utf-8")
+        subprocess.Popen(
+            ["bash", str(deploy_script)],
+            cwd=str(BASE_DIR.parent),
+            stdout=log_file,
+            stderr=log_file,
+            start_new_session=True,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to start deploy script: {exc}") from exc
+
+    return {"status": "deploying", "ref": ref, "log": str(log_path)}
 def summarize_map(state: dict[str, Any], map_item: dict[str, Any]) -> dict[str, Any]:
     tactic_count = sum(1 for tactic in state["tactics"] if tactic["map_id"] == map_item["id"] and tactic["status"] == "published")
     return {
