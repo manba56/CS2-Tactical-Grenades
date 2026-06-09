@@ -79,24 +79,17 @@ async function load() {
   _syncCoverUrl();
 }
 
-const _skipAutoFill = ref(false);
 
 function _syncCoverUrl() {
-  if (_skipAutoFill.value || editingId.value) return;
+  if (editingId.value) return;
   const map = maps.value.find(m => m.id === form.map_id);
   if (!map) return;
-  // Auto-fill: map cover > map radar > map layout
-  if (!form.cover_url) {
-    form.cover_url = map.cover_url
-      || `/static/assets/maps/radars/${map.slug}-radar.png`
-      || map.layout_url;
-  }
+  form.cover_url = map.cover_url
+    || `/static/assets/maps/radars/${map.slug}-radar.png`
+    || map.layout_url;
 }
 
-// Auto-fill cover URL when map changes
-watch(() => form.map_id, () => {
-  _syncCoverUrl();
-});
+watch(() => form.map_id, () => _syncCoverUrl());
 
 function serializeSteps(stepItems: AdminTactic['step_items']) {
   return stepItems
@@ -150,9 +143,7 @@ function edit(item: AdminTactic) {
 }
 
 function resetForm() {
-  _skipAutoFill.value = true;
   editingId.value = null;
-  setTimeout(() => { _skipAutoFill.value = false; }, 100);
   Object.assign(form, {
     map_id: maps.value[0]?.id || 1,
     title: '',
@@ -287,7 +278,7 @@ onMounted(load);
       <div class="form-grid">
         <label>
           地图
-          <select v-model.number="form.map_id" class="select">
+          <select v-model.number="form.map_id" class="select" @change="_syncCoverUrl()">
             <option v-for="map in maps" :key="map.id" :value="map.id">{{ map.name }}</option>
           </select>
         </label>
