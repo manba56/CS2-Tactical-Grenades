@@ -1,5 +1,6 @@
 node_modules/
 .vite/
+dist/
 .venv/
 __pycache__/
 *.pyc
@@ -7,12 +8,18 @@ __pycache__/
 
 cs2-api/data/
 cs2-api/app/static/uploads/
+cs2-web/dist/
+cs2-admin/dist/
+tools/hltv_browser_profile/
 
 .DS_Store
 .idea/
 .vscode/
 .env
 *.local
+*.tar.gz
+*.zip
+*.log
 
 # Test artifacts
 tests/allure-results/
@@ -23,4 +30,3 @@ tests/unit-report.xml
 tests/report.xml
 tests/performance/results/
 *.jtl
-.env

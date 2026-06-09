@@ -53,6 +53,7 @@ After=network.target
 Type=simple
 User=www
 WorkingDirectory=/www/wwwroot/cs2-tactics/cs2-api
+EnvironmentFile=-/www/wwwroot/cs2-tactics/.env
 ExecStart=/usr/bin/python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8008
 Restart=always
 RestartSec=5
@@ -64,6 +65,15 @@ SERVICE
 systemctl daemon-reload
 systemctl enable cs2-api
 systemctl restart cs2-api
+
+echo "[4/4] Granting webhook restart permission..."
+SYSTEMCTL_PATH="$(command -v systemctl)"
+SUDOERS_FILE="/etc/sudoers.d/cs2-deploy"
+cat > "$SUDOERS_FILE" << SUDOERS
+www ALL=(root) NOPASSWD: $SYSTEMCTL_PATH restart cs2-api
+SUDOERS
+chmod 440 "$SUDOERS_FILE"
+visudo -cf "$SUDOERS_FILE"
 
 echo ""
 echo "=== Done! ==="

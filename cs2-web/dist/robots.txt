@@ -1,5 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /login
-Disallow: /admin
-Sitemap: https://1338089.xyz/sitemap.xml

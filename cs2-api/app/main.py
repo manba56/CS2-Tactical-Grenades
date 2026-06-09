@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json as _json
+import os
+import secrets
+import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -139,10 +145,10 @@ def get_admin_user(user: dict[str, Any] = Depends(get_current_user)) -> dict[str
 # AI 辅助生成（DeepSeek Flash）
 # ═══════════════════════════════════════════════════════════
 
-import os, json as _json
 from concurrent.futures import ThreadPoolExecutor
 
 DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "")
+DEPLOY_WEBHOOK_SECRET = os.getenv("DEPLOY_WEBHOOK_SECRET") or os.getenv("GITHUB_WEBHOOK_SECRET")
 _ai_executor = ThreadPoolExecutor(max_workers=1)
 
 
@@ -255,13 +261,38 @@ def download_database(_: dict[str, Any] = Depends(get_admin_user)):
 # GitHub Webhook — auto-deploy on push
 # ═══════════════════════════════════════════════════════════
 
+def verify_deploy_webhook(raw_body: bytes, signature: str | None, deploy_secret: str | None) -> None:
+    if not DEPLOY_WEBHOOK_SECRET:
+        raise HTTPException(status_code=503, detail="Deploy webhook is not configured")
+
+    if signature:
+        prefix = "sha256="
+        expected = prefix + hmac.new(
+            DEPLOY_WEBHOOK_SECRET.encode("utf-8"),
+            raw_body,
+            hashlib.sha256,
+        ).hexdigest()
+        if signature.startswith(prefix) and secrets.compare_digest(signature, expected):
+            return
+
+    if deploy_secret and secrets.compare_digest(deploy_secret, DEPLOY_WEBHOOK_SECRET):
+        return
+
+    raise HTTPException(status_code=401, detail="Invalid deploy webhook signature")
+
+
 @app.post("/api/webhook/deploy")
 async def webhook_deploy(request: Request):
     """GitHub push → auto git pull + deploy (async, responds immediately)."""
-    import subprocess
+    raw_body = await request.body()
+    verify_deploy_webhook(
+        raw_body,
+        request.headers.get("x-hub-signature-256"),
+        request.headers.get("x-deploy-secret"),
+    )
 
     try:
-        body = await request.json()
+        body = _json.loads(raw_body.decode("utf-8"))
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON")
 
@@ -1022,5 +1053,3 @@ def upload_asset(file: UploadFile = File(...), _: dict[str, Any] = Depends(get_a
         return asset
 
     return STORE.mutate(mutate)
-
-

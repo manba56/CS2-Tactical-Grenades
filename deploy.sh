@@ -1,53 +1,142 @@
 #!/usr/bin/env bash
-# ═══════════════════════════════════════════════════════════════
-# CS2 Tactics Suite — 一键更新部署
-# ═══════════════════════════════════════════════════════════════
-# set -e removed — webhook runs this in background, errors must not kill the script
+set -Eeuo pipefail
 
-PROJECT_DIR="/www/wwwroot/cs2-tactics"
-cd "$PROJECT_DIR"
+# Webhook-friendly deployment script for CS2 Tactics Suite.
+# Expected server layout:
+#   /www/wwwroot/cs2-tactics
+#
+# Optional environment variables:
+#   PROJECT_DIR=/www/wwwroot/cs2-tactics
+#   DEPLOY_BRANCH=main
+#   API_SERVICE=cs2-api
+#   API_HEALTH_URL=http://127.0.0.1:8008/api/health
+#   INSTALL_BACKEND_DEPS=1
+#   INSTALL_FRONTEND_DEPS=1
 
-echo "╔══════════════════════════════════════╗"
-echo "║  CS2 Tactics Suite — 一键部署       ║"
-echo "╚══════════════════════════════════════╝"
+PROJECT_DIR="${PROJECT_DIR:-/www/wwwroot/cs2-tactics}"
+DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
+API_SERVICE="${API_SERVICE:-cs2-api}"
+API_HEALTH_URL="${API_HEALTH_URL:-http://127.0.0.1:8008/api/health}"
+INSTALL_BACKEND_DEPS="${INSTALL_BACKEND_DEPS:-1}"
+INSTALL_FRONTEND_DEPS="${INSTALL_FRONTEND_DEPS:-1}"
+LOCK_DIR="${DEPLOY_LOCK_DIR:-/tmp/cs2-tactics-deploy.lock}"
 
-# ── 1. 拉取代码 ──────────────────────────────────
-echo "[1/5] 拉取最新代码..."
-git checkout main 2>/dev/null || true
-git pull origin main 2>&1 || echo "  ⚠ git pull 失败，使用现有代码"
+API_DIR="$PROJECT_DIR/cs2-api"
+WEB_DIR="$PROJECT_DIR/cs2-web"
+ADMIN_DIR="$PROJECT_DIR/cs2-admin"
 
-# ── 2. 后端重启 ─────────────────────────────────
-echo "[2/5] 重启 API 服务..."
-if systemctl is-active cs2-api &>/dev/null; then
-    systemctl restart cs2-api
-    echo "  ✓ systemctl restart cs2-api"
-elif supervisorctl status cs2-api &>/dev/null 2>&1; then
-    supervisorctl restart cs2-api
-    echo "  ✓ supervisorctl restart cs2-api"
-else
-    echo "  ⚠ 未找到 cs2-api 服务，跳过（请手动重启）"
-fi
+log() {
+  printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
+}
 
-# ── 3. 构建管理后台 ─────────────────────────────
-echo "[3/5] 构建管理后台..."
-cd "$PROJECT_DIR/cs2-admin"
-npm install --silent 2>/dev/null; npm run build 2>&1 || echo "  ⚠ 管理后台构建失败，使用已有文件"
+fail() {
+  log "ERROR: $*"
+  exit 1
+}
 
-# ── 4. 构建玩家端 ───────────────────────────────
-echo "[4/5] 构建玩家端..."
-cd "$PROJECT_DIR/cs2-web"
-npm install --silent 2>/dev/null; npm run build 2>&1 || echo "  ⚠ 玩家端构建失败，使用已有文件"
+run() {
+  log "$*"
+  "$@"
+}
 
-# ── 5. 验证 ─────────────────────────────────────
-echo "[5/5] 验证服务状态..."
-sleep 1
-if curl -sf http://127.0.0.1:8008/api/health > /dev/null; then
-    echo "  ✓ API 服务正常"
-else
-    echo "  ✗ API 服务异常，请检查日志"
-fi
+acquire_lock() {
+  if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+    log "Another deployment is already running. Skipping this request."
+    exit 0
+  fi
+  trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+}
 
-echo ""
-echo "╔══════════════════════════════════════╗"
-echo "║  部署完成 ✓                         ║"
-echo "╚══════════════════════════════════════╝"
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "Missing command: $1"
+}
+
+update_code() {
+  [[ -d "$PROJECT_DIR/.git" ]] || fail "$PROJECT_DIR is not a git repository"
+  cd "$PROJECT_DIR"
+
+  git config --global --add safe.directory "$PROJECT_DIR" >/dev/null 2>&1 || true
+  run git fetch origin "$DEPLOY_BRANCH"
+  run git checkout "$DEPLOY_BRANCH"
+  run git pull --ff-only origin "$DEPLOY_BRANCH"
+}
+
+install_backend_deps() {
+  [[ "$INSTALL_BACKEND_DEPS" == "1" ]] || return 0
+  [[ -f "$API_DIR/requirements.txt" ]] || return 0
+
+  cd "$API_DIR"
+  run python3 -m pip install -r requirements.txt
+}
+
+build_frontend() {
+  local app_dir="$1"
+  local app_name="$2"
+
+  [[ -d "$app_dir" ]] || fail "$app_name directory not found: $app_dir"
+  cd "$app_dir"
+
+  if [[ "$INSTALL_FRONTEND_DEPS" == "1" ]]; then
+    if [[ -f package-lock.json ]]; then
+      run npm ci
+    else
+      run npm install
+    fi
+  fi
+
+  if npm run | grep -q "typecheck"; then
+    run npm run typecheck
+  fi
+  run npm run build
+}
+
+restart_api() {
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files "$API_SERVICE.service" >/dev/null 2>&1; then
+    if [[ "$(id -u)" -eq 0 ]]; then
+      run systemctl restart "$API_SERVICE"
+    elif command -v sudo >/dev/null 2>&1; then
+      run sudo -n systemctl restart "$API_SERVICE"
+    else
+      fail "Need root or passwordless sudo to restart $API_SERVICE"
+    fi
+    return 0
+  fi
+
+  if command -v supervisorctl >/dev/null 2>&1 && supervisorctl status "$API_SERVICE" >/dev/null 2>&1; then
+    run supervisorctl restart "$API_SERVICE"
+    return 0
+  fi
+
+  fail "Could not find systemd or supervisor service named $API_SERVICE"
+}
+
+check_health() {
+  for _ in 1 2 3 4 5; do
+    if curl -fsS "$API_HEALTH_URL" >/dev/null; then
+      log "API health check passed: $API_HEALTH_URL"
+      return 0
+    fi
+    sleep 2
+  done
+
+  fail "API health check failed: $API_HEALTH_URL"
+}
+
+main() {
+  acquire_lock
+  require_command git
+  require_command python3
+  require_command npm
+  require_command curl
+
+  log "Starting deploy: project=$PROJECT_DIR branch=$DEPLOY_BRANCH"
+  update_code
+  install_backend_deps
+  build_frontend "$WEB_DIR" "cs2-web"
+  build_frontend "$ADMIN_DIR" "cs2-admin"
+  restart_api
+  check_health
+  log "Deployment completed successfully"
+}
+
+main "$@"

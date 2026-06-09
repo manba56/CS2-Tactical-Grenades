@@ -33,7 +33,7 @@ cs2-tactics-suite/
 ### `cs2-api`
 
 - 技术栈：`Python 3.13`、`FastAPI`
-- 当前存储：本地 JSON 种子数据
+- 当前存储：本地 SQLite 数据库，首次启动自动写入种子数据
 - 主要能力：
   - 前台登录 / 注册
   - 地图 / 战术查询
@@ -68,7 +68,7 @@ cs2-tactics-suite/
 - Backend: `FastAPI`
 - Frontend: `Vue 3 + Vite + TypeScript`
 - State: `Pinia`
-- Data Storage: local `JSON` seed store
+- Data Storage: local `SQLite` database seeded on first start
 - Asset Strategy: static image assets + uploaded files
 
 ## Quick Start
@@ -148,6 +148,31 @@ npm run dev
 http://127.0.0.1:5175
 ```
 
+## Quality Checks
+
+后端单元测试：
+
+```bash
+cd tests
+python -m pytest unit -q
+```
+
+玩家前台：
+
+```bash
+cd cs2-web
+npm run typecheck
+npm run build
+```
+
+管理后台：
+
+```bash
+cd cs2-admin
+npm run typecheck
+npm run build
+```
+
 ## Demo Accounts
 
 前台账号：
@@ -160,10 +185,52 @@ http://127.0.0.1:5175
 
 ## Current Implementation Notes
 
-- 后端当前使用本地 JSON 持久化，首次启动会自动初始化种子数据
+- 后端当前使用本地 SQLite 持久化，数据库文件位于 `cs2-api/data/db.sqlite`
 - 上传文件会保存到 `cs2-api/app/static/uploads/`
 - 地图和线路示例资源位于 `cs2-api/app/static/assets/maps/`
 - 前端默认请求 `http://127.0.0.1:8008`
+- 部署 webhook 默认关闭；需要配置 `DEPLOY_WEBHOOK_SECRET` 或 `GITHUB_WEBHOOK_SECRET`
+
+### Deployment Webhook
+
+`POST /api/webhook/deploy` 支持两种校验方式：
+
+- GitHub webhook 的 `X-Hub-Signature-256`
+- 自建脚本的 `X-Deploy-Secret`
+
+未配置密钥时接口会返回 `503`，避免误暴露后触发部署。
+
+GitHub 仓库 Webhook 推荐配置：
+
+```text
+Payload URL: https://yourdomain.com/api/webhook/deploy
+Content type: application/json
+Secret: 与服务器 DEPLOY_WEBHOOK_SECRET 相同
+Events: Just the push event
+```
+
+服务器项目根目录建议创建 `.env`：
+
+```bash
+DEPLOY_WEBHOOK_SECRET=replace-with-a-long-random-secret
+PROJECT_DIR=/www/wwwroot/cs2-tactics
+DEPLOY_BRANCH=main
+API_SERVICE=cs2-api
+```
+
+根目录 `deploy.sh` 是 webhook 实际执行的脚本，会执行：
+
+```text
+git pull --ff-only -> install deps -> typecheck -> build -> restart API -> health check
+```
+
+如果 API 服务以 `www` 等非 root 用户运行，webhook 进程需要无密码重启服务权限。示例：
+
+```text
+www ALL=(root) NOPASSWD: /bin/systemctl restart cs2-api
+```
+
+请先用 `which systemctl` 确认服务器上的 `systemctl` 路径，再写入 sudoers。
 
 ## API Highlights
 
@@ -190,7 +257,7 @@ http://127.0.0.1:5175
 
 ## Roadmap
 
-- [ ] Replace JSON store with `SQLite` or `MySQL`
+- [ ] Refine SQLite CRUD or migrate to `MySQL` / `PostgreSQL` for larger deployments
 - [ ] Add JWT and stronger auth/session handling
 - [ ] Support visual point dragging on map
 - [ ] Support richer tactic editor for ordered steps
