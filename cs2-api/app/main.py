@@ -152,28 +152,59 @@ async def ai_generate(payload: dict[str, Any], _: dict[str, Any] = Depends(get_a
     if not DEEPSEEK_KEY:
         raise HTTPException(status_code=503, detail="未配置 DEEPSEEK_API_KEY")
 
-    # 版本1 通用标准版 Prompt
-    prompt = f"""你是专业CS战术编辑，根据下方参数编写实战战术，严格遵守格式，只输出规定内容，不要额外解释：
-地图：{payload.get("map","未知")}
-阵营：{payload.get("side","T")}
-执行阶段：{payload.get("phase","default")}
-难度：{payload.get("difficulty","medium")}
-参与人数：{payload.get("players",3)}
-道具类型：{payload.get("utility_type","smoke")}
+    side = payload.get("side","T")
+    title = payload.get("title","")
+    goal = payload.get("goal","")
+    map_name = payload.get("map","")
+    phase = payload.get("phase","default")
+    diff = payload.get("difficulty","medium")
+    players = payload.get("players",3)
+    util = payload.get("utility_type","smoke")
 
-按以下格式输出：
-标题：[15字以内的战术名称]
-Slug：[英文slug，如mirage-a-smoke-exec]
-目标：[10字内战术目标，如A点爆弹]
-摘要：[80-110字]
+    if side == "CT":
+        prompt = f"""你是CS2职业教练。根据以下核心信息，编写一套CT方防守战术：
+
+【核心信息】
+地图：{map_name}
+战术名称：{title}
+战术目标：{goal}
+
+【辅助信息】
+难度：{diff} | 人数：{players}人 | 阶段：{phase} | 道具：{util}
+
+CT方防守要点：拖延进攻节奏、道具分割路线、反清拿信息、站位轮转等回防
+
+按以下格式输出（只输出内容，不要解释）：
+摘要：[80-110字，从CT防守视角概括战术思路]
 执行步骤：
-1. [步骤1]
-2. [步骤2]
-3. [步骤3]
+1. [CT方操作步骤1]
+2. [CT方操作步骤2]
+3. [CT方操作步骤3]
 注意事项：
-1. [注意1]
-2. [注意2]
-3. [注意3]"""
+1. [防守注意1]
+2. [防守注意2]"""
+    else:
+        prompt = f"""你是CS2职业教练。根据以下核心信息，编写一套T方进攻战术：
+
+【核心信息】
+地图：{map_name}
+战术名称：{title}
+战术目标：{goal}
+
+【辅助信息】
+难度：{diff} | 人数：{players}人 | 阶段：{phase} | 道具：{util}
+
+T方进攻要点：主动爆弹、道具开道压制、抢占包点下包、控制时间
+
+按以下格式输出（只输出内容，不要解释）：
+摘要：[80-110字，从T方进攻视角概括战术思路]
+执行步骤：
+1. [T方操作步骤1]
+2. [T方操作步骤2]
+3. [T方操作步骤3]
+注意事项：
+1. [进攻注意1]
+2. [进攻注意2]"""
 
     def _call():
         import urllib.request, re

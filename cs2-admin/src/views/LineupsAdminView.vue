@@ -83,6 +83,7 @@ async function aiFill() {
   try {
     const resp = await api.aiGenerate({
       map: mapItem?.name || '',
+      title: form.title || '',
       side: form.side,
       goal: form.purpose || '通用',
       phase: 'default',

@@ -216,6 +216,7 @@ async function aiFill() {
   try {
     const resp = await api.aiGenerate({
       map: mapItem?.name || '',
+      title: form.title || '',
       side: form.side,
       goal: form.goal || '',
       phase: form.phase,
