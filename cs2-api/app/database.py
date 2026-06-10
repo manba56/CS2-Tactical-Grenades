@@ -26,7 +26,11 @@ CREATE TABLE IF NOT EXISTS points (
     id INTEGER PRIMARY KEY,
     map_id INTEGER, name TEXT, key TEXT,
     x REAL, y REAL, side TEXT, point_type TEXT,
-    tags TEXT
+    tags TEXT,
+    description TEXT DEFAULT '',
+    aim_image_url TEXT DEFAULT '',
+    effect_image_url TEXT DEFAULT '',
+    video_url TEXT DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS lineups (
@@ -95,7 +99,8 @@ CREATE TABLE IF NOT EXISTS counters (
 TABLE_COLUMNS: dict[str, list[str]] = {
     "maps":      ["name", "slug", "overview", "cover_url", "layout_url",
                   "video_url", "callout_color", "order", "status", "active_pool"],
-    "points":    ["map_id", "name", "key", "x", "y", "side", "point_type", "tags"],
+    "points":    ["map_id", "name", "key", "x", "y", "side", "point_type", "tags",
+                  "description", "aim_image_url", "effect_image_url", "video_url"],
     "lineups":   ["map_id", "title", "slug", "side", "utility_type",
                   "start_point_id", "aim_point_id", "land_point_id",
                   "purpose", "difficulty", "summary", "steps", "media", "video_url", "status"],
@@ -180,6 +185,10 @@ class Database:
                 "ALTER TABLE maps ADD COLUMN video_url TEXT DEFAULT ''",
                 "ALTER TABLE lineups ADD COLUMN video_url TEXT DEFAULT ''",
                 "ALTER TABLE tactics ADD COLUMN video_url TEXT DEFAULT ''",
+                "ALTER TABLE points ADD COLUMN description TEXT DEFAULT ''",
+                "ALTER TABLE points ADD COLUMN aim_image_url TEXT DEFAULT ''",
+                "ALTER TABLE points ADD COLUMN effect_image_url TEXT DEFAULT ''",
+                "ALTER TABLE points ADD COLUMN video_url TEXT DEFAULT ''",
             ]:
                 try:
                     conn.execute(sql)

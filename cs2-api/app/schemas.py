@@ -43,6 +43,10 @@ class PointPayload(BaseModel):
     side: Literal["T", "CT", "BOTH"] = "BOTH"
     point_type: Literal["site", "staging", "aim", "utility", "anchor"] = "site"
     tags: list[str] = Field(default_factory=list)
+    description: str = ""
+    aim_image_url: str = ""
+    effect_image_url: str = ""
+    video_url: str = ""
 
 
 class LineupPayload(BaseModel):

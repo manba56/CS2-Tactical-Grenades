@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 
-import { api } from '../api';
+import { api, resolveAssetUrl } from '../api';
+import AssetPicker from '../components/AssetPicker.vue';
 import { useSessionStore } from '../stores/session';
 import type { AdminMap, AdminPoint } from '../types';
 
@@ -18,7 +19,16 @@ const form = reactive({
   side: 'BOTH',
   point_type: 'site',
   tagsText: '',
+  description: '',
+  aim_image_url: '',
+  effect_image_url: '',
+  video_url: '',
 });
+
+const currentMap = computed(() => maps.value.find((map) => map.id === form.map_id) || null);
+const currentRadarUrl = computed(() =>
+  currentMap.value ? resolveAssetUrl(`/static/assets/maps/radars/${currentMap.value.slug}-radar.png`) : '',
+);
 
 const groupedPoints = computed(() =>
   maps.value.map((map) => ({
@@ -41,6 +51,10 @@ function edit(item: AdminPoint) {
   Object.assign(form, {
     ...item,
     tagsText: item.tags.join(', '),
+    description: item.description || '',
+    aim_image_url: item.aim_image_url || '',
+    effect_image_url: item.effect_image_url || '',
+    video_url: item.video_url || '',
   });
 }
 
@@ -55,7 +69,18 @@ function resetForm() {
     side: 'BOTH',
     point_type: 'site',
     tagsText: '',
+    description: '',
+    aim_image_url: '',
+    effect_image_url: '',
+    video_url: '',
   });
+}
+
+function setPointFromRadar(event: MouseEvent) {
+  const target = event.currentTarget as HTMLElement;
+  const rect = target.getBoundingClientRect();
+  form.x = Number((((event.clientX - rect.left) / rect.width) * 100).toFixed(2));
+  form.y = Number((((event.clientY - rect.top) / rect.height) * 100).toFixed(2));
 }
 
 async function submit() {
@@ -71,6 +96,10 @@ async function submit() {
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean),
+    description: form.description,
+    aim_image_url: form.aim_image_url,
+    effect_image_url: form.effect_image_url,
+    video_url: form.video_url,
   };
   if (editingId.value) {
     await api.updatePoint(editingId.value, payload, session.token);
@@ -87,7 +116,7 @@ onMounted(load);
 <template>
   <div class="page-header">
     <h1>点位管理</h1>
-    <p class="muted">维护地图坐标点，为线路和战术步骤提供锚点。</p>
+    <p class="muted">维护地图雷达坐标、瞄点图、效果图和视频，前台点击雷达点位即可查看。</p>
   </div>
   <div class="content-grid">
     <section class="panel list-stack">
@@ -101,7 +130,9 @@ onMounted(load);
               <span class="chip">{{ point.side }}</span>
             </div>
             <div class="muted">{{ point.x }} / {{ point.y }}</div>
-            <button class="ghost-button" @click="edit(point)">编辑</button>
+            <div class="toolbar">
+              <button class="ghost-button" @click="edit(point)">编辑</button>
+            </div>
           </div>
         </div>
       </article>
@@ -140,6 +171,19 @@ onMounted(load);
           坐标 Y
           <input v-model.number="form.y" type="number" min="0" max="100" class="field" />
         </label>
+        <div class="full radar-picker">
+          <div class="inline-row" style="justify-content:space-between">
+            <strong>雷达图选点</strong>
+            <span class="muted">点击雷达图设置 X / Y</span>
+          </div>
+          <div v-if="currentRadarUrl" class="radar-stage" @click="setPointFromRadar">
+            <img :src="currentRadarUrl" :alt="currentMap?.name || 'radar'" />
+            <span
+              class="radar-marker"
+              :style="{ left: `${form.x}%`, top: `${form.y}%` }"
+            />
+          </div>
+        </div>
         <label>
           类型
           <select v-model="form.point_type" class="select">
@@ -154,6 +198,36 @@ onMounted(load);
           标签（逗号分隔）
           <input v-model="form.tagsText" class="field" />
         </label>
+        <label class="full">
+          点位说明
+          <textarea v-model="form.description" class="textarea" />
+        </label>
+        <label class="full">
+          瞄点图 URL
+          <div class="media-url-row">
+            <input v-model="form.aim_image_url" class="field" />
+            <img v-if="form.aim_image_url" :src="resolveAssetUrl(form.aim_image_url)" class="media-preview" />
+          </div>
+          <details class="asset-library">
+            <summary class="ghost-button">从素材库选择瞄点图</summary>
+            <AssetPicker compact @select="(url) => { form.aim_image_url = url; }" />
+          </details>
+        </label>
+        <label class="full">
+          效果图 URL
+          <div class="media-url-row">
+            <input v-model="form.effect_image_url" class="field" />
+            <img v-if="form.effect_image_url" :src="resolveAssetUrl(form.effect_image_url)" class="media-preview" />
+          </div>
+          <details class="asset-library">
+            <summary class="ghost-button">从素材库选择效果图</summary>
+            <AssetPicker compact @select="(url) => { form.effect_image_url = url; }" />
+          </details>
+        </label>
+        <label class="full">
+          视频 URL（可填 B 站 BV 链接）
+          <input v-model="form.video_url" class="field" />
+        </label>
       </div>
       <div class="toolbar">
         <button class="button">{{ editingId ? '保存修改' : '创建点位' }}</button>
@@ -162,3 +236,65 @@ onMounted(load);
     </form>
   </div>
 </template>
+
+<style scoped>
+.radar-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.radar-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  cursor: crosshair;
+}
+.radar-stage img {
+  display: block;
+  width: 100%;
+}
+.radar-marker {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: #ff7a18;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 6px rgba(255,122,24,0.22);
+  pointer-events: none;
+}
+.media-url-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.media-url-row .field {
+  flex: 1;
+}
+.media-preview {
+  width: 76px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.asset-library {
+  margin-top: 8px;
+}
+.asset-library > summary {
+  display: inline-flex;
+  width: fit-content;
+  list-style: none;
+}
+.asset-library > summary::-webkit-details-marker {
+  display: none;
+}
+.asset-library[open] {
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+}
+</style>

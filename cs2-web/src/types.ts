@@ -29,6 +29,10 @@ export interface MapPoint {
   side: 'T' | 'CT' | 'BOTH';
   point_type: string;
   tags: string[];
+  description?: string;
+  aim_image_url?: string;
+  effect_image_url?: string;
+  video_url?: string;
 }
 
 export interface UtilityLineupDetail {

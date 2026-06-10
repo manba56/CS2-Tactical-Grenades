@@ -119,6 +119,10 @@ def build_seed_state() -> dict:
             "side": p["side"],
             "point_type": p["point_type"],
             "tags": p["tags"],
+            "description": "",
+            "aim_image_url": "",
+            "effect_image_url": "",
+            "video_url": "",
         })
 
     lineups = [
