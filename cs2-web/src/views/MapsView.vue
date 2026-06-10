@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import { api, resolveAssetUrl } from '../api';
 import { useHead } from '../composables/useHead';
@@ -8,19 +8,19 @@ import type { MapSummary, TacticCard as TacticCardType } from '../types';
 
 const maps = ref<MapSummary[]>([]);
 const tactics = ref<TacticCardType[]>([]);
-const filters = ref({
-  map_slug: '',
-  side: '',
-  utility_type: '',
-  difficulty: '',
-  search: '',
-});
-
+const activeMapSlug = ref('');
+const searchWord = ref('');
+const activePoolOnly = ref(false);
+const withTacticsOnly = ref(true);
 const loadError = ref('');
 
 async function load() {
+  loadError.value = '';
   try {
-    const [mapItems, tacticItems] = await Promise.all([api.getMaps(), api.getTactics(filters.value)]);
+    const [mapItems, tacticItems] = await Promise.all([
+      api.getMaps(),
+      api.getTactics({ page_size: 100 }),
+    ]);
     maps.value = mapItems;
     tactics.value = tacticItems.items;
   } catch {
@@ -28,89 +28,444 @@ async function load() {
   }
 }
 
+function selectMap(slug: string) {
+  activeMapSlug.value = activeMapSlug.value === slug ? '' : slug;
+}
+
+function clearFilters() {
+  activeMapSlug.value = '';
+  searchWord.value = '';
+  activePoolOnly.value = false;
+  withTacticsOnly.value = true;
+}
+
+function mapSearchText(map: MapSummary) {
+  return [map.name, map.slug, map.overview].join(' ').toLowerCase();
+}
+
+const filteredMaps = computed(() => {
+  const query = searchWord.value.trim().toLowerCase();
+  return maps.value.filter((map) => {
+    if (query && !mapSearchText(map).includes(query)) return false;
+    if (activePoolOnly.value && !map.active_pool) return false;
+    if (withTacticsOnly.value && (map.tactic_count || 0) <= 0) return false;
+    return true;
+  });
+});
+
+const activeMap = computed(() => filteredMaps.value.find((map) => map.slug === activeMapSlug.value) || null);
+const displayedTactics = computed(() => {
+  if (!activeMap.value) return [];
+  return tactics.value.filter((tactic) => tactic.map.slug === activeMap.value?.slug);
+});
+
 onMounted(() => {
-  useHead('地图库', '浏览全部CS2现役地图，按地图查找战术');
+  useHead('地图库', '浏览全部 CS2 地图雷达图，按地图查找战术');
   load();
 });
 </script>
 
 <template>
-  <section class="section-heading">
-    <div>
-      <div class="kicker">Map-first Tactic Browser</div>
-      <h1>地图库</h1>
-    </div>
-    <p class="section-intro">先按地图定位，再按阵营、难度和道具类型收窄结果。</p>
-  </section>
+  <div class="maps-page">
+    <section class="maps-heading">
+      <div>
+        <div class="kicker">Map-first Tactic Browser</div>
+        <h1>地图库</h1>
+      </div>
+      <p class="section-intro">左侧选择地图，右侧查看对应雷达图和该地图战术。</p>
+    </section>
 
-  <section class="maps-grid">
-    <router-link
-      v-for="map in maps"
-      :key="map.slug"
-      class="map-card"
-      :style="{ backgroundImage: `url(${resolveAssetUrl(map.cover_url)})` }"
-      :to="`/maps/${map.slug}`"
-    >
-      <span class="chip strong">{{ map.name }}</span>
-      <h3 class="map-title">{{ map.name }}</h3>
-      <p>{{ map.overview }}</p>
-    </router-link>
-  </section>
+    <div v-if="loadError" class="empty-card">
+      <p class="muted">{{ loadError }}</p>
+    </div>
 
-  <section class="section-block glass-panel">
-    <div class="section-heading">
-      <h2>全局筛选</h2>
-    </div>
-    <div class="filter-grid">
-      <label>
-        地图
-        <select v-model="filters.map_slug" class="field-select" @change="load">
-          <option value="">全部地图</option>
-          <option v-for="map in maps" :key="map.slug" :value="map.slug">{{ map.name }}</option>
-        </select>
-      </label>
-      <label>
-        阵营
-        <select v-model="filters.side" class="field-select" @change="load">
-          <option value="">全部</option>
-          <option value="T">T</option>
-          <option value="CT">CT</option>
-        </select>
-      </label>
-      <label>
-        道具
-        <select v-model="filters.utility_type" class="field-select" @change="load">
-          <option value="">全部</option>
-          <option value="smoke">smoke</option>
-          <option value="flash">flash</option>
-          <option value="molotov">molotov</option>
-          <option value="he">he</option>
-        </select>
-      </label>
-      <label>
-        难度
-        <select v-model="filters.difficulty" class="field-select" @change="load">
-          <option value="">全部</option>
-          <option value="easy">easy</option>
-          <option value="medium">medium</option>
-          <option value="hard">hard</option>
-        </select>
-      </label>
-      <label>
-        搜索
-        <input v-model="filters.search" class="field" placeholder="标题 / 标签 / 摘要" @keyup.enter="load" />
-      </label>
-      <button class="primary-button" @click="load">刷新列表</button>
-    </div>
-  </section>
+    <div v-else class="maps-layout">
+      <aside class="maps-sidebar">
+        <div class="map-filter-section">
+          <div class="side-label">搜索</div>
+          <input
+            v-model="searchWord"
+            class="map-search"
+            placeholder="搜索地图名称 / slug"
+          />
+        </div>
 
-  <section class="section-block">
-    <div class="section-heading">
-      <h2>战术结果</h2>
-      <span class="muted">{{ tactics.length }} 条结果</span>
+        <div class="map-filter-section">
+          <div class="side-label">范围</div>
+          <label class="filter-toggle">
+            <input v-model="withTacticsOnly" type="checkbox" />
+            <span>只看有战术的地图</span>
+          </label>
+          <label class="filter-toggle">
+            <input v-model="activePoolOnly" type="checkbox" />
+            <span>只看现役地图池</span>
+          </label>
+        </div>
+
+        <div class="map-filter-section">
+          <div class="side-label">地图</div>
+          <button
+            v-for="map in filteredMaps"
+            :key="map.slug"
+            class="map-list-item"
+            :class="{ active: activeMapSlug === map.slug }"
+            @click="selectMap(map.slug)"
+          >
+            <span>{{ map.name }}</span>
+            <strong>{{ map.tactic_count || 0 }}</strong>
+          </button>
+          <p v-if="filteredMaps.length === 0" class="muted small-empty">没有匹配的地图</p>
+        </div>
+
+        <button class="map-reset" @click="clearFilters">清除筛选</button>
+      </aside>
+
+      <main class="maps-main">
+        <section v-if="activeMap" class="selected-map-panel">
+          <div class="selected-map-media">
+            <img
+              :src="resolveAssetUrl(activeMap.layout_url || activeMap.cover_url)"
+              :alt="activeMap.name"
+              loading="lazy"
+            />
+          </div>
+          <div class="selected-map-info">
+            <div class="section-heading compact-heading">
+              <h2>{{ activeMap.name }}</h2>
+              <span class="chip strong">{{ activeMap.tactic_count || 0 }} 条战术</span>
+            </div>
+            <p class="section-intro">{{ activeMap.overview }}</p>
+            <div class="map-actions">
+              <router-link class="primary-button small" :to="`/maps/${activeMap.slug}`">进入地图详情</router-link>
+              <button class="secondary-button" @click="activeMapSlug = ''">查看全部雷达</button>
+            </div>
+          </div>
+        </section>
+
+        <section v-else class="radar-grid">
+          <router-link
+            v-for="map in filteredMaps"
+            :key="map.slug"
+            class="radar-card"
+            :to="`/maps/${map.slug}`"
+          >
+            <div class="radar-card-media">
+              <img
+                :src="resolveAssetUrl(map.layout_url || map.cover_url)"
+                :alt="map.name"
+                loading="lazy"
+              />
+            </div>
+            <div class="radar-card-info">
+              <strong>{{ map.name }}</strong>
+              <span>{{ map.tactic_count || 0 }} 条战术</span>
+            </div>
+          </router-link>
+        </section>
+
+        <section v-if="activeMap" class="section-block map-tactics-section">
+          <div class="section-heading compact-heading">
+            <h2>{{ activeMap.name }} 战术</h2>
+            <span class="muted">{{ displayedTactics.length }} 条结果</span>
+          </div>
+          <div v-if="displayedTactics.length" class="card-grid map-tactic-grid">
+            <TacticCard v-for="tactic in displayedTactics" :key="tactic.id" :tactic="tactic" />
+          </div>
+          <div v-else class="empty-card">
+            <p class="muted">这张地图暂时没有已发布战术</p>
+          </div>
+        </section>
+      </main>
     </div>
-    <div class="card-grid">
-      <TacticCard v-for="tactic in tactics" :key="tactic.id" :tactic="tactic" />
-    </div>
-  </section>
+  </div>
 </template>
+
+<style scoped>
+.maps-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.maps-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 0 2px;
+}
+
+.maps-heading h1 {
+  margin: 4px 0 0;
+  font-size: 1.55rem;
+}
+
+.maps-heading .section-intro {
+  max-width: 420px;
+  margin: 0;
+  text-align: right;
+}
+
+.maps-layout {
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.maps-sidebar {
+  position: sticky;
+  top: 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: calc(100vh - 90px);
+  padding: 14px 10px;
+  overflow-y: auto;
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+
+.side-label {
+  margin-bottom: 7px;
+  color: #7a8ba0;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.map-search {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  background: rgba(8,14,23,0.76);
+  color: #fff;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.map-search:focus {
+  outline: none;
+  border-color: rgba(255,122,24,0.55);
+}
+
+.filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  color: #bcc8d6;
+  font-size: 0.8rem;
+}
+
+.filter-toggle input {
+  width: 14px;
+  height: 14px;
+  accent-color: #ff7a18;
+}
+
+.map-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #bcc8d6;
+  padding: 5px 9px;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.map-list-item:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.map-list-item.active {
+  background: rgba(255,122,24,0.12);
+  color: #ffb88c;
+}
+
+.map-list-item strong {
+  color: #5a6478;
+  font-size: 0.7rem;
+}
+
+.map-reset {
+  min-height: 30px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  background: none;
+  color: #6b7d95;
+  padding: 6px 10px;
+  font-size: 0.74rem;
+}
+
+.map-reset:hover {
+  color: #ff7a18;
+  border-color: rgba(255,122,24,0.3);
+}
+
+.small-empty {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+}
+
+.maps-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.selected-map-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+  gap: 18px;
+  align-items: stretch;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  background: rgba(13,20,31,0.72);
+  padding: 14px;
+}
+
+.selected-map-media,
+.radar-card-media {
+  overflow: hidden;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.025);
+}
+
+.selected-map-media img,
+.radar-card-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.selected-map-media {
+  aspect-ratio: 1 / 1;
+}
+
+.selected-map-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.compact-heading {
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+}
+
+.compact-heading h2 {
+  font-size: 1.2rem;
+}
+
+.map-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.radar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.radar-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  background: rgba(13,20,31,0.72);
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.radar-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255,122,24,0.35);
+}
+
+.radar-card-media {
+  aspect-ratio: 1 / 1;
+  border-radius: 0;
+}
+
+.radar-card-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.radar-card-info strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.radar-card-info span {
+  flex: 0 0 auto;
+  color: #7a8ba0;
+  font-size: 0.75rem;
+}
+
+.map-tactics-section {
+  margin-top: 0;
+}
+
+.map-tactic-grid {
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 920px) {
+  .selected-map-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .maps-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .maps-heading .section-intro {
+    max-width: none;
+    text-align: left;
+  }
+
+  .maps-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .maps-sidebar {
+    position: static;
+    width: 100%;
+    max-height: none;
+    padding: 12px 0 4px;
+    border-right: none;
+  }
+
+  .radar-grid,
+  .map-tactic-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
