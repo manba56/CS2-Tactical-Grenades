@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 
 import { api, resolveAssetUrl } from '../api';
+import AssetPicker from '../components/AssetPicker.vue';
 import { useSessionStore } from '../stores/session';
 import type { AdminLineup, AdminMap, AdminPoint } from '../types';
 
@@ -144,6 +145,10 @@ async function uploadScreenshot(i: number, file: File) {
   }
 }
 
+function selectScreenshotAsset(i: number, url: string) {
+  form.screenshots[i].url = url;
+}
+
 async function remove(item: AdminLineup) {
   error.value = '';
   try {
@@ -279,6 +284,10 @@ onMounted(load);
                 选择文件
                 <input type="file" accept="image/*" hidden @change="(e:any) => uploadScreenshot(idx, e.target.files[0])" />
               </label>
+              <details class="asset-library">
+                <summary class="ghost-button">从素材库回填</summary>
+                <AssetPicker compact @select="(url) => selectScreenshotAsset(idx, url)" />
+              </details>
               <img
                 v-if="shot.url"
                 :src="resolveAssetUrl(shot.url)"
@@ -300,3 +309,24 @@ onMounted(load);
     </form>
   </div>
 </template>
+
+<style scoped>
+.asset-library {
+  min-width: 180px;
+}
+.asset-library > summary {
+  display: inline-flex;
+  width: fit-content;
+  list-style: none;
+}
+.asset-library > summary::-webkit-details-marker {
+  display: none;
+}
+.asset-library[open] {
+  flex-basis: 100%;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+}
+</style>

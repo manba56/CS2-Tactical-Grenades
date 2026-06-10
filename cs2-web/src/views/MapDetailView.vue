@@ -10,6 +10,7 @@ import { label, UTILITY_LABELS, SIDE_LABELS, DIFFICULTY_LABELS } from '../utils/
 
 const route = useRoute();
 const mapDetail = ref<MapDetail | null>(null);
+const activePointId = ref<number | null>(null);
 
 type FilterKey = 'side' | 'utility_type' | 'goal' | 'phase' | 'difficulty' | 'tag';
 const filterKeys: FilterKey[] = ['side', 'utility_type', 'goal', 'phase', 'difficulty', 'tag'];
@@ -31,8 +32,18 @@ const filteredTactics = computed(() => {
     if (f.difficulty && tactic.difficulty !== f.difficulty) return false;
     if (f.tag && !tactic.tags.includes(f.tag)) return false;
     if (f.utility_type && !tactic.utility_types.includes(f.utility_type)) return false;
+    if (activePointId.value) {
+      const pointLineupIds = lineupsForPoint(activePointId.value);
+      const tacticLineupIds = tactic.lineup_ids || [];
+      if (!tacticLineupIds.some((id) => pointLineupIds.has(id))) return false;
+    }
     return true;
   });
+});
+
+const activePoint = computed(() => {
+  if (!mapDetail.value || !activePointId.value) return null;
+  return mapDetail.value.points.find((point) => point.id === activePointId.value) || null;
 });
 
 const filterOptions = computed(() => {
@@ -53,6 +64,25 @@ function filterLabel(key: string, val: string) {
   if (key === 'utility_type') return label(val, UTILITY_LABELS);
   if (key === 'difficulty') return label(val, DIFFICULTY_LABELS);
   return val;
+}
+
+function lineupsForPoint(pointId: number) {
+  const result = new Set<number>();
+  if (!mapDetail.value) return result;
+  for (const lineup of mapDetail.value.lineups) {
+    if (
+      lineup.start_point_id === pointId ||
+      lineup.aim_point_id === pointId ||
+      lineup.land_point_id === pointId
+    ) {
+      result.add(lineup.id);
+    }
+  }
+  return result;
+}
+
+function togglePoint(pointId: number) {
+  activePointId.value = activePointId.value === pointId ? null : pointId;
 }
 
 const loadError = ref('');
@@ -79,6 +109,9 @@ onMounted(async () => {
           <option v-for="val in filterOptions[key]" :key="val" :value="val">{{ filterLabel(key, val) }}</option>
         </select>
       </label>
+      <button v-if="activePoint" class="point-filter-chip" @click="activePointId = null">
+        点位：{{ activePoint.name }} ×
+      </button>
       <span class="filter-count">{{ filteredTactics.length }} 条</span>
     </div>
 
@@ -91,16 +124,21 @@ onMounted(async () => {
         <img :src="resolveAssetUrl(`/static/assets/maps/radars/${mapDetail.slug}-radar.png`)" :alt="mapDetail.name" />
         <span
           v-for="point in mapDetail.points" :key="point.id"
-          class="map-point"
+          class="map-point clickable-point"
+          :class="{ active: activePointId === point.id }"
           :style="{
             left: `${point.x}%`, top: `${point.y}%`,
             background: point.side === 'CT' ? '#65d6ce' : point.side === 'T' ? '#ff7a18' : '#ffffff',
           }"
+          :title="`筛选 ${point.name}`"
+          @click="togglePoint(point.id)"
         />
         <span
           v-for="point in mapDetail.points" :key="'lbl-'+point.id"
-          class="map-point-label"
+          class="map-point-label clickable-label"
+          :class="{ active: activePointId === point.id }"
           :style="{ left: `${point.x}%`, top: `${point.y}%` }"
+          @click="togglePoint(point.id)"
         >{{ point.name }}</span>
       </div>
     </div>
@@ -219,6 +257,34 @@ onMounted(async () => {
 /* ── Map panel ─────────────────────────────── */
 .map-panel {
   /* full width */
+}
+.clickable-point {
+  cursor: pointer;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.clickable-point:hover,
+.clickable-point.active {
+  box-shadow: 0 0 0 4px rgba(255, 122, 24, 0.28), 0 0 16px rgba(255, 122, 24, 0.45);
+  transform: translate(-50%, -50%) scale(1.2);
+}
+.clickable-label {
+  cursor: pointer;
+  user-select: none;
+}
+.clickable-label.active {
+  color: #ffb88c;
+  border-color: rgba(255, 122, 24, 0.55);
+  background: rgba(255, 122, 24, 0.18);
+}
+.point-filter-chip {
+  border: 1px solid rgba(255, 122, 24, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 122, 24, 0.14);
+  color: #ffb88c;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 @media (max-width: 640px) {

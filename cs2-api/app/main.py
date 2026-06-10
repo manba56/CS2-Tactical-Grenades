@@ -356,6 +356,7 @@ def summarize_tactic(state: dict[str, Any], tactic: dict[str, Any]) -> dict[str,
         "created_at": tactic["created_at"],
         "status": tactic["status"],
         "featured": tactic["featured"],
+        "lineup_ids": lineup_ids,
     }
 
 
@@ -1027,6 +1028,26 @@ def admin_users(_: dict[str, Any] = Depends(get_admin_user)) -> list[dict[str, A
         }
         for item in players
     ]
+
+
+@app.get("/api/admin/assets")
+def admin_assets(
+    _: dict[str, Any] = Depends(get_admin_user),
+    q: str | None = None,
+    media_type: str | None = None,
+) -> list[dict[str, Any]]:
+    state = STORE.snapshot()
+    assets = list(state.get("assets", []))
+    if q:
+        needle = q.strip().lower()
+        assets = [
+            item for item in assets
+            if needle in (item.get("original_name") or "").lower()
+            or needle in (item.get("url") or "").lower()
+        ]
+    if media_type and media_type != "all":
+        assets = [item for item in assets if (item.get("type") or "").startswith(media_type)]
+    return sorted(assets, key=lambda item: item.get("id", 0), reverse=True)
 
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"}

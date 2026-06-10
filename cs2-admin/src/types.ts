@@ -119,3 +119,13 @@ export interface AdminCollection {
   status: string;
   created_at: string;
 }
+
+export interface AdminAsset {
+  id: number;
+  filename: string;
+  original_name: string;
+  url: string;
+  width: number | null;
+  height: number | null;
+  type: string;
+}

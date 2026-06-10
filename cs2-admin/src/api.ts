@@ -1,5 +1,6 @@
 import type {
   AdminCollection,
+  AdminAsset,
   AdminLineup,
   AdminMap,
   AdminPoint,
@@ -106,6 +107,14 @@ export const api = {
       {},
       token,
     );
+  },
+  assets(token: string, query: { q?: string; media_type?: string } = {}) {
+    const params = new URLSearchParams();
+    Object.entries(query).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+    return request<AdminAsset[]>(`/api/admin/assets${suffix}`, {}, token);
   },
   aiGenerate(form: Record<string, any>, token: string) {
     return request<{ title:string; slug:string; goal:string; summary:string; steps:string; note:string }>('/api/admin/ai/generate', {

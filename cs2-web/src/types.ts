@@ -68,6 +68,7 @@ export interface TacticCard {
   created_at: string;
   status: string;
   featured: boolean;
+  lineup_ids?: number[];
   map: {
     id: number;
     name: string;

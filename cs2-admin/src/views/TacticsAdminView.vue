@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 import { api, resolveAssetUrl } from '../api';
+import AssetPicker from '../components/AssetPicker.vue';
 import RouteEditor from '../components/RouteEditor.vue';
 import { useSessionStore } from '../stores/session';
 import type { AdminLineup, AdminMap, AdminTactic, RouteData, ScreenshotItem } from '../types';
@@ -63,6 +64,34 @@ const currentMapSlug = computed(() => {
 });
 
 const filteredLineups = computed(() => lineups.value.filter((lineup) => lineup.map_id === form.map_id));
+const tacticSearch = ref('');
+const tacticMapFilter = ref('');
+const tacticStatusFilter = ref('');
+const tacticSideFilter = ref('');
+
+const filteredTactics = computed(() => {
+  const query = tacticSearch.value.trim().toLowerCase();
+  return tactics.value.filter((item) => {
+    if (tacticMapFilter.value && item.map_id !== Number(tacticMapFilter.value)) return false;
+    if (tacticStatusFilter.value && item.status !== tacticStatusFilter.value) return false;
+    if (tacticSideFilter.value && item.side !== tacticSideFilter.value) return false;
+    if (!query) return true;
+    const haystack = [
+      item.title,
+      item.summary,
+      item.goal,
+      item.phase,
+      item.difficulty,
+      item.status,
+      ...item.tags,
+    ].join(' ').toLowerCase();
+    return haystack.includes(query);
+  });
+});
+
+function mapName(mapId: number) {
+  return maps.value.find((map) => map.id === mapId)?.name || `#${mapId}`;
+}
 
 async function load() {
   const [mapItems, lineupItems, tacticItems] = await Promise.all([
@@ -115,6 +144,10 @@ async function uploadScreenshot(index: number, file: File) {
     console.error('Upload failed:', err);
     alert('上传失败');
   }
+}
+
+function selectScreenshotAsset(index: number, url: string) {
+  form.screenshots[index].url = url;
 }
 
 const routeScreenshots = computed(() =>
@@ -257,9 +290,29 @@ onMounted(load);
   </div>
   <div class="content-grid">
     <section class="panel list-stack">
-      <article v-for="item in tactics" :key="item.id" class="list-item">
+      <div class="toolbar tactic-filter-bar">
+        <input v-model="tacticSearch" class="field" placeholder="搜索标题、目标、摘要、标签" />
+        <select v-model="tacticMapFilter" class="select">
+          <option value="">全部地图</option>
+          <option v-for="map in maps" :key="map.id" :value="String(map.id)">{{ map.name }}</option>
+        </select>
+        <select v-model="tacticStatusFilter" class="select">
+          <option value="">全部状态</option>
+          <option value="draft">draft</option>
+          <option value="published">published</option>
+          <option value="archived">archived</option>
+        </select>
+        <select v-model="tacticSideFilter" class="select">
+          <option value="">全部阵营</option>
+          <option value="T">T</option>
+          <option value="CT">CT</option>
+        </select>
+      </div>
+      <p class="muted">显示 {{ filteredTactics.length }} / {{ tactics.length }} 条战术</p>
+      <article v-for="item in filteredTactics" :key="item.id" class="list-item">
         <div class="inline-row">
           <strong>{{ item.title }}</strong>
+          <span class="chip">{{ mapName(item.map_id) }}</span>
           <span class="chip">{{ item.status }}</span>
           <span class="chip">{{ item.phase }}</span>
           <span class="chip">{{ item.players }} 人</span>
@@ -341,6 +394,10 @@ onMounted(load);
             <input v-model="form.cover_url" class="field" style="flex:1" />
             <img v-if="form.cover_url" :src="resolveAssetUrl(form.cover_url)" class="cover-preview" />
           </div>
+          <details class="asset-library">
+            <summary class="ghost-button">从素材库选择封面</summary>
+            <AssetPicker compact @select="(url) => { form.cover_url = url; }" />
+          </details>
         </label>
         <label class="full">
           标签（逗号分隔）
@@ -431,6 +488,10 @@ onMounted(load);
                 />
                 <button type="button" class="ghost-button" @click="removeScreenshot(item.formIdx)">删除</button>
               </div>
+              <details class="asset-library">
+                <summary class="ghost-button">从素材库回填</summary>
+                <AssetPicker compact @select="(url) => selectScreenshotAsset(item.formIdx, url)" />
+              </details>
               <img
                 v-if="item.shot.url"
                 :src="resolveAssetUrl(item.shot.url)"
@@ -471,6 +532,10 @@ onMounted(load);
                 />
                 <button type="button" class="ghost-button" @click="removeScreenshot(item.formIdx)">删除</button>
               </div>
+              <details class="asset-library">
+                <summary class="ghost-button">从素材库回填</summary>
+                <AssetPicker compact @select="(url) => selectScreenshotAsset(item.formIdx, url)" />
+              </details>
               <img
                 v-if="item.shot.url"
                 :src="resolveAssetUrl(item.shot.url)"
@@ -566,5 +631,30 @@ onMounted(load);
   border-radius: 6px;
   border: 1px solid #333;
   flex-shrink: 0;
+}
+.tactic-filter-bar {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tactic-filter-bar .field {
+  min-width: 220px;
+  flex: 1;
+}
+.asset-library {
+  margin-top: 8px;
+}
+.asset-library > summary {
+  display: inline-flex;
+  width: fit-content;
+  list-style: none;
+}
+.asset-library > summary::-webkit-details-marker {
+  display: none;
+}
+.asset-library[open] {
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
 }
 </style>

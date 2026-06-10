@@ -22,6 +22,7 @@ tools/hltv_browser_profile/
 *.log
 
 # Test artifacts
+/allure-results/
 tests/allure-results/
 tests/allure-report/
 tests/coverage-html/
