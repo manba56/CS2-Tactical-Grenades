@@ -21,6 +21,7 @@ API_HEALTH_URL="${API_HEALTH_URL:-http://127.0.0.1:8008/api/health}"
 INSTALL_BACKEND_DEPS="${INSTALL_BACKEND_DEPS:-1}"
 INSTALL_FRONTEND_DEPS="${INSTALL_FRONTEND_DEPS:-1}"
 LOCK_DIR="${DEPLOY_LOCK_DIR:-/tmp/cs2-tactics-deploy.lock}"
+export npm_config_cache="${npm_config_cache:-$PROJECT_DIR/.npm-cache}"
 
 API_DIR="$PROJECT_DIR/cs2-api"
 WEB_DIR="$PROJECT_DIR/cs2-web"
@@ -53,7 +54,7 @@ require_command() {
 }
 
 prepare_runtime_dirs() {
-  mkdir -p "$API_DIR/data" "$API_DIR/app/static/uploads"
+  mkdir -p "$API_DIR/data" "$API_DIR/app/static/uploads" "$npm_config_cache"
 }
 
 fix_permissions_if_root() {
@@ -67,6 +68,48 @@ fix_permissions_if_root() {
   else
     log "Service user not found, skipping chown: $SERVICE_USER"
   fi
+}
+
+install_deploy_runner_if_root() {
+  if [[ "$(id -u)" -ne 0 ]]; then
+    return 0
+  fi
+  if ! command -v systemd-run >/dev/null 2>&1 || ! command -v visudo >/dev/null 2>&1; then
+    return 0
+  fi
+  if ! id "$SERVICE_USER" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local systemctl_path
+  local runner_path="/usr/local/bin/cs2-deploy-run"
+  local sudoers_file="/etc/sudoers.d/cs2-deploy"
+  systemctl_path="$(command -v systemctl)"
+
+  cat > "$runner_path" << 'RUNNER'
+#!/bin/bash
+set -euo pipefail
+
+PROJECT_DIR="${PROJECT_DIR:-/www/wwwroot/cs2-tactics}"
+DEPLOY_SCRIPT="$PROJECT_DIR/deploy.sh"
+LOG_FILE="$PROJECT_DIR/deploy.log"
+UNIT_NAME="cs2-tactics-deploy-$(date +%Y%m%d%H%M%S)-$$"
+SYSTEMD_RUN="${SYSTEMD_RUN:-$(command -v systemd-run)}"
+
+exec "$SYSTEMD_RUN" \
+  --unit="$UNIT_NAME" \
+  --collect \
+  --property=WorkingDirectory="$PROJECT_DIR" \
+  /bin/bash -lc "cd '$PROJECT_DIR' && exec /bin/bash '$DEPLOY_SCRIPT' >> '$LOG_FILE' 2>&1"
+RUNNER
+  chmod 755 "$runner_path"
+
+  cat > "$sudoers_file" << SUDOERS
+$SERVICE_USER ALL=(root) NOPASSWD: $systemctl_path restart $API_SERVICE
+$SERVICE_USER ALL=(root) NOPASSWD: $runner_path
+SUDOERS
+  chmod 440 "$sudoers_file"
+  visudo -cf "$sudoers_file" >/dev/null
 }
 
 update_code() {
@@ -154,6 +197,7 @@ main() {
   build_frontend "$WEB_DIR" "cs2-web"
   build_frontend "$ADMIN_DIR" "cs2-admin"
   fix_permissions_if_root
+  install_deploy_runner_if_root
   restart_api
   check_health
   log "Deployment completed successfully"

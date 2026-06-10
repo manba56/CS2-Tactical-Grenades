@@ -300,23 +300,29 @@ async def webhook_deploy(request: Request):
     if "main" not in ref and "master" not in ref:
         return {"status": "skipped", "ref": ref}
 
-    # Fire deploy.sh in background, output goes to log file.
-    # Use bash explicitly so webhook delivery does not depend on executable bit
-    # or shebang handling on the deployed file.
+    # Prefer a root-owned runner created by deploy/deploy.sh. It starts the
+    # deployment as an independent systemd transient unit, so restarting this
+    # API service does not terminate the deploy process halfway through.
     deploy_script = BASE_DIR.parent / "deploy.sh"
     log_path = BASE_DIR.parent / "deploy.log"
     if not deploy_script.exists():
         raise HTTPException(status_code=500, detail=f"Deploy script not found: {deploy_script}")
 
     try:
-        log_file = open(str(log_path), "a", encoding="utf-8")
-        subprocess.Popen(
-            ["bash", str(deploy_script)],
-            cwd=str(BASE_DIR.parent),
-            stdout=log_file,
-            stderr=log_file,
-            start_new_session=True,
-        )
+        deploy_runner = Path(os.getenv("DEPLOY_RUNNER", "/usr/local/bin/cs2-deploy-run"))
+        if deploy_runner.exists():
+            running_as_root = hasattr(os, "geteuid") and os.geteuid() == 0
+            command = [str(deploy_runner)] if running_as_root else ["sudo", "-n", str(deploy_runner)]
+            subprocess.Popen(command, cwd=str(BASE_DIR.parent), start_new_session=True)
+        else:
+            log_file = open(str(log_path), "a", encoding="utf-8")
+            subprocess.Popen(
+                ["bash", str(deploy_script)],
+                cwd=str(BASE_DIR.parent),
+                stdout=log_file,
+                stderr=log_file,
+                start_new_session=True,
+            )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to start deploy script: {exc}") from exc
 

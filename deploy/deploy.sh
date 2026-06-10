@@ -74,9 +74,33 @@ systemctl restart cs2-api
 
 echo "[4/4] Granting webhook restart permission..."
 SYSTEMCTL_PATH="$(command -v systemctl)"
+SYSTEMD_RUN_PATH="$(command -v systemd-run || true)"
+DEPLOY_RUNNER="/usr/local/bin/cs2-deploy-run"
+
+if [ -n "$SYSTEMD_RUN_PATH" ]; then
+cat > "$DEPLOY_RUNNER" << 'RUNNER'
+#!/bin/bash
+set -euo pipefail
+
+PROJECT_DIR="${PROJECT_DIR:-/www/wwwroot/cs2-tactics}"
+DEPLOY_SCRIPT="$PROJECT_DIR/deploy.sh"
+LOG_FILE="$PROJECT_DIR/deploy.log"
+UNIT_NAME="cs2-tactics-deploy-$(date +%Y%m%d%H%M%S)-$$"
+SYSTEMD_RUN="${SYSTEMD_RUN:-$(command -v systemd-run)}"
+
+exec "$SYSTEMD_RUN" \
+  --unit="$UNIT_NAME" \
+  --collect \
+  --property=WorkingDirectory="$PROJECT_DIR" \
+  /bin/bash -lc "cd '$PROJECT_DIR' && exec /bin/bash '$DEPLOY_SCRIPT' >> '$LOG_FILE' 2>&1"
+RUNNER
+chmod 755 "$DEPLOY_RUNNER"
+fi
+
 SUDOERS_FILE="/etc/sudoers.d/cs2-deploy"
 cat > "$SUDOERS_FILE" << SUDOERS
 $SERVICE_USER ALL=(root) NOPASSWD: $SYSTEMCTL_PATH restart cs2-api
+$SERVICE_USER ALL=(root) NOPASSWD: $DEPLOY_RUNNER
 SUDOERS
 chmod 440 "$SUDOERS_FILE"
 visudo -cf "$SUDOERS_FILE"
