@@ -41,7 +41,27 @@ const pointEditor = reactive({
   tagsText: '',
 });
 
+const POINT_TYPE_OPTIONS = [
+  { value: 'site', label: '落点' },
+  { value: 'staging', label: '起点' },
+  { value: 'aim', label: '瞄点' },
+  { value: 'utility', label: '通用道具点' },
+  { value: 'anchor', label: '站位点' },
+];
+const ROLE_POINT_TYPES: Record<'start' | 'aim' | 'land', string[]> = {
+  start: ['staging', 'utility', 'anchor'],
+  aim: ['aim', 'utility', 'anchor'],
+  land: ['site', 'utility', 'aim'],
+};
+
+function pointTypeLabel(value: string) {
+  return POINT_TYPE_OPTIONS.find((item) => item.value === value)?.label || value;
+}
+
 const filteredPoints = computed(() => points.value.filter((point) => point.map_id === form.map_id));
+const startPointOptions = computed(() => rolePointOptions('start'));
+const aimPointOptions = computed(() => rolePointOptions('aim'));
+const landPointOptions = computed(() => rolePointOptions('land'));
 const currentMap = computed(() => maps.value.find((map) => map.id === form.map_id) || null);
 const radarUrl = computed(() => currentMap.value ? resolveAssetUrl(`/static/assets/maps/radars/${currentMap.value.slug}-radar.png`) : '');
 const selectedPointPreview = computed(() => [
@@ -60,6 +80,17 @@ function selectedPointForRole(role = pointEditor.role) {
       ? form.aim_point_id
       : form.land_point_id;
   return points.value.find((point) => point.id === id) || null;
+}
+
+function rolePointOptions(role: 'start' | 'aim' | 'land') {
+  const allowed = ROLE_POINT_TYPES[role];
+  const preferred = filteredPoints.value.filter((point) => allowed.includes(point.point_type));
+  const selected = selectedPointForRole(role);
+  const options = preferred.length ? [...preferred] : [...filteredPoints.value];
+  if (selected && selected.map_id === form.map_id && !options.some((point) => point.id === selected.id)) {
+    options.unshift(selected);
+  }
+  return options;
 }
 
 function loadPointEditor(role = pointEditor.role) {
@@ -306,19 +337,25 @@ onMounted(load);
         <label>
           起点
           <select v-model.number="form.start_point_id" class="select" @change="loadPointEditor('start')">
-            <option v-for="point in filteredPoints" :key="point.id" :value="point.id">{{ point.name }}</option>
+            <option v-for="point in startPointOptions" :key="point.id" :value="point.id">
+              {{ point.name }} · {{ pointTypeLabel(point.point_type) }}
+            </option>
           </select>
         </label>
         <label>
           瞄点
           <select v-model.number="form.aim_point_id" class="select" @change="loadPointEditor('aim')">
-            <option v-for="point in filteredPoints" :key="point.id" :value="point.id">{{ point.name }}</option>
+            <option v-for="point in aimPointOptions" :key="point.id" :value="point.id">
+              {{ point.name }} · {{ pointTypeLabel(point.point_type) }}
+            </option>
           </select>
         </label>
         <label>
           落点
           <select v-model.number="form.land_point_id" class="select" @change="loadPointEditor('land')">
-            <option v-for="point in filteredPoints" :key="point.id" :value="point.id">{{ point.name }}</option>
+            <option v-for="point in landPointOptions" :key="point.id" :value="point.id">
+              {{ point.name }} · {{ pointTypeLabel(point.point_type) }}
+            </option>
           </select>
         </label>
         <div class="full lineup-preview" v-if="radarUrl">
@@ -379,11 +416,9 @@ onMounted(load);
             <label>
               类型
               <select v-model="pointEditor.point_type" class="select">
-                <option value="site">site</option>
-                <option value="staging">staging</option>
-                <option value="aim">aim</option>
-                <option value="utility">utility</option>
-                <option value="anchor">anchor</option>
+                <option v-for="item in POINT_TYPE_OPTIONS" :key="item.value" :value="item.value">
+                  {{ item.label }} / {{ item.value }}
+                </option>
               </select>
             </label>
             <label class="full">

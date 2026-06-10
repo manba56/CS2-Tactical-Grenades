@@ -25,6 +25,18 @@ const form = reactive({
   video_url: '',
 });
 
+const POINT_TYPE_OPTIONS = [
+  { value: 'site', label: '落点' },
+  { value: 'staging', label: '起点' },
+  { value: 'aim', label: '瞄点' },
+  { value: 'utility', label: '通用道具点' },
+  { value: 'anchor', label: '站位点' },
+];
+
+function pointTypeLabel(value: string) {
+  return POINT_TYPE_OPTIONS.find((item) => item.value === value)?.label || value;
+}
+
 const currentMap = computed(() => maps.value.find((map) => map.id === form.map_id) || null);
 const currentRadarUrl = computed(() =>
   currentMap.value ? resolveAssetUrl(`/static/assets/maps/radars/${currentMap.value.slug}-radar.png`) : '',
@@ -126,7 +138,7 @@ onMounted(load);
           <div v-for="point in group.items" :key="point.id" class="list-item">
             <div class="inline-row">
               <span>{{ point.name }}</span>
-              <span class="chip">{{ point.point_type }}</span>
+              <span class="chip">{{ pointTypeLabel(point.point_type) }}</span>
               <span class="chip">{{ point.side }}</span>
             </div>
             <div class="muted">{{ point.x }} / {{ point.y }}</div>
@@ -187,11 +199,9 @@ onMounted(load);
         <label>
           类型
           <select v-model="form.point_type" class="select">
-            <option value="site">site</option>
-            <option value="staging">staging</option>
-            <option value="aim">aim</option>
-            <option value="utility">utility</option>
-            <option value="anchor">anchor</option>
+            <option v-for="item in POINT_TYPE_OPTIONS" :key="item.value" :value="item.value">
+              {{ item.label }} / {{ item.value }}
+            </option>
           </select>
         </label>
         <label class="full">

@@ -11,9 +11,10 @@ const tactics = ref<TacticCardType[]>([]);
 const activeMapSlug = ref('');
 const searchWord = ref('');
 const activePoolOnly = ref(false);
-const withTacticsOnly = ref(true);
+const withTacticsOnly = ref(false);
 const loadError = ref('');
 const tacticLoadError = ref('');
+const radarFallbacks = ref<Record<string, boolean>>({});
 
 async function load() {
   loadError.value = '';
@@ -27,6 +28,9 @@ async function load() {
       throw mapItems.reason;
     }
     maps.value = mapItems.value;
+    if (!activeMapSlug.value && mapItems.value[0]) {
+      activeMapSlug.value = mapItems.value[0].slug;
+    }
     if (tacticItems.status === 'fulfilled') {
       tactics.value = tacticItems.value.items;
     } else {
@@ -39,14 +43,14 @@ async function load() {
 }
 
 function selectMap(slug: string) {
-  activeMapSlug.value = activeMapSlug.value === slug ? '' : slug;
+  activeMapSlug.value = slug;
 }
 
 function clearFilters() {
-  activeMapSlug.value = '';
+  activeMapSlug.value = maps.value[0]?.slug || '';
   searchWord.value = '';
   activePoolOnly.value = false;
-  withTacticsOnly.value = true;
+  withTacticsOnly.value = false;
 }
 
 function mapSearchText(map: MapSummary) {
@@ -63,11 +67,24 @@ const filteredMaps = computed(() => {
   });
 });
 
-const activeMap = computed(() => filteredMaps.value.find((map) => map.slug === activeMapSlug.value) || null);
+const activeMap = computed(() =>
+  filteredMaps.value.find((map) => map.slug === activeMapSlug.value) || filteredMaps.value[0] || null,
+);
 const displayedTactics = computed(() => {
   if (!activeMap.value) return [];
   return tactics.value.filter((tactic) => tactic.map.slug === activeMap.value?.slug);
 });
+
+function mapRadarUrl(map: MapSummary) {
+  if (radarFallbacks.value[map.slug]) {
+    return resolveAssetUrl(map.layout_url || map.cover_url);
+  }
+  return resolveAssetUrl(`/static/assets/maps/radars/${map.slug}-radar.png`);
+}
+
+function useRadarFallback(map: MapSummary) {
+  radarFallbacks.value = { ...radarFallbacks.value, [map.slug]: true };
+}
 
 onMounted(() => {
   useHead('地图库', '浏览全部 CS2 地图雷达图，按地图查找战术');
@@ -118,7 +135,7 @@ onMounted(() => {
             v-for="map in filteredMaps"
             :key="map.slug"
             class="map-list-item"
-            :class="{ active: activeMapSlug === map.slug }"
+            :class="{ active: activeMap?.slug === map.slug }"
             @click="selectMap(map.slug)"
           >
             <span>{{ map.name }}</span>
@@ -134,9 +151,10 @@ onMounted(() => {
         <section v-if="activeMap" class="selected-map-panel">
           <div class="selected-map-media">
             <img
-              :src="resolveAssetUrl(activeMap.layout_url || activeMap.cover_url)"
+              :src="mapRadarUrl(activeMap)"
               :alt="activeMap.name"
               loading="lazy"
+              @error="useRadarFallback(activeMap)"
             />
           </div>
           <div class="selected-map-info">
@@ -147,31 +165,12 @@ onMounted(() => {
             <p class="section-intro">{{ activeMap.overview }}</p>
             <div class="map-actions">
               <router-link class="primary-button small" :to="`/maps/${activeMap.slug}`">进入地图详情</router-link>
-              <button class="secondary-button" @click="activeMapSlug = ''">查看全部雷达</button>
             </div>
           </div>
         </section>
-
-        <section v-else class="radar-grid">
-          <router-link
-            v-for="map in filteredMaps"
-            :key="map.slug"
-            class="radar-card"
-            :to="`/maps/${map.slug}`"
-          >
-            <div class="radar-card-media">
-              <img
-                :src="resolveAssetUrl(map.layout_url || map.cover_url)"
-                :alt="map.name"
-                loading="lazy"
-              />
-            </div>
-            <div class="radar-card-info">
-              <strong>{{ map.name }}</strong>
-              <span>{{ map.tactic_count || 0 }} 条战术</span>
-            </div>
-          </router-link>
-        </section>
+        <div v-else class="empty-card">
+          <p class="muted">没有匹配的地图</p>
+        </div>
 
         <section v-if="activeMap" class="section-block map-tactics-section">
           <div class="section-heading compact-heading">
