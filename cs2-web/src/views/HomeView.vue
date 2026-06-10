@@ -19,8 +19,6 @@ const collections = ref<CollectionSummary[]>([]);
 const filterMapSlug = ref('');
 const filterSide = ref('');
 const filterDifficulty = ref('');
-const filterUtility = ref('');
-const filterPhase = ref('');
 const searchWord = ref('');
 
 function selectMap(slug: string) { filterMapSlug.value = filterMapSlug.value === slug ? '' : slug; }
@@ -30,8 +28,6 @@ function clearFilters() {
   filterMapSlug.value = '';
   filterSide.value = '';
   filterDifficulty.value = '';
-  filterUtility.value = '';
-  filterPhase.value = '';
   searchWord.value = '';
 }
 
@@ -41,8 +37,6 @@ onMounted(async () => {
   filterMapSlug.value = (route.query.map as string) || '';
   filterSide.value = (route.query.side as string) || '';
   filterDifficulty.value = (route.query.difficulty as string) || '';
-  filterUtility.value = (route.query.utility as string) || '';
-  filterPhase.value = (route.query.phase as string) || '';
   try {
     const [homeData, tacticsData] = await Promise.all([
       api.getHome(),
@@ -63,22 +57,18 @@ watch(() => route.query.search, (val) => {
   searchWord.value = (val as string) || '';
 });
 
-watch([searchWord, filterMapSlug, filterSide, filterDifficulty, filterUtility, filterPhase], () => {
+watch([searchWord, filterMapSlug, filterSide, filterDifficulty], () => {
   const query: Record<string, string> = {};
   if (searchWord.value) query.search = searchWord.value;
   if (filterMapSlug.value) query.map = filterMapSlug.value;
   if (filterSide.value) query.side = filterSide.value;
   if (filterDifficulty.value) query.difficulty = filterDifficulty.value;
-  if (filterUtility.value) query.utility = filterUtility.value;
-  if (filterPhase.value) query.phase = filterPhase.value;
   router.replace({ query });
 });
 
 const featuredTactics = computed(() => allTactics.value.filter(t => t.featured).slice(0, 3));
-const hasFilters = computed(() => filterMapSlug.value || filterSide.value || filterDifficulty.value || filterUtility.value || filterPhase.value || searchWord.value);
+const hasFilters = computed(() => filterMapSlug.value || filterSide.value || filterDifficulty.value || searchWord.value);
 const nonFeaturedTactics = computed(() => allTactics.value.filter(t => !t.featured));
-const utilityOptions = computed(() => Array.from(new Set(allTactics.value.flatMap(t => t.utility_types))).sort());
-const phaseOptions = computed(() => Array.from(new Set(allTactics.value.map(t => t.phase))).sort());
 
 const filteredTactics = computed(() => {
   let source = nonFeaturedTactics.value;
@@ -87,8 +77,6 @@ const filteredTactics = computed(() => {
   if (filterMapSlug.value) source = source.filter(t => t.map.slug === filterMapSlug.value);
   if (filterSide.value) source = source.filter(t => t.side === filterSide.value);
   if (filterDifficulty.value) source = source.filter(t => t.difficulty === filterDifficulty.value);
-  if (filterUtility.value) source = source.filter(t => t.utility_types.includes(filterUtility.value));
-  if (filterPhase.value) source = source.filter(t => t.phase === filterPhase.value);
   return source;
 });
 </script>
@@ -115,40 +103,6 @@ const filteredTactics = computed(() => {
       </div>
     </div>
 
-    <section v-if="!loading" class="glass-panel global-search-panel">
-      <input v-model="searchWord" class="search-field" placeholder="搜索战术、目标、标签" />
-      <select v-model="filterMapSlug" class="filter-select">
-        <option value="">全部地图</option>
-        <option v-for="map in maps" :key="map.id" :value="map.slug">{{ map.name }}</option>
-      </select>
-      <select v-model="filterSide" class="filter-select">
-        <option value="">全部阵营</option>
-        <option value="T">T方</option>
-        <option value="CT">CT方</option>
-      </select>
-      <select v-model="filterUtility" class="filter-select">
-        <option value="">全部道具</option>
-        <option v-for="utility in utilityOptions" :key="utility" :value="utility">{{ utility }}</option>
-      </select>
-      <select v-model="filterPhase" class="filter-select">
-        <option value="">全部阶段</option>
-        <option v-for="phase in phaseOptions" :key="phase" :value="phase">{{ phase }}</option>
-      </select>
-      <select v-model="filterDifficulty" class="filter-select">
-        <option value="">全部难度</option>
-        <option value="easy">easy</option>
-        <option value="medium">medium</option>
-        <option value="hard">hard</option>
-      </select>
-      <button class="ghost-button" @click="clearFilters">清除</button>
-    </section>
-
-    <!-- Search result banner -->
-    <div v-if="searchWord && !loading" class="glass-panel" style="padding:10px 16px;margin-bottom:0;display:flex;align-items:center;justify-content:space-between">
-      <span class="muted">搜索"<strong>{{ searchWord }}</strong>" — {{ filteredTactics.length }} 条结果</span>
-      <button class="ghost-button" @click="clearFilters">清除</button>
-    </div>
-
     <!-- Sidebar layout -->
     <div class="home-layout" v-if="!loading">
       <SideNav
@@ -157,6 +111,8 @@ const filteredTactics = computed(() => {
         :active-map-slug="filterMapSlug"
         :active-side="filterSide"
         :active-difficulty="filterDifficulty"
+        :search-word="searchWord"
+        @update-search="searchWord = $event"
         @select-map="selectMap"
         @select-side="selectSide"
         @select-difficulty="selectDifficulty"
@@ -189,7 +145,7 @@ const filteredTactics = computed(() => {
         <!-- Filtered tactics -->
         <section class="section-block">
           <div class="section-heading">
-            <h2>{{ filterMapSlug || filterSide || filterDifficulty ? '筛选结果' : '全部战术' }}</h2>
+            <h2>{{ hasFilters ? '筛选结果' : '全部战术' }}</h2>
             <span class="muted">{{ filteredTactics.length }} 条</span>
           </div>
           <div class="card-grid">
@@ -220,9 +176,6 @@ const filteredTactics = computed(() => {
 /* Layout */
 .home-layout { display: flex; gap: 24px; align-items: flex-start; }
 .home-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
-.global-search-panel { display: grid; grid-template-columns: minmax(220px, 1.4fr) repeat(5, minmax(110px, 1fr)) auto; gap: 10px; align-items: center; padding: 12px; }
-.search-field, .global-search-panel .filter-select { width: 100%; border: 1px solid rgba(255,255,255,0.1); background: rgba(8,14,23,0.76); color: #fff; border-radius: 8px; padding: 10px 12px; font-size: 13px; }
-.search-field:focus, .global-search-panel .filter-select:focus { outline: none; border-color: rgba(255,122,24,0.55); }
 
 /* Sidebar */
 .side-nav { width: 260px; flex-shrink: 0; position: sticky; top: 72px; max-height: calc(100vh - 90px); }
@@ -243,14 +196,10 @@ const filteredTactics = computed(() => {
   .home-layout { flex-direction: column; }
   .side-nav { width: 100%; position: static; max-height: none; }
   .home-main { width: 100%; }
-  .global-search-panel { grid-template-columns: 1fr 1fr; }
-  .global-search-panel .search-field { grid-column: 1 / -1; }
 }
 
 @media (max-width: 480px) {
   .hero-title { font-size: 1.1rem; }
   .hero-sub { font-size: 0.8rem; }
-  .global-search-panel { grid-template-columns: 1fr; }
-  .global-search-panel .search-field { grid-column: auto; }
 }
 </style>

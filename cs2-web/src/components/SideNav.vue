@@ -7,9 +7,11 @@ defineProps<{
   activeMapSlug: string;
   activeSide: string;
   activeDifficulty: string;
+  searchWord: string;
 }>();
 
 const emit = defineEmits<{
+  (e: 'update-search', value: string): void;
   (e: 'select-map', slug: string): void;
   (e: 'select-side', side: string): void;
   (e: 'select-difficulty', diff: string): void;
@@ -19,6 +21,16 @@ const emit = defineEmits<{
 
 <template>
   <aside class="side-nav">
+    <div class="side-section">
+      <div class="side-label">搜索</div>
+      <input
+        class="side-search"
+        :value="searchWord"
+        placeholder="搜索战术、目标、标签"
+        @input="emit('update-search', ($event.target as HTMLInputElement).value)"
+      />
+    </div>
+
     <div class="side-section">
       <div class="side-label">热门地图</div>
       <a
@@ -69,6 +81,19 @@ const emit = defineEmits<{
   overflow-y: auto;
 }
 .side-section {}
+.side-search {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(8,14,23,0.76);
+  color: #fff;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+.side-search:focus {
+  outline: none;
+  border-color: rgba(255,122,24,0.55);
+}
 .side-label {
   font-size: 0.68rem;
   text-transform: uppercase;
