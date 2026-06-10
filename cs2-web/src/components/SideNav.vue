@@ -76,9 +76,10 @@ const emit = defineEmits<{
 .side-nav {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 16px 12px;
+  gap: 14px;
+  padding: 14px 10px;
   overflow-y: auto;
+  border-right: 1px solid rgba(255,255,255,0.06);
 }
 .side-section {}
 .side-search {
@@ -87,8 +88,9 @@ const emit = defineEmits<{
   background: rgba(8,14,23,0.76);
   color: #fff;
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   font-size: 13px;
+  line-height: 1.35;
 }
 .side-search:focus {
   outline: none;
@@ -99,17 +101,18 @@ const emit = defineEmits<{
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: #7a8ba0;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
 .side-map-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 10px;
-  border-radius: 8px;
+  min-height: 30px;
+  padding: 5px 9px;
+  border-radius: 7px;
   text-decoration: none;
   color: #bcc8d6;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   transition: background 0.15s;
 }
 .side-map-item:hover { background: rgba(255,255,255,0.04); }
@@ -117,9 +120,10 @@ const emit = defineEmits<{
 .side-map-name { font-weight: 500; }
 .side-map-count { font-size: 0.7rem; color: #5a6478; min-width: 20px; text-align: right; }
 
-.side-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.side-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .side-chips button {
-  padding: 4px 10px;
+  min-height: 28px;
+  padding: 4px 9px;
   border-radius: 6px;
   border: 1px solid rgba(255,255,255,0.08);
   background: rgba(255,255,255,0.02);
@@ -137,7 +141,8 @@ const emit = defineEmits<{
 .side-dot.ct { background: #409eff; }
 
 .side-reset {
-  padding: 6px 12px;
+  min-height: 30px;
+  padding: 6px 10px;
   border-radius: 6px;
   border: 1px solid rgba(255,255,255,0.08);
   background: none;
@@ -147,4 +152,17 @@ const emit = defineEmits<{
   margin-top: 4px;
 }
 .side-reset:hover { color: #ff7a18; border-color: rgba(255,122,24,0.3); }
+
+@media (max-width: 640px) {
+  .side-nav {
+    gap: 12px;
+    padding: 12px 0 4px;
+    border-right: none;
+  }
+
+  .side-chips button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
 </style>

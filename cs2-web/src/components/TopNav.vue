@@ -7,7 +7,6 @@ import { useSessionStore } from '../stores/session';
 const router = useRouter();
 const session = useSessionStore();
 const menuOpen = ref(false);
-const searchText = ref('');
 
 const navItems = computed(() => [
   { label: '首页', to: '/' },
@@ -24,14 +23,6 @@ function logout() {
   router.push('/');
   closeMenu();
 }
-
-function doSearch() {
-  const q = searchText.value.trim();
-  if (q) {
-    closeMenu();
-    router.push(`/?search=${encodeURIComponent(q)}`);
-  }
-}
 </script>
 
 <template>
@@ -40,19 +31,6 @@ function doSearch() {
       <span class="brand-kicker">全地图道具 & 战术手册</span>
       <strong>CS2 战术实验室</strong>
     </router-link>
-
-    <!-- Search bar -->
-    <form class="nav-search" @submit.prevent="doSearch">
-      <input
-        v-model="searchText"
-        class="nav-search-input"
-        placeholder="搜索战术..."
-        aria-label="搜索战术"
-      />
-      <button type="submit" class="nav-search-btn" aria-label="搜索">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      </button>
-    </form>
 
     <!-- Desktop nav -->
     <div class="nav-menu desktop-only">
@@ -88,12 +66,6 @@ function doSearch() {
   <Teleport to="body">
     <div v-if="menuOpen" class="mobile-overlay" @click.self="closeMenu">
       <div class="mobile-menu">
-        <form class="nav-search mobile-search" @submit.prevent="doSearch">
-          <input v-model="searchText" class="nav-search-input" placeholder="搜索战术..." />
-          <button type="submit" class="nav-search-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </button>
-        </form>
         <nav class="mobile-nav-links">
           <router-link
             v-for="item in navItems" :key="item.to" :to="item.to"
@@ -126,22 +98,10 @@ function doSearch() {
 .hamburger.open span:nth-child(2) { opacity: 0; }
 .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
-/* Search */
-.nav-search { position: relative; display: flex; align-items: center; flex: 1; max-width: 360px; margin: 0 16px; }
-.nav-search-input { width: 100%; padding: 7px 40px 7px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: #f3f6fb; font-size: 0.88rem; outline: none; transition: border-color 0.2s, background 0.2s; line-height: 1.4; }
-.nav-search-input:focus { border-color: #ff7a18; background: rgba(255,255,255,0.06); }
-.nav-search-input::placeholder { color: #5a6478; }
-.nav-search-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; padding: 6px; color: #6b7d95; cursor: pointer; }
-.nav-search-btn:hover { color: #ff7a18; }
-
-.mobile-search { display: none; max-width: 280px; margin-bottom: 8px; }
-
 .mobile-overlay { display: none; }
 
 @media (max-width: 640px) {
   .desktop-only { display: none; }
-  .nav-search:not(.mobile-search) { display: none; }
-  .mobile-search { display: flex; }
   .hamburger { display: flex; }
   .mobile-overlay {
     display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 100;
