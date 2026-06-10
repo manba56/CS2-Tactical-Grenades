@@ -13,16 +13,26 @@ const searchWord = ref('');
 const activePoolOnly = ref(false);
 const withTacticsOnly = ref(true);
 const loadError = ref('');
+const tacticLoadError = ref('');
 
 async function load() {
   loadError.value = '';
+  tacticLoadError.value = '';
   try {
-    const [mapItems, tacticItems] = await Promise.all([
+    const [mapItems, tacticItems] = await Promise.allSettled([
       api.getMaps(),
-      api.getTactics({ page_size: 100 }),
+      api.getTactics({ page_size: 50 }),
     ]);
-    maps.value = mapItems;
-    tactics.value = tacticItems.items;
+    if (mapItems.status === 'rejected') {
+      throw mapItems.reason;
+    }
+    maps.value = mapItems.value;
+    if (tacticItems.status === 'fulfilled') {
+      tactics.value = tacticItems.value.items;
+    } else {
+      tactics.value = [];
+      tacticLoadError.value = '地图已加载，战术列表暂时加载失败';
+    }
   } catch {
     loadError.value = '加载失败，请刷新重试';
   }
@@ -168,10 +178,13 @@ onMounted(() => {
             <h2>{{ activeMap.name }} 战术</h2>
             <span class="muted">{{ displayedTactics.length }} 条结果</span>
           </div>
+          <div v-if="tacticLoadError" class="empty-card">
+            <p class="muted">{{ tacticLoadError }}</p>
+          </div>
           <div v-if="displayedTactics.length" class="card-grid map-tactic-grid">
             <TacticCard v-for="tactic in displayedTactics" :key="tactic.id" :tactic="tactic" />
           </div>
-          <div v-else class="empty-card">
+          <div v-else-if="!tacticLoadError" class="empty-card">
             <p class="muted">这张地图暂时没有已发布战术</p>
           </div>
         </section>
