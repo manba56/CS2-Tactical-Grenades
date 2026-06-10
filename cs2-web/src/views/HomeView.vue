@@ -7,6 +7,7 @@ import { useHead } from '../composables/useHead';
 import SideNav from '../components/SideNav.vue';
 import TacticCard from '../components/TacticCard.vue';
 import type { CollectionSummary, MapSummary, TacticCard as TacticCardType } from '../types';
+import { label, DIFFICULTY_LABELS, PHASE_LABELS, SIDE_LABELS, UTILITY_LABELS } from '../utils/labels';
 
 const route = useRoute();
 const router = useRouter();
@@ -70,10 +71,29 @@ const featuredTactics = computed(() => allTactics.value.filter(t => t.featured).
 const hasFilters = computed(() => filterMapSlug.value || filterSide.value || filterDifficulty.value || searchWord.value);
 const nonFeaturedTactics = computed(() => allTactics.value.filter(t => !t.featured));
 
+function searchableText(t: TacticCardType) {
+  return [
+    t.title,
+    t.summary,
+    t.goal,
+    t.phase,
+    label(t.phase, PHASE_LABELS),
+    t.side,
+    label(t.side, SIDE_LABELS),
+    t.difficulty,
+    label(t.difficulty, DIFFICULTY_LABELS),
+    t.map.name,
+    t.map.slug,
+    ...t.tags,
+    ...t.utility_types,
+    ...t.utility_types.map((utility) => label(utility, UTILITY_LABELS)),
+  ].join(' ').toLowerCase();
+}
+
 const filteredTactics = computed(() => {
-  let source = nonFeaturedTactics.value;
+  let source = hasFilters.value ? allTactics.value : nonFeaturedTactics.value;
   const query = searchWord.value.trim().toLowerCase();
-  if (query) source = source.filter(t => [t.title, t.summary, t.goal, t.phase, ...t.tags].join(' ').toLowerCase().includes(query));
+  if (query) source = source.filter(t => searchableText(t).includes(query));
   if (filterMapSlug.value) source = source.filter(t => t.map.slug === filterMapSlug.value);
   if (filterSide.value) source = source.filter(t => t.side === filterSide.value);
   if (filterDifficulty.value) source = source.filter(t => t.difficulty === filterDifficulty.value);

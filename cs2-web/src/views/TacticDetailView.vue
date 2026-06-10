@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { api, resolveAssetUrl } from '../api';
@@ -45,12 +45,20 @@ const quickExecItems = computed(() => (tactic.value?.steps || []).map((step) => 
 })));
 
 async function load() {
+  error.value = '';
+  lightboxUrl.value = '';
+  showRadar.value = false;
   try {
     tactic.value = await api.getTacticDetail(route.params.tacticSlug as string, session.token);
+    if (tactic.value) {
+      const cover = tactic.value.cover_url || '';
+      useHead(tactic.value.title, tactic.value.summary, cover || undefined);
+    }
     if (session.token && tactic.value) {
       await api.trackRecent(tactic.value.id, session.token);
     }
   } catch (err) {
+    tactic.value = null;
     error.value = err instanceof Error ? err.message : '加载失败';
   }
 }
@@ -90,10 +98,6 @@ function moveLightbox(delta: number) {
 // Auto-favorite after login redirect
 onMounted(async () => {
   await load();
-  if (tactic.value) {
-    const cover = tactic.value.cover_url || '';
-    useHead(tactic.value.title, tactic.value.summary, cover || undefined);
-  }
   if (route.query.action === 'favorite' && session.token && tactic.value && !tactic.value.is_favorite) {
     try {
       await api.addFavorite(tactic.value.id, session.token);
@@ -101,6 +105,10 @@ onMounted(async () => {
     } catch (_) { /* ignore */ }
     router.replace({ query: {} });
   }
+});
+
+watch(() => route.params.tacticSlug, async () => {
+  await load();
 });
 
 function routePath(r: { points: { x: number; y: number }[] }): string {
