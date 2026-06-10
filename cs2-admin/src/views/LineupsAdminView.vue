@@ -29,6 +29,17 @@ const form = reactive({
   video_url: '',
   status: 'draft',
 });
+const pointEditor = reactive({
+  role: 'start' as 'start' | 'aim' | 'land',
+  id: 0,
+  name: '',
+  key: '',
+  x: 50,
+  y: 50,
+  side: 'BOTH',
+  point_type: 'utility',
+  tagsText: '',
+});
 
 const filteredPoints = computed(() => points.value.filter((point) => point.map_id === form.map_id));
 const currentMap = computed(() => maps.value.find((map) => map.id === form.map_id) || null);
@@ -42,6 +53,32 @@ const previewPath = computed(() => selectedPointPreview.value
   .map((item, index) => `${index === 0 ? 'M' : 'L'}${item.point!.x} ${item.point!.y}`)
   .join(' '));
 
+function selectedPointForRole(role = pointEditor.role) {
+  const id = role === 'start'
+    ? form.start_point_id
+    : role === 'aim'
+      ? form.aim_point_id
+      : form.land_point_id;
+  return points.value.find((point) => point.id === id) || null;
+}
+
+function loadPointEditor(role = pointEditor.role) {
+  pointEditor.role = role;
+  const point = selectedPointForRole(role);
+  if (!point) return;
+  Object.assign(pointEditor, {
+    role,
+    id: point.id,
+    name: point.name,
+    key: point.key,
+    x: point.x,
+    y: point.y,
+    side: point.side,
+    point_type: point.point_type,
+    tagsText: (point.tags || []).join(', '),
+  });
+}
+
 async function load() {
   const [mapItems, pointItems, lineupItems] = await Promise.all([
     api.maps(session.token),
@@ -54,6 +91,7 @@ async function load() {
   if (!editingId.value && mapItems[0]) {
     form.map_id = mapItems[0].id;
   }
+  loadPointEditor();
 }
 
 function edit(item: AdminLineup) {
@@ -64,6 +102,7 @@ function edit(item: AdminLineup) {
     screenshots: (item.media || []).map((url: string) => ({ url, description: '' })),
     video_url: item.video_url || '',
   });
+  loadPointEditor();
 }
 
 function resetForm() {
@@ -87,6 +126,25 @@ function resetForm() {
     video_url: '',
     status: 'draft',
   });
+  loadPointEditor();
+}
+
+async function saveLinkedPoint() {
+  if (!pointEditor.id) return;
+  const original = points.value.find((point) => point.id === pointEditor.id);
+  if (!original) return;
+  await api.updatePoint(pointEditor.id, {
+    ...original,
+    name: pointEditor.name,
+    key: pointEditor.key,
+    x: pointEditor.x,
+    y: pointEditor.y,
+    side: pointEditor.side,
+    point_type: pointEditor.point_type,
+    tags: pointEditor.tagsText.split(',').map((item) => item.trim()).filter(Boolean),
+  }, session.token);
+  await load();
+  loadPointEditor(pointEditor.role);
 }
 
 async function aiFill() {
@@ -247,19 +305,19 @@ onMounted(load);
         </label>
         <label>
           起点
-          <select v-model.number="form.start_point_id" class="select">
+          <select v-model.number="form.start_point_id" class="select" @change="loadPointEditor('start')">
             <option v-for="point in filteredPoints" :key="point.id" :value="point.id">{{ point.name }}</option>
           </select>
         </label>
         <label>
           瞄点
-          <select v-model.number="form.aim_point_id" class="select">
+          <select v-model.number="form.aim_point_id" class="select" @change="loadPointEditor('aim')">
             <option v-for="point in filteredPoints" :key="point.id" :value="point.id">{{ point.name }}</option>
           </select>
         </label>
         <label>
           落点
-          <select v-model.number="form.land_point_id" class="select">
+          <select v-model.number="form.land_point_id" class="select" @change="loadPointEditor('land')">
             <option v-for="point in filteredPoints" :key="point.id" :value="point.id">{{ point.name }}</option>
           </select>
         </label>
@@ -282,6 +340,58 @@ onMounted(load);
               {{ item.label }}
             </span>
           </div>
+        </div>
+        <div class="full linked-point-editor">
+          <div class="inline-row" style="justify-content:space-between">
+            <strong>编辑当前点位</strong>
+            <span class="muted">点位是全局复用的，修改会影响引用它的内容</span>
+          </div>
+          <div class="toolbar">
+            <button type="button" class="ghost-button" :class="{ active: pointEditor.role === 'start' }" @click="loadPointEditor('start')">起点</button>
+            <button type="button" class="ghost-button" :class="{ active: pointEditor.role === 'aim' }" @click="loadPointEditor('aim')">瞄点</button>
+            <button type="button" class="ghost-button" :class="{ active: pointEditor.role === 'land' }" @click="loadPointEditor('land')">落点</button>
+          </div>
+          <div class="linked-point-grid">
+            <label>
+              名称
+              <input v-model="pointEditor.name" class="field" />
+            </label>
+            <label>
+              Key
+              <input v-model="pointEditor.key" class="field" />
+            </label>
+            <label>
+              X
+              <input v-model.number="pointEditor.x" type="number" min="0" max="100" class="field" />
+            </label>
+            <label>
+              Y
+              <input v-model.number="pointEditor.y" type="number" min="0" max="100" class="field" />
+            </label>
+            <label>
+              阵营
+              <select v-model="pointEditor.side" class="select">
+                <option value="T">T</option>
+                <option value="CT">CT</option>
+                <option value="BOTH">BOTH</option>
+              </select>
+            </label>
+            <label>
+              类型
+              <select v-model="pointEditor.point_type" class="select">
+                <option value="site">site</option>
+                <option value="staging">staging</option>
+                <option value="aim">aim</option>
+                <option value="utility">utility</option>
+                <option value="anchor">anchor</option>
+              </select>
+            </label>
+            <label class="full">
+              标签
+              <input v-model="pointEditor.tagsText" class="field" />
+            </label>
+          </div>
+          <button type="button" class="button" @click="saveLinkedPoint">保存点位修改</button>
         </div>
         <label>
           状态
@@ -390,5 +500,32 @@ onMounted(load);
   font-size: 11px;
   font-weight: 800;
   white-space: nowrap;
+}
+.linked-point-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+}
+.linked-point-editor .ghost-button.active {
+  border-color: rgba(255,122,24,0.45);
+  color: #ffb88c;
+  background: rgba(255,122,24,0.12);
+}
+.linked-point-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.linked-point-grid .full {
+  grid-column: 1 / -1;
+}
+@media (max-width: 720px) {
+  .linked-point-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
