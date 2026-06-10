@@ -41,6 +41,10 @@ run() {
   "$@"
 }
 
+git_safe() {
+  git -c "safe.directory=$PROJECT_DIR" "$@"
+}
+
 acquire_lock() {
   if ! mkdir "$LOCK_DIR" 2>/dev/null; then
     log "Another deployment is already running. Skipping this request."
@@ -117,9 +121,9 @@ update_code() {
   cd "$PROJECT_DIR"
 
   git config --global --add safe.directory "$PROJECT_DIR" >/dev/null 2>&1 || true
-  run git fetch origin "$DEPLOY_BRANCH"
-  run git checkout "$DEPLOY_BRANCH"
-  run git pull --ff-only origin "$DEPLOY_BRANCH"
+  run git_safe fetch origin "$DEPLOY_BRANCH"
+  run git_safe checkout "$DEPLOY_BRANCH"
+  run git_safe pull --ff-only origin "$DEPLOY_BRANCH"
 }
 
 install_backend_deps() {
@@ -193,6 +197,7 @@ main() {
   log "Starting deploy: project=$PROJECT_DIR branch=$DEPLOY_BRANCH"
   prepare_runtime_dirs
   update_code
+  fix_permissions_if_root
   install_backend_deps
   build_frontend "$WEB_DIR" "cs2-web"
   build_frontend "$ADMIN_DIR" "cs2-admin"
