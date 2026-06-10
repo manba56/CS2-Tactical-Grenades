@@ -432,6 +432,25 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/sitemap.xml")
+def sitemap() -> Response:
+    state = STORE.snapshot()
+    base_url = os.getenv("SITE_BASE_URL", "https://1338089.xyz").rstrip("/")
+    urls = ["/", "/maps"]
+    urls.extend(f"/maps/{item['slug']}" for item in state["maps"] if item["status"] == "published")
+    urls.extend(f"/tactics/{item['slug']}" for item in state["tactics"] if item["status"] == "published")
+    urls.extend(f"/collections/{item['slug']}" for item in state.get("collections", []) if item["status"] == "published")
+    body = "\n".join(
+        [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+            *[f"  <url><loc>{base_url}{path}</loc></url>" for path in urls],
+            "</urlset>",
+        ]
+    )
+    return Response(content=body, media_type="application/xml")
+
+
 
 
 @app.get("/api/public/home")
@@ -968,6 +987,38 @@ def _auto_slug(payload_slug: str, payload_title: str, tactic_id: int) -> str:
     return f"tactic-{tactic_id}"
 
 
+def _validate_tactic_slug(state: dict[str, Any], tactic: dict[str, Any]) -> None:
+    slug = tactic.get("slug", "")
+    if not slug:
+        return
+    for item in state["tactics"]:
+        if item["id"] != tactic["id"] and item.get("slug") == slug:
+            raise HTTPException(status_code=409, detail=f"Slug 已被战术 #{item['id']} 使用")
+
+
+def _validate_tactic_ready(state: dict[str, Any], tactic: dict[str, Any]) -> None:
+    issues: list[str] = []
+    if not tactic.get("title", "").strip():
+        issues.append("标题不能为空")
+    if not tactic.get("summary", "").strip():
+        issues.append("摘要不能为空")
+    if not tactic.get("cover_url", "").strip():
+        issues.append("封面不能为空")
+    if not tactic.get("step_items"):
+        issues.append("至少需要一个执行步骤")
+    for step in tactic.get("step_items", []):
+        if not step.get("instruction", "").strip():
+            issues.append("执行步骤说明不能为空")
+        lineup_id = step.get("lineup_id")
+        if lineup_id and not any(lineup["id"] == lineup_id for lineup in state["lineups"]):
+            issues.append(f"步骤关联的线路 #{lineup_id} 不存在")
+    for shot in tactic.get("screenshots", []):
+        if not shot.get("url", "").strip():
+            issues.append("截图 URL 不能为空")
+    if issues:
+        raise HTTPException(status_code=400, detail="；".join(dict.fromkeys(issues)))
+
+
 @app.post("/api/admin/tactics")
 def create_tactic(payload: TacticPayload, _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, Any]:
     def mutate(state: dict[str, Any]) -> dict[str, Any]:
@@ -975,6 +1026,9 @@ def create_tactic(payload: TacticPayload, _: dict[str, Any] = Depends(get_admin_
         item["id"] = next_id(state, "tactics")
         item["slug"] = _auto_slug(payload.slug, payload.title, item["id"])
         item["created_at"] = datetime.now(timezone.utc).isoformat()
+        _validate_tactic_slug(state, item)
+        if item["status"] == "published":
+            _validate_tactic_ready(state, item)
         state["tactics"].append(item)
         return item
 
@@ -989,6 +1043,9 @@ def update_tactic(tactic_id: int, payload: TacticPayload, _: dict[str, Any] = De
         item.update(dump_model(payload))
         item["slug"] = _auto_slug(payload.slug, payload.title, item["id"])
         item["created_at"] = original_created_at
+        _validate_tactic_slug(state, item)
+        if item["status"] == "published":
+            _validate_tactic_ready(state, item)
         return item
 
     return STORE.mutate(mutate)
@@ -998,6 +1055,8 @@ def update_tactic(tactic_id: int, payload: TacticPayload, _: dict[str, Any] = De
 def publish_tactic(tactic_id: int, _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, str]:
     def mutate(state: dict[str, Any]) -> dict[str, str]:
         tactic = find_by_id(state["tactics"], tactic_id)
+        _validate_tactic_slug(state, tactic)
+        _validate_tactic_ready(state, tactic)
         tactic["status"] = "published"
         return {"status": "ok"}
 
@@ -1047,7 +1106,48 @@ def admin_assets(
         ]
     if media_type and media_type != "all":
         assets = [item for item in assets if (item.get("type") or "").startswith(media_type)]
-    return sorted(assets, key=lambda item: item.get("id", 0), reverse=True)
+    return [
+        {**item, "used": _asset_is_used(state, item.get("url", ""))}
+        for item in sorted(assets, key=lambda item: item.get("id", 0), reverse=True)
+    ]
+
+
+def _asset_is_used(state: dict[str, Any], url: str) -> bool:
+    if not url:
+        return False
+    for item in state["maps"]:
+        if url in {item.get("cover_url"), item.get("layout_url")}:
+            return True
+    for item in state["points"]:
+        if url in {item.get("aim_image_url"), item.get("effect_image_url")}:
+            return True
+    for item in state["lineups"]:
+        if url in set(item.get("media", [])):
+            return True
+    for item in state["tactics"]:
+        if url == item.get("cover_url"):
+            return True
+        if any(url == shot.get("url") for shot in item.get("screenshots", [])):
+            return True
+    for item in state.get("collections", []):
+        if url == item.get("cover_url"):
+            return True
+    return False
+
+
+@app.delete("/api/admin/assets/{asset_id}")
+def delete_asset(asset_id: int, _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, str]:
+    def mutate(state: dict[str, Any]) -> dict[str, str]:
+        asset = find_by_id(state["assets"], asset_id)
+        if _asset_is_used(state, asset.get("url", "")):
+            raise HTTPException(status_code=409, detail="素材正在被内容引用，不能删除")
+        state["assets"] = [item for item in state["assets"] if item["id"] != asset_id]
+        file_path = UPLOAD_DIR / asset.get("filename", "")
+        if file_path.exists() and file_path.is_file():
+            file_path.unlink()
+        return {"status": "ok"}
+
+    return STORE.mutate(mutate)
 
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"}

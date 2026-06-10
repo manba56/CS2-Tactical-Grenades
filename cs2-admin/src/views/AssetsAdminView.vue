@@ -51,6 +51,16 @@ async function copyUrl(url: string) {
   }, 1200);
 }
 
+async function removeAsset(asset: AdminAsset) {
+  if (!confirm(`确定删除素材 "${asset.original_name || asset.filename}"？`)) return;
+  try {
+    await api.deleteAsset(asset.id, session.token);
+    await load();
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '删除失败';
+  }
+}
+
 watch(search, () => {
   window.clearTimeout((load as any)._timer);
   (load as any)._timer = window.setTimeout(load, 250);
@@ -90,6 +100,7 @@ onMounted(load);
       <article v-for="asset in imageAssets" :key="asset.id" class="list-item">
         <div class="inline-row">
           <strong>{{ asset.original_name || asset.filename }}</strong>
+          <span class="chip">{{ asset.used ? '使用中' : '未使用' }}</span>
           <span class="chip">{{ asset.type }}</span>
         </div>
         <div class="muted">{{ asset.url }}</div>
@@ -101,6 +112,9 @@ onMounted(load);
         <div class="toolbar">
           <button class="ghost-button" @click="copyUrl(asset.url)">
             {{ copiedUrl === asset.url ? '已复制' : '复制 URL' }}
+          </button>
+          <button class="ghost-button" :disabled="asset.used" @click="removeAsset(asset)">
+            删除未使用
           </button>
         </div>
       </article>

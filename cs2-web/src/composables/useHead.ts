@@ -1,5 +1,6 @@
 export function useHead(title: string, description: string, image?: string) {
-  document.title = `${title} — CS2 Tactics Lab`;
+  const fullTitle = `${title} — CS2 Tactics Lab`;
+  document.title = fullTitle;
 
   const setMeta = (attr: string, value: string, isProperty: boolean) => {
     const selector = isProperty
@@ -16,7 +17,21 @@ export function useHead(title: string, description: string, image?: string) {
   };
 
   setMeta('description', description, false);
-  setMeta('og:title', `${title} — CS2 Tactics Lab`, true);
+  setMeta('og:title', fullTitle, true);
   setMeta('og:description', description, true);
+  setMeta('og:type', 'website', true);
+  setMeta('og:url', window.location.href, true);
+  setMeta('twitter:card', image ? 'summary_large_image' : 'summary', false);
+  setMeta('twitter:title', fullTitle, false);
+  setMeta('twitter:description', description, false);
   if (image) setMeta('og:image', image, true);
+  if (image) setMeta('twitter:image', image, false);
+
+  let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+  if (!canonical) {
+    canonical = document.createElement('link');
+    canonical.setAttribute('rel', 'canonical');
+    document.head.appendChild(canonical);
+  }
+  canonical.setAttribute('href', window.location.href);
 }

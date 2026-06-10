@@ -132,4 +132,5 @@ export interface AdminAsset {
   width: number | null;
   height: number | null;
   type: string;
+  used?: boolean;
 }

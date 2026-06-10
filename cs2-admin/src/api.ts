@@ -129,6 +129,9 @@ export const api = {
       body: formData,
     }, token);
   },
+  deleteAsset(id: number, token: string) {
+    return request<{ status: string }>(`/api/admin/assets/${id}`, { method: 'DELETE' }, token);
+  },
   collections(token: string) {
     return request<AdminCollection[]>('/api/admin/collections', {}, token);
   },

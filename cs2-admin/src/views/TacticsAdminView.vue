@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 
 import { api, resolveAssetUrl } from '../api';
 import AssetPicker from '../components/AssetPicker.vue';
@@ -12,6 +12,18 @@ const maps = ref<AdminMap[]>([]);
 const lineups = ref<AdminLineup[]>([]);
 const tactics = ref<AdminTactic[]>([]);
 const editingId = ref<number | null>(null);
+const activeEditorTab = ref('basic');
+const saveNotice = ref('');
+const formDirty = ref(false);
+const draftTrackingReady = ref(false);
+const DRAFT_KEY = 'cs2-admin:tactic-draft';
+const editorTabs = [
+  { id: 'basic', label: '基础信息' },
+  { id: 'steps', label: '执行步骤' },
+  { id: 'routes', label: '路线图' },
+  { id: 'media', label: '截图/视频' },
+  { id: 'publish', label: '发布设置' },
+];
 const form = reactive({
   map_id: 1,
   title: '',
@@ -197,6 +209,8 @@ function resetForm() {
     screenshots: [] as ScreenshotItem[],
   });
   stepItems.value = [{ order: 1, role: '主道具位', type: 'utility', instruction: '补首颗关键烟', lineup_id: null }];
+  localStorage.removeItem(DRAFT_KEY);
+  formDirty.value = false;
 }
 
 async function submit() {
@@ -227,15 +241,25 @@ async function submit() {
     screenshots: form.screenshots,
   };
 
-  if (editingId.value) {
-    await api.updateTactic(editingId.value, payload, session.token);
-    editingId.value = null;
-  } else {
-    const created = await api.createTactic(payload, session.token);
-    editingId.value = (created as any).id;
-    form.slug = (created as any).slug || '';
+  try {
+    if (editingId.value) {
+      await api.updateTactic(editingId.value, payload, session.token);
+      editingId.value = null;
+    } else {
+      const created = await api.createTactic(payload, session.token);
+      editingId.value = (created as any).id;
+      form.slug = (created as any).slug || '';
+    }
+    localStorage.removeItem(DRAFT_KEY);
+    formDirty.value = false;
+    saveNotice.value = '保存成功';
+    window.setTimeout(() => { saveNotice.value = ''; }, 1500);
+  } catch (err) {
+    alert(err instanceof Error ? err.message : '保存失败，表单内容已保留');
+    return;
   }
   await load();
+  formDirty.value = false;
 }
 
 function clone(item: AdminTactic) {
@@ -271,8 +295,12 @@ async function aiFill() {
 }
 
 async function publish(item: AdminTactic) {
-  await api.publishTactic(item.id, session.token);
-  await load();
+  try {
+    await api.publishTactic(item.id, session.token);
+    await load();
+  } catch (err) {
+    alert(err instanceof Error ? err.message : '发布失败');
+  }
 }
 
 async function archive(item: AdminTactic) {
@@ -280,7 +308,55 @@ async function archive(item: AdminTactic) {
   await load();
 }
 
-onMounted(load);
+function saveDraft() {
+  localStorage.setItem(DRAFT_KEY, JSON.stringify({
+    editingId: editingId.value,
+    form: { ...form },
+    stepItems: stepItems.value,
+  }));
+}
+
+function restoreDraft() {
+  const raw = localStorage.getItem(DRAFT_KEY);
+  if (!raw || !confirm('检测到未保存草稿，是否恢复？')) return;
+  try {
+    const draft = JSON.parse(raw);
+    editingId.value = draft.editingId ?? null;
+    Object.assign(form, draft.form || {});
+    stepItems.value = draft.stepItems || stepItems.value;
+    formDirty.value = true;
+  } catch {
+    localStorage.removeItem(DRAFT_KEY);
+  }
+}
+
+function beforeUnload(event: BeforeUnloadEvent) {
+  if (!formDirty.value) return;
+  event.preventDefault();
+  event.returnValue = '';
+}
+
+function jumpEditorTab(tabId: string) {
+  activeEditorTab.value = tabId;
+  document.getElementById(`tactic-${tabId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+watch([form, stepItems], () => {
+  if (!draftTrackingReady.value) return;
+  formDirty.value = true;
+  saveDraft();
+}, { deep: true });
+
+onMounted(async () => {
+  await load();
+  restoreDraft();
+  draftTrackingReady.value = true;
+  window.addEventListener('beforeunload', beforeUnload);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', beforeUnload);
+});
 </script>
 
 <template>
@@ -331,7 +407,21 @@ onMounted(load);
       <h2>{{ editingId ? '编辑战术' : '新增战术' }}
         <button type="button" class="primary-button" style="margin-left:12px;font-size:0.85rem;padding:6px 16px" @click="aiFill()">🤖 AI 一键生成</button>
       </h2>
-      <div class="form-grid">
+      <div class="editor-tabs">
+        <button
+          v-for="tab in editorTabs"
+          :key="tab.id"
+          type="button"
+          class="ghost-button"
+          :class="{ active: activeEditorTab === tab.id }"
+          @click="jumpEditorTab(tab.id)"
+        >
+          {{ tab.label }}
+        </button>
+        <span v-if="saveNotice" class="chip">{{ saveNotice }}</span>
+        <span v-else-if="formDirty" class="muted">有未保存草稿</span>
+      </div>
+      <div id="tactic-basic" class="form-grid">
         <label>
           地图
           <select v-model.number="form.map_id" class="select" @change="_syncCoverUrl()">
@@ -414,7 +504,7 @@ onMounted(load);
             <option :value="false">false</option>
           </select>
         </label>
-        <label>
+        <label id="tactic-publish">
           状态
           <select v-model="form.status" class="select">
             <option value="draft">draft</option>
@@ -423,7 +513,7 @@ onMounted(load);
           </select>
         </label>
         <!-- Visual step editor -->
-        <div class="full steps-editor">
+        <div id="tactic-steps" class="full steps-editor">
           <h3>执行步骤</h3>
           <div v-for="(step, i) in stepItems" :key="i" class="step-row">
             <span class="step-num">{{ i + 1 }}</span>
@@ -456,11 +546,11 @@ onMounted(load);
             </div>
           </details>
         </div>
-        <div class="full">
+        <div id="tactic-routes" class="full">
           <RouteEditor v-model="form.routes" :map-slug="currentMapSlug" />
         </div>
         <!-- 路线截图 -->
-        <div class="full">
+        <div id="tactic-media" class="full">
           <div class="screenshots-section">
             <div class="screenshots-header">
               <h3>路线截图</h3>
@@ -639,6 +729,25 @@ onMounted(load);
 .tactic-filter-bar .field {
   min-width: 220px;
   flex: 1;
+}
+.editor-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 10px 0 14px;
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: rgba(15, 20, 35, 0.94);
+}
+.editor-tabs .active {
+  border-color: rgba(255,122,24,0.45);
+  color: #ffb88c;
+  background: rgba(255,122,24,0.12);
 }
 .asset-library {
   margin-top: 8px;

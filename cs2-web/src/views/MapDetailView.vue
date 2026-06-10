@@ -182,7 +182,7 @@ onMounted(async () => {
                 class="point-media-card"
                 @click="lightboxUrl = resolveAssetUrl(activePoint.aim_image_url || '')"
               >
-                <img :src="resolveAssetUrl(activePoint.aim_image_url)" alt="瞄点图" />
+                <img :src="resolveAssetUrl(activePoint.aim_image_url)" alt="瞄点图" loading="lazy" />
                 <span>瞄点图</span>
               </button>
               <button
@@ -191,7 +191,7 @@ onMounted(async () => {
                 class="point-media-card"
                 @click="lightboxUrl = resolveAssetUrl(activePoint.effect_image_url || '')"
               >
-                <img :src="resolveAssetUrl(activePoint.effect_image_url)" alt="效果图" />
+                <img :src="resolveAssetUrl(activePoint.effect_image_url)" alt="效果图" loading="lazy" />
                 <span>效果图</span>
               </button>
             </div>

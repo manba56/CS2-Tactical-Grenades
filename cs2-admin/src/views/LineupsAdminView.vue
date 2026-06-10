@@ -31,6 +31,16 @@ const form = reactive({
 });
 
 const filteredPoints = computed(() => points.value.filter((point) => point.map_id === form.map_id));
+const currentMap = computed(() => maps.value.find((map) => map.id === form.map_id) || null);
+const radarUrl = computed(() => currentMap.value ? resolveAssetUrl(`/static/assets/maps/radars/${currentMap.value.slug}-radar.png`) : '');
+const selectedPointPreview = computed(() => [
+  { label: '起点', point: filteredPoints.value.find((p) => p.id === form.start_point_id), color: '#65d6ce' },
+  { label: '瞄点', point: filteredPoints.value.find((p) => p.id === form.aim_point_id), color: '#ff7a18' },
+  { label: '落点', point: filteredPoints.value.find((p) => p.id === form.land_point_id), color: '#f5d76e' },
+].filter((item) => item.point));
+const previewPath = computed(() => selectedPointPreview.value
+  .map((item, index) => `${index === 0 ? 'M' : 'L'}${item.point!.x} ${item.point!.y}`)
+  .join(' '));
 
 async function load() {
   const [mapItems, pointItems, lineupItems] = await Promise.all([
@@ -253,6 +263,26 @@ onMounted(load);
             <option v-for="point in filteredPoints" :key="point.id" :value="point.id">{{ point.name }}</option>
           </select>
         </label>
+        <div class="full lineup-preview" v-if="radarUrl">
+          <div class="inline-row" style="justify-content:space-between">
+            <strong>线路关系预览</strong>
+            <span class="muted">起点 → 瞄点 → 落点</span>
+          </div>
+          <div class="lineup-radar-stage">
+            <img :src="radarUrl" :alt="currentMap?.name || 'radar'" />
+            <svg class="lineup-preview-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <path v-if="previewPath" :d="previewPath" stroke="#ff7a18" stroke-width="0.8" fill="none" stroke-linecap="round" />
+            </svg>
+            <span
+              v-for="item in selectedPointPreview"
+              :key="item.label"
+              class="lineup-preview-point"
+              :style="{ left: `${item.point!.x}%`, top: `${item.point!.y}%`, background: item.color }"
+            >
+              {{ item.label }}
+            </span>
+          </div>
+        </div>
         <label>
           状态
           <select v-model="form.status" class="select">
@@ -328,5 +358,37 @@ onMounted(load);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 8px;
   background: rgba(255,255,255,0.02);
+}
+.lineup-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lineup-radar-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.lineup-radar-stage img {
+  display: block;
+  width: 100%;
+}
+.lineup-preview-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.lineup-preview-point {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: 2px solid #fff;
+  border-radius: 999px;
+  padding: 2px 6px;
+  color: #07111f;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 </style>

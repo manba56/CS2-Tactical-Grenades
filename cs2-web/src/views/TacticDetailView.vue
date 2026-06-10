@@ -26,6 +26,23 @@ const bilibiliEmbedUrl = computed(() => {
 });
 const routeShots = computed(() => tactic.value?.screenshots?.filter(s => s.type === 'route') ?? []);
 const spotShots = computed(() => tactic.value?.screenshots?.filter(s => (s.type || 'spot') !== 'route') ?? []);
+const galleryUrls = computed(() => {
+  const urls = [
+    ...routeShots.value.map((shot) => resolveAssetUrl(shot.url)),
+    ...spotShots.value.map((shot) => resolveAssetUrl(shot.url)),
+    ...(tactic.value?.steps || []).flatMap((step) => step.lineup?.media || []).map((url) => resolveAssetUrl(url)),
+  ];
+  return Array.from(new Set(urls.filter(Boolean)));
+});
+const quickExecItems = computed(() => (tactic.value?.steps || []).map((step) => ({
+  order: step.order,
+  role: step.role,
+  action: step.instruction,
+  utility: step.lineup?.utility_type || step.type,
+  stand: step.lineup?.start_point?.name || '',
+  aim: step.lineup?.aim_point?.name || '',
+  land: step.lineup?.land_point?.name || '',
+})));
 
 async function load() {
   try {
@@ -57,6 +74,17 @@ function copyShareLink() {
     ? `${tactic.value.title} — CS2 Tactics Lab\n${window.location.href}`
     : window.location.href;
   navigator.clipboard.writeText(text);
+}
+
+function openLightbox(url: string) {
+  lightboxUrl.value = url;
+}
+
+function moveLightbox(delta: number) {
+  if (!lightboxUrl.value || galleryUrls.value.length === 0) return;
+  const current = galleryUrls.value.indexOf(lightboxUrl.value);
+  const next = (current + delta + galleryUrls.value.length) % galleryUrls.value.length;
+  lightboxUrl.value = galleryUrls.value[next];
 }
 
 // Auto-favorite after login redirect
@@ -120,6 +148,27 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
           <a v-if="tactic.related?.length" href="#related">相关战术</a>
         </nav>
 
+        <div v-if="quickExecItems.length" class="glass-panel quick-exec-panel">
+          <div class="section-heading">
+            <h2>快速执行模式</h2>
+            <span class="muted">{{ tactic.players }} 人执行</span>
+          </div>
+          <div class="quick-exec-grid">
+            <article v-for="item in quickExecItems" :key="item.order" class="quick-exec-card">
+              <div class="quick-exec-top">
+                <strong>#{{ item.order }} {{ item.role }}</strong>
+                <span class="chip">{{ label(item.utility, UTILITY_LABELS) }}</span>
+              </div>
+              <p>{{ item.action }}</p>
+              <div class="quick-exec-meta">
+                <span v-if="item.stand">站位：{{ item.stand }}</span>
+                <span v-if="item.aim">瞄点：{{ item.aim }}</span>
+                <span v-if="item.land">落点：{{ item.land }}</span>
+              </div>
+            </article>
+          </div>
+        </div>
+
       <!-- B站视频演示 -->
       <div v-if="bilibiliEmbedUrl" id="video" class="glass-panel bilibili-stage">
           <div class="section-heading">
@@ -153,7 +202,8 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
                 :src="resolveAssetUrl(shot.url)"
                 :alt="shot.description || `路线截图 #${idx + 1}`"
                 class="shot-full-img"
-                @click="lightboxUrl = resolveAssetUrl(shot.url)"
+                loading="lazy"
+                @click="openLightbox(resolveAssetUrl(shot.url))"
               />
             </div>
           </div>
@@ -194,8 +244,8 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
         <div v-if="spotShots.length" class="section-block">
           <div class="muted">点位截图</div>
           <div class="screenshot-grid">
-            <div v-for="(shot, idx) in spotShots" :key="idx" class="screenshot-card" @click="lightboxUrl = resolveAssetUrl(shot.url)">
-              <img :src="resolveAssetUrl(shot.url)" :alt="shot.description || `点位 #${idx + 1}`" />
+            <div v-for="(shot, idx) in spotShots" :key="idx" class="screenshot-card" @click="openLightbox(resolveAssetUrl(shot.url))">
+              <img :src="resolveAssetUrl(shot.url)" :alt="shot.description || `点位 #${idx + 1}`" loading="lazy" />
               <span class="screenshot-caption">{{ shot.description || `点位 #${idx + 1}` }}</span>
             </div>
           </div>
@@ -263,9 +313,9 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
               <div
                 v-for="(url, idx) in step.lineup.media" :key="idx"
                 class="screenshot-card"
-                @click="lightboxUrl = resolveAssetUrl(url)"
+                @click="openLightbox(resolveAssetUrl(url))"
               >
-                <img :src="resolveAssetUrl(url)" :alt="`${step.lineup.title} ${idx + 1}`" />
+                <img :src="resolveAssetUrl(url)" :alt="`${step.lineup.title} ${idx + 1}`" loading="lazy" />
                 <span class="screenshot-caption">瞄点截图 {{ idx + 1 }}</span>
               </div>
             </div>
@@ -288,7 +338,9 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
     </section>
     <!-- Lightbox -->
     <div v-if="lightboxUrl" class="screenshot-lightbox" @click="lightboxUrl = ''">
+      <button class="lightbox-nav prev" @click.stop="moveLightbox(-1)">‹</button>
       <img :src="lightboxUrl" alt="enlarged screenshot" />
+      <button class="lightbox-nav next" @click.stop="moveLightbox(1)">›</button>
     </div>
   </template>
 </template>
@@ -310,6 +362,54 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
   height: 100%;
   border: none;
 }
+.quick-exec-panel {
+  margin-top: 12px;
+}
+.quick-exec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.quick-exec-card {
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255,255,255,0.03);
+}
+.quick-exec-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.quick-exec-card p {
+  margin: 10px 0;
+  color: #e5eefb;
+  line-height: 1.5;
+}
+.quick-exec-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #8fa1b8;
+  font-size: 12px;
+}
+.lightbox-nav {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 101;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(8,14,23,0.82);
+  color: #fff;
+  font-size: 28px;
+  cursor: pointer;
+}
+.lightbox-nav.prev { left: 20px; }
+.lightbox-nav.next { right: 20px; }
 
 @media (max-width: 480px) {
   .bilibili-wrapper {
