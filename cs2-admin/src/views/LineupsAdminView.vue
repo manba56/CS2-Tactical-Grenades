@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import { useRoute } from 'vue-router';
 
 import { api, resolveAssetUrl } from '../api';
 import AssetPicker from '../components/AssetPicker.vue';
@@ -7,6 +8,7 @@ import { useSessionStore } from '../stores/session';
 import type { AdminLineup, AdminMap, AdminPoint } from '../types';
 
 const session = useSessionStore();
+const route = useRoute();
 const maps = ref<AdminMap[]>([]);
 const points = ref<AdminPoint[]>([]);
 const lineups = ref<AdminLineup[]>([]);
@@ -64,6 +66,10 @@ const aimPointOptions = computed(() => rolePointOptions('aim'));
 const landPointOptions = computed(() => rolePointOptions('land'));
 const currentMap = computed(() => maps.value.find((map) => map.id === form.map_id) || null);
 const radarUrl = computed(() => currentMap.value ? resolveAssetUrl(`/static/assets/maps/radars/${currentMap.value.slug}-radar.png`) : '');
+const selectedLandPoint = computed(() => points.value.find((point) => point.id === form.land_point_id) || null);
+const landPointLineupCount = computed(() =>
+  lineups.value.filter((lineup) => lineup.land_point_id === form.land_point_id && lineup.id !== editingId.value).length,
+);
 const selectedPointPreview = computed(() => [
   { label: '起点', point: filteredPoints.value.find((p) => p.id === form.start_point_id), color: '#65d6ce' },
   { label: '瞄点', point: filteredPoints.value.find((p) => p.id === form.aim_point_id), color: '#ff7a18' },
@@ -91,6 +97,17 @@ function rolePointOptions(role: 'start' | 'aim' | 'land') {
     options.unshift(selected);
   }
   return options;
+}
+
+function applyRoutePreset() {
+  const mapId = Number(route.query.map_id || 0);
+  const landPointId = Number(route.query.land_point_id || 0);
+  if (mapId && maps.value.some((map) => map.id === mapId)) {
+    form.map_id = mapId;
+  }
+  if (landPointId && points.value.some((point) => point.id === landPointId && point.map_id === form.map_id)) {
+    form.land_point_id = landPointId;
+  }
 }
 
 function loadPointEditor(role = pointEditor.role) {
@@ -121,6 +138,9 @@ async function load() {
   lineups.value = lineupItems;
   if (!editingId.value && mapItems[0]) {
     form.map_id = mapItems[0].id;
+  }
+  if (!editingId.value) {
+    applyRoutePreset();
   }
   loadPointEditor();
 }
@@ -357,6 +377,9 @@ onMounted(load);
               {{ point.name }} · {{ pointTypeLabel(point.point_type) }}
             </option>
           </select>
+          <span class="muted point-reference-hint">
+            {{ selectedLandPoint?.name || '未选择落点' }} 已有关联线路 {{ landPointLineupCount }} 条
+          </span>
         </label>
         <div class="full lineup-preview" v-if="radarUrl">
           <div class="inline-row" style="justify-content:space-between">
@@ -557,6 +580,11 @@ onMounted(load);
 }
 .linked-point-grid .full {
   grid-column: 1 / -1;
+}
+.point-reference-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
 }
 @media (max-width: 720px) {
   .linked-point-grid {
