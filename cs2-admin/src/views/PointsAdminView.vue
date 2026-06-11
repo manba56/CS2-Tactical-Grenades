@@ -14,6 +14,7 @@ const editingId = ref<number | null>(null);
 const selectedMapId = ref(1);
 const typeFilter = ref('');
 const error = ref('');
+const uploadingMedia = ref<'aim_image_url' | 'effect_image_url' | ''>('');
 const form = reactive({
   map_id: 1,
   name: '',
@@ -86,6 +87,18 @@ const pointReferences = computed(() => {
 
 function refsFor(pointId: number) {
   return pointReferences.value.get(pointId) || { start: 0, aim: 0, land: 0, total: 0 };
+}
+
+function pointName(pointId: number) {
+  return points.value.find((point) => point.id === pointId)?.name || `#${pointId}`;
+}
+
+function relatedLineups(point: AdminPoint) {
+  return lineups.value.filter((lineup) =>
+    lineup.start_point_id === point.id ||
+    lineup.aim_point_id === point.id ||
+    lineup.land_point_id === point.id,
+  );
 }
 
 function parseTags(text: string) {
@@ -218,13 +231,30 @@ async function submit() {
   resetForm();
 }
 
-function lineupsLinkFor(point: AdminPoint) {
+async function uploadPointMedia(field: 'aim_image_url' | 'effect_image_url', file?: File) {
+  if (!file) return;
+  uploadingMedia.value = field;
+  error.value = '';
+  try {
+    const result = await api.uploadAsset(file, session.token);
+    form[field] = result.url;
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '上传失败，请检查图片格式和大小';
+  } finally {
+    uploadingMedia.value = '';
+  }
+}
+
+function lineupsLinkFor(point: AdminPoint, role: 'start' | 'aim' | 'land' = 'land') {
+  const query: Record<string, string> = {
+    map_id: String(point.map_id),
+  };
+  if (role === 'start') query.start_point_id = String(point.id);
+  else if (role === 'aim') query.aim_point_id = String(point.id);
+  else query.land_point_id = String(point.id);
   return {
     path: '/lineups',
-    query: {
-      map_id: String(point.map_id),
-      land_point_id: String(point.id),
-    },
+    query,
   };
 }
 
@@ -361,6 +391,16 @@ onMounted(load);
               <summary class="ghost-button">从素材库选择瞄点图</summary>
               <AssetPicker compact @select="(url) => { form.aim_image_url = url; }" />
             </details>
+            <label class="ghost-button upload-button">
+              {{ uploadingMedia === 'aim_image_url' ? '上传中...' : '上传瞄点图' }}
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                :disabled="uploadingMedia !== ''"
+                @change="(event) => uploadPointMedia('aim_image_url', (event.target as HTMLInputElement).files?.[0])"
+              />
+            </label>
           </label>
           <label class="full">
             效果图 URL
@@ -372,6 +412,16 @@ onMounted(load);
               <summary class="ghost-button">从素材库选择效果图</summary>
               <AssetPicker compact @select="(url) => { form.effect_image_url = url; }" />
             </details>
+            <label class="ghost-button upload-button">
+              {{ uploadingMedia === 'effect_image_url' ? '上传中...' : '上传落点/效果图' }}
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                :disabled="uploadingMedia !== ''"
+                @change="(event) => uploadPointMedia('effect_image_url', (event.target as HTMLInputElement).files?.[0])"
+              />
+            </label>
           </label>
           <label class="full">
             视频 URL
@@ -409,6 +459,19 @@ onMounted(load);
                   <router-link v-if="point.point_type === 'site'" class="ghost-button" :to="lineupsLinkFor(point)">
                     新建道具
                   </router-link>
+                  <router-link v-else class="ghost-button" :to="lineupsLinkFor(point, point.point_type === 'aim' ? 'aim' : 'start')">
+                    作为{{ point.point_type === 'aim' ? '瞄点' : '起点' }}建线路
+                  </router-link>
+                </div>
+                <div v-if="relatedLineups(point).length" class="related-lineups">
+                  <span v-for="lineup in relatedLineups(point).slice(0, 4)" :key="lineup.id" class="related-lineup-chip">
+                    {{ lineup.title }}：
+                    {{ lineup.start_point_id === point.id ? '起点' : lineup.aim_point_id === point.id ? '瞄点' : '落点' }}
+                    {{ point.point_type === 'site' ? ` / 起点 ${pointName(lineup.start_point_id)}` : ` / 落点 ${pointName(lineup.land_point_id)}` }}
+                  </span>
+                  <span v-if="relatedLineups(point).length > 4" class="muted">
+                    +{{ relatedLineups(point).length - 4 }} 条
+                  </span>
                 </div>
               </div>
             </div>
@@ -559,12 +622,17 @@ onMounted(load);
   border-radius: 8px;
   background: rgba(255,255,255,0.02);
 }
+.upload-button {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 8px;
+  cursor: pointer;
+}
 .point-type-groups {
   display: grid;
   gap: 14px;
 }
 .point-type-heading,
-.point-list-item,
 .point-ref-row {
   display: flex;
   align-items: center;
@@ -578,7 +646,10 @@ onMounted(load);
   gap: 8px;
 }
 .point-list-item {
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 14px;
+  align-items: center;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 8px;
   background: rgba(255,255,255,0.03);
@@ -591,6 +662,25 @@ onMounted(load);
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+.related-lineups {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.related-lineup-chip {
+  display: inline-flex;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.82);
+  padding: 4px 8px;
+  font-size: 11px;
+}
 @media (max-width: 900px) {
   .point-admin-layout,
   .point-workspace {
@@ -598,6 +688,12 @@ onMounted(load);
   }
   .point-sidebar {
     position: static;
+  }
+  .point-list-item {
+    grid-template-columns: 1fr;
+  }
+  .point-ref-row {
+    justify-content: flex-start;
   }
 }
 </style>

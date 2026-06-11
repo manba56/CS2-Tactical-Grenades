@@ -927,10 +927,24 @@ def admin_lineups(_: dict[str, Any] = Depends(get_admin_user), map_id: int | Non
     return [build_lineup_detail(state, item) for item in lineups]
 
 
+def _validate_lineup_payload(state: dict[str, Any], item: dict[str, Any]) -> None:
+    map_id = item["map_id"]
+    find_by_id(state["maps"], map_id)
+    for label, point_id in (
+        ("起点", item["start_point_id"]),
+        ("瞄点", item["aim_point_id"]),
+        ("落点", item["land_point_id"]),
+    ):
+        point = find_by_id(state["points"], point_id)
+        if point["map_id"] != map_id:
+            raise HTTPException(status_code=400, detail=f"{label}必须属于当前地图")
+
+
 @app.post("/api/admin/lineups")
 def create_lineup(payload: LineupPayload, _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, Any]:
     def mutate(state: dict[str, Any]) -> dict[str, Any]:
         item = dump_model(payload)
+        _validate_lineup_payload(state, item)
         item["id"] = next_id(state, "lineups")
         state["lineups"].append(item)
         return build_lineup_detail(state, item)
@@ -942,7 +956,9 @@ def create_lineup(payload: LineupPayload, _: dict[str, Any] = Depends(get_admin_
 def update_lineup(lineup_id: int, payload: LineupPayload, _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, Any]:
     def mutate(state: dict[str, Any]) -> dict[str, Any]:
         item = find_by_id(state["lineups"], lineup_id)
-        item.update(dump_model(payload))
+        next_item = {**item, **dump_model(payload)}
+        _validate_lineup_payload(state, next_item)
+        item.update(next_item)
         return build_lineup_detail(state, item)
 
     return STORE.mutate(mutate)

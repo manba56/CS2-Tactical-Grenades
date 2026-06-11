@@ -60,15 +60,31 @@ function pointTypeLabel(value: string) {
   return POINT_TYPE_OPTIONS.find((item) => item.value === value)?.label || value;
 }
 
+function pointName(pointId: number) {
+  return points.value.find((point) => point.id === pointId)?.name || `#${pointId}`;
+}
+
+function mapName(mapId: number) {
+  return maps.value.find((map) => map.id === mapId)?.name || `#${mapId}`;
+}
+
 const filteredPoints = computed(() => points.value.filter((point) => point.map_id === form.map_id));
 const startPointOptions = computed(() => rolePointOptions('start'));
 const aimPointOptions = computed(() => rolePointOptions('aim'));
 const landPointOptions = computed(() => rolePointOptions('land'));
 const currentMap = computed(() => maps.value.find((map) => map.id === form.map_id) || null);
 const radarUrl = computed(() => currentMap.value ? resolveAssetUrl(`/static/assets/maps/radars/${currentMap.value.slug}-radar.png`) : '');
+const selectedStartPoint = computed(() => points.value.find((point) => point.id === form.start_point_id) || null);
 const selectedLandPoint = computed(() => points.value.find((point) => point.id === form.land_point_id) || null);
 const landPointLineupCount = computed(() =>
   lineups.value.filter((lineup) => lineup.land_point_id === form.land_point_id && lineup.id !== editingId.value).length,
+);
+const startLandLineupCount = computed(() =>
+  lineups.value.filter((lineup) =>
+    lineup.start_point_id === form.start_point_id &&
+    lineup.land_point_id === form.land_point_id &&
+    lineup.id !== editingId.value,
+  ).length,
 );
 const selectedPointPreview = computed(() => [
   { label: '起点', point: filteredPoints.value.find((p) => p.id === form.start_point_id), color: '#65d6ce' },
@@ -99,15 +115,47 @@ function rolePointOptions(role: 'start' | 'aim' | 'land') {
   return options;
 }
 
+function firstPointIdForRole(role: 'start' | 'aim' | 'land') {
+  return rolePointOptions(role)[0]?.id || filteredPoints.value[0]?.id || 1;
+}
+
+function ensurePointForRole(role: 'start' | 'aim' | 'land') {
+  const current = selectedPointForRole(role);
+  if (current?.map_id === form.map_id) return;
+  const pointId = firstPointIdForRole(role);
+  if (role === 'start') form.start_point_id = pointId;
+  else if (role === 'aim') form.aim_point_id = pointId;
+  else form.land_point_id = pointId;
+}
+
+function normalizePointSelections() {
+  ensurePointForRole('start');
+  ensurePointForRole('aim');
+  ensurePointForRole('land');
+  loadPointEditor(pointEditor.role);
+}
+
 function applyRoutePreset() {
   const mapId = Number(route.query.map_id || 0);
+  const startPointId = Number(route.query.start_point_id || 0);
+  const aimPointId = Number(route.query.aim_point_id || 0);
   const landPointId = Number(route.query.land_point_id || 0);
   if (mapId && maps.value.some((map) => map.id === mapId)) {
     form.map_id = mapId;
   }
+  if (startPointId && points.value.some((point) => point.id === startPointId && point.map_id === form.map_id)) {
+    form.start_point_id = startPointId;
+  }
+  if (aimPointId && points.value.some((point) => point.id === aimPointId && point.map_id === form.map_id)) {
+    form.aim_point_id = aimPointId;
+  }
   if (landPointId && points.value.some((point) => point.id === landPointId && point.map_id === form.map_id)) {
     form.land_point_id = landPointId;
   }
+}
+
+function changeMap() {
+  normalizePointSelections();
 }
 
 function loadPointEditor(role = pointEditor.role) {
@@ -141,6 +189,7 @@ async function load() {
   }
   if (!editingId.value) {
     applyRoutePreset();
+    normalizePointSelections();
   }
   loadPointEditor();
 }
@@ -159,16 +208,16 @@ function edit(item: AdminLineup) {
 function resetForm() {
   editingId.value = null;
   error.value = '';
-  const firstPoint = filteredPoints.value[0]?.id || 1;
+  const mapId = maps.value[0]?.id || 1;
   Object.assign(form, {
-    map_id: maps.value[0]?.id || 1,
+    map_id: mapId,
     title: '',
     slug: '',
     side: 'T',
     utility_type: 'smoke',
-    start_point_id: firstPoint,
-    aim_point_id: firstPoint,
-    land_point_id: firstPoint,
+    start_point_id: 1,
+    aim_point_id: 1,
+    land_point_id: 1,
     purpose: '',
     difficulty: 'medium',
     summary: '',
@@ -177,7 +226,7 @@ function resetForm() {
     video_url: '',
     status: 'draft',
   });
-  loadPointEditor();
+  normalizePointSelections();
 }
 
 async function saveLinkedPoint() {
@@ -221,6 +270,12 @@ async function aiFill() {
 }
 
 async function submit() {
+  const selectedIds = [form.start_point_id, form.aim_point_id, form.land_point_id];
+  if (selectedIds.some((id) => !points.value.some((point) => point.id === id && point.map_id === form.map_id))) {
+    error.value = '起点、瞄点和落点必须属于当前地图';
+    return;
+  }
+  error.value = '';
   const payload = {
     map_id: form.map_id,
     title: form.title,
@@ -300,6 +355,9 @@ onMounted(load);
           <span class="chip">{{ item.utility_type }}</span>
           <span class="chip">{{ item.status }}</span>
         </div>
+        <p class="muted lineup-relation">
+          {{ mapName(item.map_id) }} / {{ pointName(item.start_point_id) }} -> {{ pointName(item.land_point_id) }}
+        </p>
         <p class="muted">{{ item.summary }}</p>
         <div class="toolbar">
           <button class="ghost-button" @click="edit(item)">编辑</button>
@@ -317,7 +375,7 @@ onMounted(load);
       <div class="form-grid">
         <label>
           地图
-          <select v-model.number="form.map_id" class="select">
+          <select v-model.number="form.map_id" class="select" @change="changeMap">
             <option v-for="map in maps" :key="map.id" :value="map.id">{{ map.name }}</option>
           </select>
         </label>
@@ -379,6 +437,9 @@ onMounted(load);
           </select>
           <span class="muted point-reference-hint">
             {{ selectedLandPoint?.name || '未选择落点' }} 已有关联线路 {{ landPointLineupCount }} 条
+          </span>
+          <span class="muted point-reference-hint">
+            当前组合：{{ selectedStartPoint?.name || '未选择起点' }} -> {{ selectedLandPoint?.name || '未选择落点' }}，已有 {{ startLandLineupCount }} 条线路
           </span>
         </label>
         <div class="full lineup-preview" v-if="radarUrl">
@@ -511,6 +572,10 @@ onMounted(load);
 <style scoped>
 .asset-library {
   min-width: 180px;
+}
+.lineup-relation {
+  margin: 4px 0;
+  font-size: 12px;
 }
 .asset-library > summary {
   display: inline-flex;
