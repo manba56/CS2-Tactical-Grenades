@@ -7,6 +7,8 @@ import AssetPicker from '../components/AssetPicker.vue';
 import { useSessionStore } from '../stores/session';
 import type { AdminLineup, AdminMap, AdminPoint } from '../types';
 
+type PointRole = 'aim' | 'land';
+
 const session = useSessionStore();
 const route = useRoute();
 const maps = ref<AdminMap[]>([]);
@@ -32,33 +34,45 @@ const form = reactive({
   status: 'draft',
 });
 const pointEditor = reactive({
-  role: 'start' as 'start' | 'aim' | 'land',
+  role: 'aim' as PointRole,
   id: 0,
   name: '',
   key: '',
   x: 50,
   y: 50,
   side: 'BOTH',
-  point_type: 'utility',
   tagsText: '',
 });
 
-const POINT_TYPE_OPTIONS = [
-  { value: 'site', label: '落点' },
-  { value: 'staging', label: '起点' },
-  { value: 'aim', label: '瞄点' },
-  { value: 'utility', label: '通用道具点' },
-  { value: 'anchor', label: '站位点' },
-];
-const ROLE_POINT_TYPES: Record<'start' | 'aim' | 'land', string[]> = {
-  start: ['staging', 'utility', 'anchor'],
-  aim: ['aim', 'utility', 'anchor'],
-  land: ['site', 'utility', 'aim'],
+const POINT_ROLE_META: Record<PointRole, { label: string; color: string; pointType: 'staging' | 'site' }> = {
+  aim: { label: '瞄点', color: '#65d6ce', pointType: 'staging' },
+  land: { label: '落点', color: '#f5d76e', pointType: 'site' },
 };
 
-function pointTypeLabel(value: string) {
-  return POINT_TYPE_OPTIONS.find((item) => item.value === value)?.label || value;
-}
+const filteredPoints = computed(() => points.value.filter((point) => point.map_id === form.map_id));
+const aimPointOptions = computed(() => filteredPoints.value.filter((point) => point.point_type !== 'site'));
+const landPointOptions = computed(() => filteredPoints.value.filter((point) => point.point_type === 'site'));
+const currentMap = computed(() => maps.value.find((map) => map.id === form.map_id) || null);
+const radarUrl = computed(() => currentMap.value ? resolveAssetUrl(`/static/assets/maps/radars/${currentMap.value.slug}-radar.png`) : '');
+const selectedAimPoint = computed(() => points.value.find((point) => point.id === form.start_point_id) || null);
+const selectedLandPoint = computed(() => points.value.find((point) => point.id === form.land_point_id) || null);
+const landPointLineupCount = computed(() =>
+  lineups.value.filter((lineup) => lineup.land_point_id === form.land_point_id && lineup.id !== editingId.value).length,
+);
+const aimLandLineupCount = computed(() =>
+  lineups.value.filter((lineup) =>
+    lineup.start_point_id === form.start_point_id &&
+    lineup.land_point_id === form.land_point_id &&
+    lineup.id !== editingId.value,
+  ).length,
+);
+const selectedPointPreview = computed(() => [
+  { label: '瞄点', point: selectedAimPoint.value, color: POINT_ROLE_META.aim.color },
+  { label: '落点', point: selectedLandPoint.value, color: POINT_ROLE_META.land.color },
+].filter((item) => item.point));
+const previewPath = computed(() => selectedAimPoint.value && selectedLandPoint.value
+  ? `M${selectedAimPoint.value.x} ${selectedAimPoint.value.y} L${selectedLandPoint.value.x} ${selectedLandPoint.value.y}`
+  : '');
 
 function pointName(pointId: number) {
   return points.value.find((point) => point.id === pointId)?.name || `#${pointId}`;
@@ -68,85 +82,44 @@ function mapName(mapId: number) {
   return maps.value.find((map) => map.id === mapId)?.name || `#${mapId}`;
 }
 
-const filteredPoints = computed(() => points.value.filter((point) => point.map_id === form.map_id));
-const startPointOptions = computed(() => rolePointOptions('start'));
-const aimPointOptions = computed(() => rolePointOptions('aim'));
-const landPointOptions = computed(() => rolePointOptions('land'));
-const currentMap = computed(() => maps.value.find((map) => map.id === form.map_id) || null);
-const radarUrl = computed(() => currentMap.value ? resolveAssetUrl(`/static/assets/maps/radars/${currentMap.value.slug}-radar.png`) : '');
-const selectedStartPoint = computed(() => points.value.find((point) => point.id === form.start_point_id) || null);
-const selectedLandPoint = computed(() => points.value.find((point) => point.id === form.land_point_id) || null);
-const landPointLineupCount = computed(() =>
-  lineups.value.filter((lineup) => lineup.land_point_id === form.land_point_id && lineup.id !== editingId.value).length,
-);
-const startLandLineupCount = computed(() =>
-  lineups.value.filter((lineup) =>
-    lineup.start_point_id === form.start_point_id &&
-    lineup.land_point_id === form.land_point_id &&
-    lineup.id !== editingId.value,
-  ).length,
-);
-const selectedPointPreview = computed(() => [
-  { label: '起点', point: filteredPoints.value.find((p) => p.id === form.start_point_id), color: '#65d6ce' },
-  { label: '瞄点', point: filteredPoints.value.find((p) => p.id === form.aim_point_id), color: '#ff7a18' },
-  { label: '落点', point: filteredPoints.value.find((p) => p.id === form.land_point_id), color: '#f5d76e' },
-].filter((item) => item.point));
-const previewPath = computed(() => selectedPointPreview.value
-  .map((item, index) => `${index === 0 ? 'M' : 'L'}${item.point!.x} ${item.point!.y}`)
-  .join(' '));
+function clampCoordinate(value: number) {
+  return Math.min(100, Math.max(0, Math.round(Number.isFinite(value) ? value : 0)));
+}
 
 function selectedPointForRole(role = pointEditor.role) {
-  const id = role === 'start'
-    ? form.start_point_id
-    : role === 'aim'
-      ? form.aim_point_id
-      : form.land_point_id;
+  const id = role === 'aim' ? form.start_point_id : form.land_point_id;
   return points.value.find((point) => point.id === id) || null;
 }
 
-function rolePointOptions(role: 'start' | 'aim' | 'land') {
-  const allowed = ROLE_POINT_TYPES[role];
-  const preferred = filteredPoints.value.filter((point) => allowed.includes(point.point_type));
-  const selected = selectedPointForRole(role);
-  const options = preferred.length ? [...preferred] : [...filteredPoints.value];
-  if (selected && selected.map_id === form.map_id && !options.some((point) => point.id === selected.id)) {
-    options.unshift(selected);
-  }
-  return options;
+function firstPointIdForRole(role: PointRole) {
+  const options = role === 'aim' ? aimPointOptions.value : landPointOptions.value;
+  return options[0]?.id || filteredPoints.value[0]?.id || 1;
 }
 
-function firstPointIdForRole(role: 'start' | 'aim' | 'land') {
-  return rolePointOptions(role)[0]?.id || filteredPoints.value[0]?.id || 1;
-}
-
-function ensurePointForRole(role: 'start' | 'aim' | 'land') {
+function ensurePointForRole(role: PointRole) {
   const current = selectedPointForRole(role);
   if (current?.map_id === form.map_id) return;
   const pointId = firstPointIdForRole(role);
-  if (role === 'start') form.start_point_id = pointId;
-  else if (role === 'aim') form.aim_point_id = pointId;
+  if (role === 'aim') form.start_point_id = pointId;
   else form.land_point_id = pointId;
 }
 
 function normalizePointSelections() {
-  ensurePointForRole('start');
   ensurePointForRole('aim');
   ensurePointForRole('land');
+  form.aim_point_id = form.start_point_id;
   loadPointEditor(pointEditor.role);
 }
 
 function applyRoutePreset() {
   const mapId = Number(route.query.map_id || 0);
-  const startPointId = Number(route.query.start_point_id || 0);
-  const aimPointId = Number(route.query.aim_point_id || 0);
+  const aimPointId = Number(route.query.start_point_id || route.query.aim_point_id || 0);
   const landPointId = Number(route.query.land_point_id || 0);
   if (mapId && maps.value.some((map) => map.id === mapId)) {
     form.map_id = mapId;
   }
-  if (startPointId && points.value.some((point) => point.id === startPointId && point.map_id === form.map_id)) {
-    form.start_point_id = startPointId;
-  }
   if (aimPointId && points.value.some((point) => point.id === aimPointId && point.map_id === form.map_id)) {
+    form.start_point_id = aimPointId;
     form.aim_point_id = aimPointId;
   }
   if (landPointId && points.value.some((point) => point.id === landPointId && point.map_id === form.map_id)) {
@@ -167,10 +140,9 @@ function loadPointEditor(role = pointEditor.role) {
     id: point.id,
     name: point.name,
     key: point.key,
-    x: point.x,
-    y: point.y,
+    x: clampCoordinate(point.x),
+    y: clampCoordinate(point.y),
     side: point.side,
-    point_type: point.point_type,
     tagsText: (point.tags || []).join(', '),
   });
 }
@@ -198,11 +170,14 @@ function edit(item: AdminLineup) {
   editingId.value = item.id;
   Object.assign(form, {
     ...item,
+    start_point_id: item.start_point_id,
+    aim_point_id: item.start_point_id,
     stepsText: (item.steps || []).join('\n'),
     screenshots: (item.media || []).map((url: string) => ({ url, description: '' })),
     video_url: item.video_url || '',
   });
-  loadPointEditor();
+  loadPointEditor('aim');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function resetForm() {
@@ -226,6 +201,7 @@ function resetForm() {
     video_url: '',
     status: 'draft',
   });
+  pointEditor.role = 'aim';
   normalizePointSelections();
 }
 
@@ -233,18 +209,19 @@ async function saveLinkedPoint() {
   if (!pointEditor.id) return;
   const original = points.value.find((point) => point.id === pointEditor.id);
   if (!original) return;
+  const role = pointEditor.role;
   await api.updatePoint(pointEditor.id, {
     ...original,
-    name: pointEditor.name,
-    key: pointEditor.key,
-    x: pointEditor.x,
-    y: pointEditor.y,
+    name: pointEditor.name.trim(),
+    key: pointEditor.key.trim(),
+    x: clampCoordinate(pointEditor.x),
+    y: clampCoordinate(pointEditor.y),
     side: pointEditor.side,
-    point_type: pointEditor.point_type,
+    point_type: POINT_ROLE_META[role].pointType,
     tags: pointEditor.tagsText.split(',').map((item) => item.trim()).filter(Boolean),
   }, session.token);
   await load();
-  loadPointEditor(pointEditor.role);
+  loadPointEditor(role);
 }
 
 async function aiFill() {
@@ -270,9 +247,10 @@ async function aiFill() {
 }
 
 async function submit() {
-  const selectedIds = [form.start_point_id, form.aim_point_id, form.land_point_id];
+  form.aim_point_id = form.start_point_id;
+  const selectedIds = [form.start_point_id, form.land_point_id];
   if (selectedIds.some((id) => !points.value.some((point) => point.id === id && point.map_id === form.map_id))) {
-    error.value = '起点、瞄点和落点必须属于当前地图';
+    error.value = '瞄点和落点必须属于当前地图';
     return;
   }
   error.value = '';
@@ -283,7 +261,7 @@ async function submit() {
     side: form.side,
     utility_type: form.utility_type,
     start_point_id: form.start_point_id,
-    aim_point_id: form.aim_point_id,
+    aim_point_id: form.start_point_id,
     land_point_id: form.land_point_id,
     purpose: form.purpose,
     difficulty: form.difficulty,
@@ -303,7 +281,13 @@ async function submit() {
 }
 
 function clone(item: AdminLineup) {
-  Object.assign(form, { ...item, title: item.title + ' (副本)', slug: '' });
+  Object.assign(form, {
+    ...item,
+    title: item.title + ' (副本)',
+    slug: '',
+    start_point_id: item.start_point_id,
+    aim_point_id: item.start_point_id,
+  });
   editingId.value = null;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -344,7 +328,7 @@ onMounted(load);
 <template>
   <div class="page-header">
     <h1>线路管理</h1>
-    <p class="muted">维护投掷物线路、起点、瞄点和落点关系。</p>
+    <p class="muted">维护道具线路的“瞄点 -> 落点”关系；保存时内部会兼容原来的起点字段。</p>
   </div>
   <p v-if="error" class="muted">{{ error }}</p>
   <div class="content-grid">
@@ -370,7 +354,7 @@ onMounted(load);
 
     <form class="panel" @submit.prevent="submit">
       <h2>{{ editingId ? '编辑线路' : '新增线路' }}
-        <button type="button" class="primary-button" style="margin-left:12px;font-size:0.85rem;padding:6px 16px" @click="aiFill()">🤖 AI 一键生成</button>
+        <button type="button" class="primary-button" style="margin-left:12px;font-size:0.85rem;padding:6px 16px" @click="aiFill()">AI 一键生成</button>
       </h2>
       <div class="form-grid">
         <label>
@@ -413,18 +397,10 @@ onMounted(load);
           </select>
         </label>
         <label>
-          起点
-          <select v-model.number="form.start_point_id" class="select" @change="loadPointEditor('start')">
-            <option v-for="point in startPointOptions" :key="point.id" :value="point.id">
-              {{ point.name }} · {{ pointTypeLabel(point.point_type) }}
-            </option>
-          </select>
-        </label>
-        <label>
           瞄点
-          <select v-model.number="form.aim_point_id" class="select" @change="loadPointEditor('aim')">
+          <select v-model.number="form.start_point_id" class="select" @change="() => { form.aim_point_id = form.start_point_id; loadPointEditor('aim'); }">
             <option v-for="point in aimPointOptions" :key="point.id" :value="point.id">
-              {{ point.name }} · {{ pointTypeLabel(point.point_type) }}
+              {{ point.name }} · {{ point.point_type === 'staging' ? '瞄点' : '旧点位' }}
             </option>
           </select>
         </label>
@@ -432,20 +408,20 @@ onMounted(load);
           落点
           <select v-model.number="form.land_point_id" class="select" @change="loadPointEditor('land')">
             <option v-for="point in landPointOptions" :key="point.id" :value="point.id">
-              {{ point.name }} · {{ pointTypeLabel(point.point_type) }}
+              {{ point.name }} · 落点
             </option>
           </select>
           <span class="muted point-reference-hint">
             {{ selectedLandPoint?.name || '未选择落点' }} 已有关联线路 {{ landPointLineupCount }} 条
           </span>
           <span class="muted point-reference-hint">
-            当前组合：{{ selectedStartPoint?.name || '未选择起点' }} -> {{ selectedLandPoint?.name || '未选择落点' }}，已有 {{ startLandLineupCount }} 条线路
+            当前组合：{{ selectedAimPoint?.name || '未选择瞄点' }} -> {{ selectedLandPoint?.name || '未选择落点' }}，已有 {{ aimLandLineupCount }} 条线路
           </span>
         </label>
         <div class="full lineup-preview" v-if="radarUrl">
           <div class="inline-row" style="justify-content:space-between">
             <strong>线路关系预览</strong>
-            <span class="muted">起点 → 瞄点 → 落点</span>
+            <span class="muted">瞄点 -> 落点</span>
           </div>
           <div class="lineup-radar-stage">
             <img :src="radarUrl" :alt="currentMap?.name || 'radar'" />
@@ -465,10 +441,9 @@ onMounted(load);
         <div class="full linked-point-editor">
           <div class="inline-row" style="justify-content:space-between">
             <strong>编辑当前点位</strong>
-            <span class="muted">点位是全局复用的，修改会影响引用它的内容</span>
+            <span class="muted">这里只改点位本身，保存线路仍在页面底部按钮完成。</span>
           </div>
           <div class="toolbar">
-            <button type="button" class="ghost-button" :class="{ active: pointEditor.role === 'start' }" @click="loadPointEditor('start')">起点</button>
             <button type="button" class="ghost-button" :class="{ active: pointEditor.role === 'aim' }" @click="loadPointEditor('aim')">瞄点</button>
             <button type="button" class="ghost-button" :class="{ active: pointEditor.role === 'land' }" @click="loadPointEditor('land')">落点</button>
           </div>
@@ -483,11 +458,11 @@ onMounted(load);
             </label>
             <label>
               X
-              <input v-model.number="pointEditor.x" type="number" min="0" max="100" class="field" />
+              <input v-model.number="pointEditor.x" type="number" min="0" max="100" step="1" class="field" />
             </label>
             <label>
               Y
-              <input v-model.number="pointEditor.y" type="number" min="0" max="100" class="field" />
+              <input v-model.number="pointEditor.y" type="number" min="0" max="100" step="1" class="field" />
             </label>
             <label>
               阵营
@@ -495,14 +470,6 @@ onMounted(load);
                 <option value="T">T</option>
                 <option value="CT">CT</option>
                 <option value="BOTH">BOTH</option>
-              </select>
-            </label>
-            <label>
-              类型
-              <select v-model="pointEditor.point_type" class="select">
-                <option v-for="item in POINT_TYPE_OPTIONS" :key="item.value" :value="item.value">
-                  {{ item.label }} / {{ item.value }}
-                </option>
               </select>
             </label>
             <label class="full">
@@ -552,13 +519,13 @@ onMounted(load);
                 :src="resolveAssetUrl(shot.url)"
                 style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.08)"
               />
-              <button type="button" class="ghost-button" @click="removeScreenshot(idx)">✕</button>
+              <button type="button" class="ghost-button" @click="removeScreenshot(idx)">删除</button>
             </div>
           </div>
         </div>
         <label class="full">
-          B站视频链接（可选，如 https://www.bilibili.com/video/BVxxx）
-          <input v-model="form.video_url" class="field" placeholder="粘贴B站视频链接" />
+          B站视频链接（可选）
+          <input v-model="form.video_url" class="field" placeholder="粘贴 B 站视频链接" />
         </label>
       </div>
       <div class="toolbar">
