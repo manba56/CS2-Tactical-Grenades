@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, Response, UploadFile, status
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Header, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -281,8 +281,66 @@ def verify_deploy_webhook(raw_body: bytes, signature: str | None, deploy_secret:
     raise HTTPException(status_code=401, detail="Invalid deploy webhook signature")
 
 
+DEPLOY_IN_PROGRESS = False
+
+
+def _append_deploy_log(message: str) -> None:
+    log_path = BASE_DIR.parent / "deploy.log"
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        with log_path.open("a", encoding="utf-8") as log_file:
+            log_file.write(f"[{timestamp}] {message}\n")
+    except Exception:
+        pass
+
+
+def start_deploy_process(ref: str) -> None:
+    global DEPLOY_IN_PROGRESS
+    if DEPLOY_IN_PROGRESS:
+        _append_deploy_log(f"Deploy already running, skipped duplicate webhook: ref={ref}")
+        return
+
+    DEPLOY_IN_PROGRESS = True
+    deploy_script = BASE_DIR.parent / "deploy.sh"
+    log_path = BASE_DIR.parent / "deploy.log"
+    try:
+        if not deploy_script.exists():
+            _append_deploy_log(f"Deploy script not found: {deploy_script}")
+            return
+
+        deploy_runner = Path(os.getenv("DEPLOY_RUNNER", "/usr/local/bin/cs2-deploy-run"))
+        if deploy_runner.exists():
+            running_as_root = hasattr(os, "geteuid") and os.geteuid() == 0
+            command = [str(deploy_runner)] if running_as_root else ["sudo", "-n", str(deploy_runner)]
+            subprocess.Popen(
+                command,
+                cwd=str(BASE_DIR.parent),
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                close_fds=True,
+                start_new_session=True,
+            )
+        else:
+            log_file = open(str(log_path), "a", encoding="utf-8")
+            subprocess.Popen(
+                ["bash", str(deploy_script)],
+                cwd=str(BASE_DIR.parent),
+                stdin=subprocess.DEVNULL,
+                stdout=log_file,
+                stderr=log_file,
+                close_fds=True,
+                start_new_session=True,
+            )
+        _append_deploy_log(f"Deploy process started from webhook: ref={ref}")
+    except Exception as exc:
+        _append_deploy_log(f"Failed to start deploy script: {exc}")
+    finally:
+        DEPLOY_IN_PROGRESS = False
+
+
 @app.post("/api/webhook/deploy")
-async def webhook_deploy(request: Request):
+async def webhook_deploy(request: Request, background_tasks: BackgroundTasks):
     """GitHub push → auto git pull + deploy (async, responds immediately)."""
     raw_body = await request.body()
     verify_deploy_webhook(
@@ -300,33 +358,9 @@ async def webhook_deploy(request: Request):
     if "main" not in ref and "master" not in ref:
         return {"status": "skipped", "ref": ref}
 
-    # Prefer a root-owned runner created by deploy/deploy.sh. It starts the
-    # deployment as an independent systemd transient unit, so restarting this
-    # API service does not terminate the deploy process halfway through.
-    deploy_script = BASE_DIR.parent / "deploy.sh"
     log_path = BASE_DIR.parent / "deploy.log"
-    if not deploy_script.exists():
-        raise HTTPException(status_code=500, detail=f"Deploy script not found: {deploy_script}")
-
-    try:
-        deploy_runner = Path(os.getenv("DEPLOY_RUNNER", "/usr/local/bin/cs2-deploy-run"))
-        if deploy_runner.exists():
-            running_as_root = hasattr(os, "geteuid") and os.geteuid() == 0
-            command = [str(deploy_runner)] if running_as_root else ["sudo", "-n", str(deploy_runner)]
-            subprocess.Popen(command, cwd=str(BASE_DIR.parent), start_new_session=True)
-        else:
-            log_file = open(str(log_path), "a", encoding="utf-8")
-            subprocess.Popen(
-                ["bash", str(deploy_script)],
-                cwd=str(BASE_DIR.parent),
-                stdout=log_file,
-                stderr=log_file,
-                start_new_session=True,
-            )
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to start deploy script: {exc}") from exc
-
-    return {"status": "deploying", "ref": ref, "log": str(log_path)}
+    background_tasks.add_task(start_deploy_process, ref)
+    return {"status": "accepted", "ref": ref, "log": str(log_path)}
 def summarize_map(state: dict[str, Any], map_item: dict[str, Any]) -> dict[str, Any]:
     tactic_count = sum(1 for tactic in state["tactics"] if tactic["map_id"] == map_item["id"] and tactic["status"] == "published")
     return {
