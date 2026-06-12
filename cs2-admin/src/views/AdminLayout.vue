@@ -34,8 +34,7 @@ onMounted(loadSummary);
 
       <nav class="admin-nav">
         <router-link to="/maps">地图管理</router-link>
-        <router-link to="/points">点位管理</router-link>
-        <router-link to="/lineups">线路管理</router-link>
+        <router-link to="/points">道具点位管理</router-link>
         <router-link to="/tactics">战术管理</router-link>
         <router-link to="/assets">媒体资源</router-link>
         <router-link to="/users">前台用户</router-link>
@@ -46,7 +45,7 @@ onMounted(loadSummary);
       <div v-if="summary" class="stat-grid">
         <div class="card"><strong>{{ summary.maps }}</strong><div class="muted">地图</div></div>
         <div class="card"><strong>{{ summary.tactics }}</strong><div class="muted">战术</div></div>
-        <div class="card"><strong>{{ summary.lineups }}</strong><div class="muted">线路</div></div>
+        <div class="card"><strong>{{ summary.lineups }}</strong><div class="muted">道具</div></div>
         <div class="card"><strong>{{ summary.users }}</strong><div class="muted">玩家</div></div>
       </div>
 

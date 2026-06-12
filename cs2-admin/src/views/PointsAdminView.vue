@@ -42,7 +42,7 @@ const lineupForm = reactive({
   summary: '',
   stepsText: '',
   video_url: '',
-  status: 'draft',
+  status: 'published',
 });
 
 const aimDraft = reactive<PointDraft>({
@@ -85,14 +85,15 @@ const aimPoints = computed(() => mapPoints.value.filter((point) => point.point_t
 const landPoints = computed(() => mapPoints.value.filter((point) => point.point_type === 'site'));
 const visiblePoints = computed(() => [...aimPoints.value, ...landPoints.value]);
 const activeDraft = computed(() => activeRole.value === 'aim' ? aimDraft : landDraft);
-const selectedAimPoint = computed(() => editingAimPointId.value ? points.value.find((point) => point.id === editingAimPointId.value) || null : null);
-const selectedLandPoint = computed(() => editingLandPointId.value ? points.value.find((point) => point.id === editingLandPointId.value) || null : null);
-const editingLineup = computed(() => editingLineupId.value ? lineups.value.find((lineup) => lineup.id === editingLineupId.value) || null : null);
-
-const landLineupCount = computed(() =>
-  editingLandPointId.value
-    ? lineups.value.filter((lineup) => lineup.land_point_id === editingLandPointId.value).length
-    : 0,
+const editingLineup = computed(() =>
+  editingLineupId.value ? lineups.value.find((lineup) => lineup.id === editingLineupId.value) || null : null,
+);
+const mapLineups = computed(() => lineups.value.filter((lineup) => lineup.map_id === selectedMapId.value));
+const lineupsByLanding = computed(() =>
+  landPoints.value.map((point) => ({
+    point,
+    lineups: mapLineups.value.filter((lineup) => lineup.land_point_id === point.id),
+  })).sort((a, b) => b.lineups.length - a.lineups.length || a.point.name.localeCompare(b.point.name)),
 );
 const pairLineupCount = computed(() =>
   editingAimPointId.value && editingLandPointId.value
@@ -110,7 +111,12 @@ const pairLineups = computed(() =>
     lineup.land_point_id === editingLandPointId.value,
   ),
 );
-const mapLineups = computed(() => lineups.value.filter((lineup) => lineup.map_id === selectedMapId.value));
+const visibilityState = computed(() => {
+  if (!editingAimPointId.value) return { visible: false, label: '保存后可见', reason: '还没有保存瞄点' };
+  if (!editingLandPointId.value) return { visible: false, label: '保存后可见', reason: '还没有保存落点' };
+  if (lineupForm.status !== 'published') return { visible: false, label: '前台不可见', reason: '状态不是 published' };
+  return { visible: true, label: '前台可见', reason: '已有关联落点并且状态为 published' };
+});
 const previewPath = computed(() => `M${aimDraft.x} ${aimDraft.y} L${landDraft.x} ${landDraft.y}`);
 
 function roleForPoint(point: AdminPoint): PairRole {
@@ -190,8 +196,7 @@ function setActiveRole(role: PairRole) {
 }
 
 function setDraftCoords(event: MouseEvent) {
-  const coords = coordsFromRadar(event);
-  Object.assign(activeDraft.value, coords);
+  Object.assign(activeDraft.value, coordsFromRadar(event));
 }
 
 function resetDraft(draft: PointDraft, role: PairRole) {
@@ -224,7 +229,7 @@ function resetForm() {
     summary: '',
     stepsText: '',
     video_url: '',
-    status: 'draft',
+    status: 'published',
   });
   resetDraft(aimDraft, 'aim');
   resetDraft(landDraft, 'land');
@@ -381,8 +386,8 @@ onMounted(load);
 
 <template>
   <div class="page-header">
-    <h1>点位管理</h1>
-    <p class="muted">只维护瞄点和落点；保存时会用线路记录“瞄点 -> 落点”的道具关联。</p>
+    <h1>道具点位管理</h1>
+    <p class="muted">选地图、点雷达、填瞄点和落点，保存后前台地图雷达会按落点显示道具。</p>
   </div>
 
   <div class="point-admin-layout">
@@ -406,7 +411,7 @@ onMounted(load);
         </button>
       </div>
 
-      <button class="button" type="button" @click="resetForm">新建关联</button>
+      <button class="button" type="button" @click="resetForm">新建道具</button>
     </aside>
 
     <main class="point-workspace">
@@ -452,8 +457,13 @@ onMounted(load);
 
       <form class="panel pair-form" @submit.prevent="submitPair">
         <div class="inline-row" style="justify-content:space-between">
-          <h2>{{ editingLineupId ? '编辑道具关联' : '新建道具关联' }}</h2>
-          <span class="chip">当前组合已有 {{ pairLineupCount }} 条</span>
+          <div>
+            <h2>{{ editingLineupId ? '编辑道具' : '新建道具' }}</h2>
+            <p class="muted">保存会自动维护瞄点、落点和底层线路关系。</p>
+          </div>
+          <span class="visibility-chip" :class="{ visible: visibilityState.visible }">
+            {{ visibilityState.label }}：{{ visibilityState.reason }}
+          </span>
         </div>
         <p v-if="error" class="error-text">{{ error }}</p>
 
@@ -494,9 +504,9 @@ onMounted(load);
           <label>
             状态
             <select v-model="lineupForm.status" class="select">
-              <option value="draft">draft</option>
-              <option value="published">published</option>
-              <option value="archived">archived</option>
+              <option value="published">published（前台可见）</option>
+              <option value="draft">draft（草稿）</option>
+              <option value="archived">archived（归档）</option>
             </select>
           </label>
           <label class="full">
@@ -636,68 +646,46 @@ onMounted(load);
         </div>
 
         <div class="toolbar">
-          <button class="button">{{ editingLineupId ? '保存关联' : '创建关联' }}</button>
+          <button class="button">{{ editingLineupId ? '保存道具' : '创建道具' }}</button>
           <button class="ghost-button" type="button" @click="resetForm">清空</button>
+          <router-link v-if="editingLineupId" class="ghost-button" :to="`/lineups`">高级线路页</router-link>
         </div>
 
         <div v-if="pairLineups.length" class="pair-matches">
-          <strong>当前组合线路</strong>
+          <strong>当前瞄点 -> 落点组合</strong>
           <button v-for="lineup in pairLineups" :key="lineup.id" class="ghost-button" type="button" @click="editLineup(lineup)">
-            {{ lineup.title }} / {{ lineup.utility_type }}
+            {{ lineup.title }} / {{ lineup.utility_type }} / {{ lineup.status }}
           </button>
         </div>
       </form>
 
       <section class="panel point-list-panel">
         <div class="inline-row" style="justify-content:space-between">
-          <h2>点位和线路</h2>
-          <span class="muted">{{ visiblePoints.length }} 个点 / {{ mapLineups.length }} 条线路</span>
+          <h2>按落点管理道具</h2>
+          <span class="muted">{{ landPoints.length }} 个落点 / {{ mapLineups.length }} 条道具</span>
         </div>
-        <div class="point-type-groups">
-          <article class="point-type-group">
-            <div class="point-type-heading">
-              <span class="type-dot" :style="{ background: roleColor('aim') }" />
-              <strong>瞄点</strong>
-              <span class="muted">{{ aimPoints.length }} 个</span>
+        <div class="landing-groups">
+          <article v-for="group in lineupsByLanding" :key="group.point.id" class="landing-group-card">
+            <div class="landing-group-heading">
+              <button type="button" class="landing-title" @click="selectPoint(group.point)">
+                <strong>{{ group.point.name }}</strong>
+                <span>{{ group.point.key }} · {{ Math.round(group.point.x) }} / {{ Math.round(group.point.y) }}</span>
+              </button>
+              <span class="chip strong">{{ group.lineups.length }} 个道具</span>
             </div>
-            <div class="point-list">
-              <button v-for="point in aimPoints" :key="point.id" type="button" class="point-list-item" @click="selectPoint(point)">
+            <div v-if="group.lineups.length" class="utility-list">
+              <button v-for="lineup in group.lineups" :key="lineup.id" type="button" class="utility-list-item" @click="editLineup(lineup)">
                 <span>
-                  <strong>{{ point.name }}</strong>
-                  <small>{{ point.key }} · {{ Math.round(point.x) }} / {{ Math.round(point.y) }}</small>
+                  <strong>{{ lineup.title }}</strong>
+                  <small>{{ pointName(lineup.start_point_id) }} -> {{ group.point.name }}</small>
                 </span>
-                <span class="chip">关联 {{ refsFor(point.id).aim }}</span>
+                <span class="chip" :class="{ strong: lineup.status === 'published' }">
+                  {{ lineup.utility_type }} / {{ lineup.status === 'published' ? '前台可见' : '不显示' }}
+                </span>
               </button>
             </div>
+            <p v-else class="muted empty-landing">这个落点还没有道具，保存一条 published 道具后前台才会显示。</p>
           </article>
-
-          <article class="point-type-group">
-            <div class="point-type-heading">
-              <span class="type-dot" :style="{ background: roleColor('land') }" />
-              <strong>落点</strong>
-              <span class="muted">{{ landPoints.length }} 个</span>
-            </div>
-            <div class="point-list">
-              <button v-for="point in landPoints" :key="point.id" type="button" class="point-list-item" @click="selectPoint(point)">
-                <span>
-                  <strong>{{ point.name }}</strong>
-                  <small>{{ point.key }} · {{ Math.round(point.x) }} / {{ Math.round(point.y) }}</small>
-                </span>
-                <span class="chip strong">落点 {{ refsFor(point.id).land }}</span>
-              </button>
-            </div>
-          </article>
-        </div>
-
-        <div class="lineup-list">
-          <h3>本地图线路</h3>
-          <button v-for="lineup in mapLineups" :key="lineup.id" type="button" class="lineup-list-item" @click="editLineup(lineup)">
-            <span>
-              <strong>{{ lineup.title }}</strong>
-              <small>{{ pointName(lineup.start_point_id) }} -> {{ pointName(lineup.land_point_id) }}</small>
-            </span>
-            <span class="chip">{{ lineup.utility_type }}</span>
-          </button>
         </div>
       </section>
     </main>
@@ -824,6 +812,25 @@ onMounted(load);
 .point-list-panel h2 {
   margin: 0;
 }
+.pair-form p {
+  margin: 2px 0 0;
+}
+.visibility-chip {
+  display: inline-flex;
+  max-width: 360px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.76);
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+.visibility-chip.visible {
+  border-color: rgba(101,214,206,0.45);
+  background: rgba(101,214,206,0.12);
+  color: #bff7f2;
+}
 .error-text {
   margin: 10px 0;
   color: #ff9f96;
@@ -891,54 +898,67 @@ onMounted(load);
   gap: 8px;
   margin-top: 12px;
 }
-.point-type-groups,
-.lineup-list {
+.landing-groups {
   display: grid;
   gap: 12px;
   margin-top: 12px;
 }
-.point-type-heading {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+.landing-group-card {
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+  padding: 12px;
 }
-.point-list {
-  display: grid;
-  gap: 8px;
-}
-.point-list-item,
-.lineup-list-item {
+.landing-group-heading,
+.utility-list-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+.landing-title,
+.utility-list-item {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.landing-title {
+  display: grid;
+  gap: 3px;
+  padding: 0;
+}
+.landing-title span,
+.utility-list-item small {
+  color: rgba(255,255,255,0.58);
+  font-size: 12px;
+}
+.utility-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.utility-list-item {
   width: 100%;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 8px;
   background: rgba(255,255,255,0.03);
-  color: inherit;
-  text-align: left;
   padding: 10px;
-  cursor: pointer;
 }
-.point-list-item:hover,
-.lineup-list-item:hover {
+.utility-list-item:hover {
   border-color: rgba(255,122,24,0.45);
   background: rgba(255,122,24,0.08);
 }
-.point-list-item span,
-.lineup-list-item span {
+.utility-list-item span {
   min-width: 0;
 }
-.point-list-item small,
-.lineup-list-item small {
+.utility-list-item small {
   display: block;
   margin-top: 2px;
-  color: rgba(255,255,255,0.58);
 }
-.lineup-list h3 {
-  margin: 0;
+.empty-landing {
+  margin: 10px 0 0;
 }
 @media (max-width: 900px) {
   .point-admin-layout,
