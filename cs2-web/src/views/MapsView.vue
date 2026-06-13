@@ -23,6 +23,13 @@ const activeLineupId = ref<number | null>(null);
 const lightboxUrl = ref('');
 const pendingLandingPointId = ref<number | null>(null);
 const pendingLineupId = ref<number | null>(null);
+const selectedUtility = ref('all');
+const selectedSide = ref('all');
+const selectedDifficulty = ref('all');
+const radarZoom = ref(1);
+const shareMessage = ref('');
+const favoriteLineupIds = ref<number[]>([]);
+const FAVORITE_UTILITY_KEY = 'cs2-favorite-lineups';
 
 type LandingGroup = {
   point: MapPoint;
@@ -33,6 +40,11 @@ type LineupMediaCard = {
   title: string;
   description: string;
   url: string;
+};
+
+type UtilitySection = {
+  utility: string;
+  lineups: UtilityLineupDetail[];
 };
 
 function mapSearchText(map: MapSummary) {
@@ -55,7 +67,7 @@ const activeMap = computed(() =>
 const landingGroups = computed<LandingGroup[]>(() => {
   if (!activeMapDetail.value) return [];
   const byPoint = new Map<number, UtilityLineupDetail[]>();
-  for (const lineup of activeMapDetail.value.lineups) {
+  for (const lineup of filteredLineups.value) {
     const items = byPoint.get(lineup.land_point_id) || [];
     items.push(lineup);
     byPoint.set(lineup.land_point_id, items);
@@ -78,6 +90,48 @@ const activeLineup = computed(() => {
   if (!group) return null;
   return group.lineups.find((lineup) => lineup.id === activeLineupId.value) || group.lineups[0] || null;
 });
+
+const filteredLineups = computed(() => {
+  const lineups = activeMapDetail.value?.lineups || [];
+  return lineups.filter((lineup) => {
+    if (selectedUtility.value !== 'all' && lineup.utility_type !== selectedUtility.value) return false;
+    if (selectedSide.value !== 'all' && lineup.side !== selectedSide.value) return false;
+    if (selectedDifficulty.value !== 'all' && lineup.difficulty !== selectedDifficulty.value) return false;
+    return true;
+  });
+});
+
+const utilityOptions = computed(() => Array.from(new Set((activeMapDetail.value?.lineups || []).map((lineup) => lineup.utility_type))));
+const sideOptions = computed(() => Array.from(new Set((activeMapDetail.value?.lineups || []).map((lineup) => lineup.side))));
+const difficultyOptions = computed(() => Array.from(new Set((activeMapDetail.value?.lineups || []).map((lineup) => lineup.difficulty))));
+
+const activeLandingSections = computed<UtilitySection[]>(() => {
+  const group = activeLandingGroup.value;
+  if (!group) return [];
+  const byUtility = new Map<string, UtilityLineupDetail[]>();
+  for (const lineup of group.lineups) {
+    const items = byUtility.get(lineup.utility_type) || [];
+    items.push(lineup);
+    byUtility.set(lineup.utility_type, items);
+  }
+  return Array.from(byUtility.entries()).map(([utility, lineups]) => ({ utility, lineups }));
+});
+
+const activeLineupShareUrl = computed(() => {
+  if (!activeMapSlug.value) return '';
+  const params = new URLSearchParams();
+  params.set('map', activeMapSlug.value);
+  if (selectedUtility.value !== 'all') params.set('utility', selectedUtility.value);
+  if (selectedSide.value !== 'all') params.set('side', selectedSide.value);
+  if (selectedDifficulty.value !== 'all') params.set('difficulty', selectedDifficulty.value);
+  if (activeLandingPointId.value) params.set('land', String(activeLandingPointId.value));
+  if (activeLineupId.value) params.set('lineup', String(activeLineupId.value));
+  return `${window.location.origin}/maps?${params.toString()}`;
+});
+
+const isActiveLineupFavorite = computed(() =>
+  activeLineup.value ? favoriteLineupIds.value.includes(activeLineup.value.id) : false,
+);
 
 const selectedLineupPoints = computed(() => {
   const lineup = activeLineup.value;
@@ -169,6 +223,7 @@ async function loadMapDetail(slug: string) {
   detailError.value = '';
   activeLandingPointId.value = null;
   activeLineupId.value = null;
+  radarZoom.value = 1;
   lightboxUrl.value = '';
   try {
     const detail = await api.getMapDetail(slug);
@@ -186,13 +241,18 @@ async function loadMapDetail(slug: string) {
 
 function selectMap(slug: string) {
   activeMapSlug.value = slug;
-  router.replace({ path: '/maps', query: { map: slug } });
+  syncSelectionToUrl();
 }
 
 function clearFilters() {
   searchWord.value = '';
   activePoolOnly.value = false;
+  selectedUtility.value = 'all';
+  selectedSide.value = 'all';
+  selectedDifficulty.value = 'all';
+  clearLandingSelection(false);
   activeMapSlug.value = maps.value[0]?.slug || '';
+  syncSelectionToUrl();
 }
 
 function selectLanding(group: LandingGroup) {
@@ -207,10 +267,10 @@ function selectLanding(group: LandingGroup) {
   syncSelectionToUrl();
 }
 
-function clearLandingSelection() {
+function clearLandingSelection(sync = true) {
   activeLandingPointId.value = null;
   activeLineupId.value = null;
-  syncSelectionToUrl();
+  if (sync) syncSelectionToUrl();
 }
 
 function selectLineup(lineup: UtilityLineupDetail) {
@@ -239,6 +299,9 @@ function openLightbox(url: string) {
 function syncSelectionToUrl() {
   const query: Record<string, string> = {};
   if (activeMapSlug.value) query.map = activeMapSlug.value;
+  if (selectedUtility.value !== 'all') query.utility = selectedUtility.value;
+  if (selectedSide.value !== 'all') query.side = selectedSide.value;
+  if (selectedDifficulty.value !== 'all') query.difficulty = selectedDifficulty.value;
   if (activeLandingPointId.value) query.land = String(activeLandingPointId.value);
   if (activeLineupId.value) query.lineup = String(activeLineupId.value);
   router.replace({ path: '/maps', query });
@@ -260,8 +323,64 @@ function applyPendingSelection() {
   pendingLineupId.value = null;
 }
 
+function loadFavoriteLineups() {
+  try {
+    favoriteLineupIds.value = JSON.parse(localStorage.getItem(FAVORITE_UTILITY_KEY) || '[]');
+  } catch {
+    favoriteLineupIds.value = [];
+  }
+}
+
+function saveFavoriteLineups() {
+  localStorage.setItem(FAVORITE_UTILITY_KEY, JSON.stringify(favoriteLineupIds.value));
+}
+
+function toggleActiveLineupFavorite() {
+  const lineup = activeLineup.value;
+  if (!lineup) return;
+  const exists = favoriteLineupIds.value.includes(lineup.id);
+  favoriteLineupIds.value = exists
+    ? favoriteLineupIds.value.filter((id) => id !== lineup.id)
+    : [...favoriteLineupIds.value, lineup.id];
+  saveFavoriteLineups();
+}
+
+async function copyShareLink() {
+  if (!activeLineupShareUrl.value) return;
+  try {
+    await navigator.clipboard.writeText(activeLineupShareUrl.value);
+    shareMessage.value = '链接已复制';
+  } catch {
+    shareMessage.value = activeLineupShareUrl.value;
+  }
+  window.setTimeout(() => {
+    shareMessage.value = '';
+  }, 2200);
+}
+
+function changeRadarZoom(delta: number) {
+  radarZoom.value = Math.min(2.2, Math.max(1, Number((radarZoom.value + delta).toFixed(2))));
+}
+
+function resetRadarZoom() {
+  radarZoom.value = 1;
+}
+
 watch(activeMapSlug, (slug) => {
   loadMapDetail(slug);
+});
+
+watch([selectedUtility, selectedSide, selectedDifficulty], () => {
+  const group = activeLandingPointId.value
+    ? landingGroups.value.find((item) => item.point.id === activeLandingPointId.value)
+    : null;
+  if (!group) {
+    activeLandingPointId.value = null;
+    activeLineupId.value = null;
+  } else if (!group.lineups.some((lineup) => lineup.id === activeLineupId.value)) {
+    activeLineupId.value = group.lineups[0]?.id || null;
+  }
+  syncSelectionToUrl();
 });
 
 watch(filteredMaps, (items) => {
@@ -279,9 +398,16 @@ onMounted(() => {
   const queryMap = typeof route.query.map === 'string' ? route.query.map : '';
   const queryLand = Number(route.query.land || 0);
   const queryLineup = Number(route.query.lineup || 0);
+  const queryUtility = typeof route.query.utility === 'string' ? route.query.utility : '';
+  const querySide = typeof route.query.side === 'string' ? route.query.side : '';
+  const queryDifficulty = typeof route.query.difficulty === 'string' ? route.query.difficulty : '';
   if (queryMap) activeMapSlug.value = queryMap;
   if (queryLand) pendingLandingPointId.value = queryLand;
   if (queryLineup) pendingLineupId.value = queryLineup;
+  if (queryUtility) selectedUtility.value = queryUtility;
+  if (querySide) selectedSide.value = querySide;
+  if (queryDifficulty) selectedDifficulty.value = queryDifficulty;
+  loadFavoriteLineups();
   loadMaps();
 });
 </script>
@@ -320,6 +446,28 @@ onMounted(() => {
         </div>
 
         <div class="map-filter-section">
+          <div class="side-label">道具筛选</div>
+          <select v-model="selectedUtility" class="map-filter-select">
+            <option value="all">全部道具</option>
+            <option v-for="utility in utilityOptions" :key="utility" :value="utility">
+              {{ label(utility, UTILITY_LABELS) }}
+            </option>
+          </select>
+          <select v-model="selectedSide" class="map-filter-select">
+            <option value="all">全部阵营</option>
+            <option v-for="side in sideOptions" :key="side" :value="side">
+              {{ label(side, SIDE_LABELS) }}
+            </option>
+          </select>
+          <select v-model="selectedDifficulty" class="map-filter-select">
+            <option value="all">全部难度</option>
+            <option v-for="difficulty in difficultyOptions" :key="difficulty" :value="difficulty">
+              {{ label(difficulty, DIFFICULTY_LABELS) }}
+            </option>
+          </select>
+        </div>
+
+        <div class="map-filter-section">
           <div class="side-label">地图</div>
           <button
             v-for="map in filteredMaps"
@@ -344,62 +492,70 @@ onMounted(() => {
                 <strong>{{ activeMap.name }}</strong>
                 <span class="muted">
                   {{ loadingDetail ? '加载道具中...' : `${landingGroups.length} 个落点` }}
+                  <template v-if="activeMapDetail"> / {{ filteredLineups.length }} 个道具</template>
                 </span>
               </div>
-              <button v-if="activeLandingGroup" class="secondary-button" @click="clearLandingSelection">
-                清除落点
-              </button>
+              <div class="radar-actions">
+                <button class="secondary-button compact" type="button" @click="changeRadarZoom(0.2)">放大</button>
+                <button class="secondary-button compact" type="button" @click="changeRadarZoom(-0.2)">缩小</button>
+                <button v-if="radarZoom > 1" class="secondary-button compact" type="button" @click="resetRadarZoom">重置</button>
+                <button v-if="activeLandingGroup" class="secondary-button compact" type="button" @click="clearLandingSelection">
+                  清除落点
+                </button>
+              </div>
             </div>
 
-            <div class="map-stage radar-stage">
-              <img
-                :src="radarUrl"
-                :alt="activeMap.name"
-                loading="lazy"
-                @error="useRadarFallback(activeMap.slug)"
-              />
-              <svg v-if="activeLineup" class="lineup-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <path
-                  v-if="lineupPath"
-                  :d="lineupPath"
-                  stroke="#ff7a18"
-                  stroke-width="0.85"
-                  fill="none"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
+            <div class="radar-scroll">
+              <div class="map-stage radar-stage" :style="{ width: `${radarZoom * 100}%` }">
+                <img
+                  :src="radarUrl"
+                  :alt="activeMap.name"
+                  loading="lazy"
+                  @error="useRadarFallback(activeMap.slug)"
                 />
-              </svg>
+                <svg v-if="activeLineup" class="lineup-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  <path
+                    v-if="lineupPath"
+                    :d="lineupPath"
+                    stroke="#ff7a18"
+                    stroke-width="0.85"
+                    fill="none"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
 
-              <button
-                v-for="group in landingGroups"
-                :key="group.point.id"
-                class="landing-marker"
-                :class="{ active: activeLandingPointId === group.point.id }"
-                :style="{ left: `${group.point.x}%`, top: `${group.point.y}%`, background: pointFill(group.point) }"
-                :title="group.point.name"
-                @click="selectLanding(group)"
-              >
-                {{ group.lineups.length }}
-              </button>
-              <button
-                v-for="group in landingGroups"
-                :key="`label-${group.point.id}`"
-                class="landing-label"
-                :class="{ active: activeLandingPointId === group.point.id }"
-                :style="{ left: `${group.point.x}%`, top: `${group.point.y}%` }"
-                @click="selectLanding(group)"
-              >
-                {{ group.point.name }}
-              </button>
+                <button
+                  v-for="group in landingGroups"
+                  :key="group.point.id"
+                  class="landing-marker"
+                  :class="{ active: activeLandingPointId === group.point.id }"
+                  :style="{ left: `${group.point.x}%`, top: `${group.point.y}%`, background: pointFill(group.point) }"
+                  :title="group.point.name"
+                  @click="selectLanding(group)"
+                >
+                  {{ group.lineups.length }}
+                </button>
+                <button
+                  v-for="group in landingGroups"
+                  :key="`label-${group.point.id}`"
+                  class="landing-label"
+                  :class="{ active: activeLandingPointId === group.point.id }"
+                  :style="{ left: `${group.point.x}%`, top: `${group.point.y}%` }"
+                  @click="selectLanding(group)"
+                >
+                  {{ group.point.name }}
+                </button>
 
-              <span
-                v-for="item in selectedLineupPoints"
-                :key="item.role"
-                class="lineup-point"
-                :style="{ left: `${item.point.x}%`, top: `${item.point.y}%`, background: item.color }"
-              >
-                {{ item.role }}
-              </span>
+                <span
+                  v-for="item in selectedLineupPoints"
+                  :key="item.role"
+                  class="lineup-point"
+                  :style="{ left: `${item.point.x}%`, top: `${item.point.y}%`, background: item.color }"
+                >
+                  {{ item.role }}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -433,19 +589,29 @@ onMounted(() => {
               </div>
 
               <div class="lineup-list">
-                <button
-                  v-for="lineup in activeLandingGroup.lineups"
-                  :key="lineup.id"
-                  class="lineup-item"
-                  :class="{ active: activeLineup?.id === lineup.id }"
-                  @click="selectLineup(lineup)"
-                >
-                  <strong>{{ lineup.title }}</strong>
-                  <span>{{ label(lineup.utility_type, UTILITY_LABELS) }} · {{ label(lineup.side, SIDE_LABELS) }}</span>
-                </button>
+                <section v-for="section in activeLandingSections" :key="section.utility" class="lineup-section">
+                  <div class="lineup-section-title">{{ label(section.utility, UTILITY_LABELS) }}</div>
+                  <button
+                    v-for="lineup in section.lineups"
+                    :key="lineup.id"
+                    class="lineup-item"
+                    :class="{ active: activeLineup?.id === lineup.id, favorite: favoriteLineupIds.includes(lineup.id) }"
+                    @click="selectLineup(lineup)"
+                  >
+                    <strong>{{ lineup.title }}</strong>
+                    <span>{{ label(lineup.utility_type, UTILITY_LABELS) }} · {{ label(lineup.side, SIDE_LABELS) }} · {{ label(lineup.difficulty, DIFFICULTY_LABELS) }}</span>
+                  </button>
+                </section>
               </div>
 
               <div v-if="activeLineup" class="lineup-detail">
+                <div class="lineup-action-row">
+                  <button class="secondary-button compact" type="button" @click="toggleActiveLineupFavorite">
+                    {{ isActiveLineupFavorite ? '已收藏' : '收藏道具' }}
+                  </button>
+                  <button class="secondary-button compact" type="button" @click="copyShareLink">复制链接</button>
+                  <span v-if="shareMessage" class="share-message">{{ shareMessage }}</span>
+                </div>
                 <div class="lineup-detail-meta">
                   <span class="chip">{{ label(activeLineup.utility_type, UTILITY_LABELS) }}</span>
                   <span class="chip">{{ label(activeLineup.side, SIDE_LABELS) }}</span>
@@ -566,6 +732,17 @@ onMounted(() => {
   line-height: 1.35;
 }
 
+.map-filter-select {
+  width: 100%;
+  margin-bottom: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  background-color: rgba(8,14,23,0.76);
+  color: #fff;
+  padding: 8px 28px 8px 10px;
+  font-size: 13px;
+}
+
 .map-search:focus {
   outline: none;
   border-color: rgba(255,122,24,0.55);
@@ -654,6 +831,19 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
+.radar-actions,
+.lineup-action-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.secondary-button.compact {
+  padding: 7px 10px;
+  font-size: 0.72rem;
+}
+
 .radar-toolbar strong {
   display: block;
 }
@@ -667,6 +857,14 @@ onMounted(() => {
   overflow: hidden;
   border-radius: 10px;
   background: rgba(255,255,255,0.025);
+  min-width: 100%;
+  transition: width 0.18s ease;
+}
+
+.radar-scroll {
+  overflow: auto;
+  border-radius: 10px;
+  overscroll-behavior: contain;
 }
 
 .radar-stage img {
@@ -762,8 +960,21 @@ onMounted(() => {
 .lineup-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   margin: 14px 0;
+}
+
+.lineup-section {
+  display: grid;
+  gap: 8px;
+}
+
+.lineup-section-title {
+  color: #7a8ba0;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .lineup-item {
@@ -784,6 +995,10 @@ onMounted(() => {
   background: rgba(255,122,24,0.12);
 }
 
+.lineup-item.favorite {
+  border-color: rgba(101,214,206,0.25);
+}
+
 .lineup-item span {
   color: #91a3ba;
   font-size: 0.75rem;
@@ -795,6 +1010,12 @@ onMounted(() => {
   gap: 12px;
   padding-top: 12px;
   border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.share-message {
+  min-width: 0;
+  color: #8de8be;
+  font-size: 0.74rem;
 }
 
 .lineup-detail-meta,
