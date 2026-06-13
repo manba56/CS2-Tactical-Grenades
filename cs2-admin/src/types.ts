@@ -41,7 +41,9 @@ export interface AdminPoint {
   tags: string[];
   description: string;
   aim_image_url: string;
+  aim_image_description: string;
   effect_image_url: string;
+  effect_image_description: string;
   video_url: string;
 }
 

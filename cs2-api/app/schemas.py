@@ -45,7 +45,9 @@ class PointPayload(BaseModel):
     tags: list[str] = Field(default_factory=list)
     description: str = ""
     aim_image_url: str = ""
+    aim_image_description: str = ""
     effect_image_url: str = ""
+    effect_image_description: str = ""
     video_url: str = ""
 
 

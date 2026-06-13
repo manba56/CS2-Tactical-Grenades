@@ -92,10 +92,20 @@ class TestPointPayload:
     def test_valid(self):
         from app.schemas import PointPayload
 
-        p = PointPayload(map_id=1, name="A Site", key="a_site", x=50.0, y=50.0)
+        p = PointPayload(
+            map_id=1,
+            name="A Site",
+            key="a_site",
+            x=50.0,
+            y=50.0,
+            aim_image_description="Crosshair on the corner",
+            effect_image_description="Smoke covers the window",
+        )
         assert p.side == "BOTH"
         assert p.point_type == "site"
         assert p.tags == []
+        assert p.aim_image_description == "Crosshair on the corner"
+        assert p.effect_image_description == "Smoke covers the window"
 
     def test_x_out_of_range_negative(self):
         from app.schemas import PointPayload

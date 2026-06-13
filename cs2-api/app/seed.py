@@ -121,7 +121,9 @@ def build_seed_state() -> dict:
             "tags": p["tags"],
             "description": "",
             "aim_image_url": "",
+            "aim_image_description": "",
             "effect_image_url": "",
+            "effect_image_description": "",
             "video_url": "",
         })
 

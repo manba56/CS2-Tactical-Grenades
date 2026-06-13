@@ -29,7 +29,9 @@ CREATE TABLE IF NOT EXISTS points (
     tags TEXT,
     description TEXT DEFAULT '',
     aim_image_url TEXT DEFAULT '',
+    aim_image_description TEXT DEFAULT '',
     effect_image_url TEXT DEFAULT '',
+    effect_image_description TEXT DEFAULT '',
     video_url TEXT DEFAULT ''
 );
 
@@ -100,7 +102,8 @@ TABLE_COLUMNS: dict[str, list[str]] = {
     "maps":      ["name", "slug", "overview", "cover_url", "layout_url",
                   "video_url", "callout_color", "order", "status", "active_pool"],
     "points":    ["map_id", "name", "key", "x", "y", "side", "point_type", "tags",
-                  "description", "aim_image_url", "effect_image_url", "video_url"],
+                  "description", "aim_image_url", "aim_image_description",
+                  "effect_image_url", "effect_image_description", "video_url"],
     "lineups":   ["map_id", "title", "slug", "side", "utility_type",
                   "start_point_id", "aim_point_id", "land_point_id",
                   "purpose", "difficulty", "summary", "steps", "media", "video_url", "status"],
@@ -187,7 +190,9 @@ class Database:
                 "ALTER TABLE tactics ADD COLUMN video_url TEXT DEFAULT ''",
                 "ALTER TABLE points ADD COLUMN description TEXT DEFAULT ''",
                 "ALTER TABLE points ADD COLUMN aim_image_url TEXT DEFAULT ''",
+                "ALTER TABLE points ADD COLUMN aim_image_description TEXT DEFAULT ''",
                 "ALTER TABLE points ADD COLUMN effect_image_url TEXT DEFAULT ''",
+                "ALTER TABLE points ADD COLUMN effect_image_description TEXT DEFAULT ''",
                 "ALTER TABLE points ADD COLUMN video_url TEXT DEFAULT ''",
             ]:
                 try:

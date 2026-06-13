@@ -6,7 +6,8 @@ import AssetPicker from '../components/AssetPicker.vue';
 import { useSessionStore } from '../stores/session';
 import type { AdminLineup, AdminMap, AdminPoint } from '../types';
 
-type PairRole = 'aim' | 'land';
+type PointRole = 'stand' | 'aim' | 'land';
+
 type PointDraft = {
   name: string;
   key: string;
@@ -16,7 +17,9 @@ type PointDraft = {
   tagsText: string;
   description: string;
   aim_image_url: string;
+  aim_image_description: string;
   effect_image_url: string;
+  effect_image_description: string;
   video_url: string;
 };
 
@@ -25,12 +28,14 @@ const maps = ref<AdminMap[]>([]);
 const points = ref<AdminPoint[]>([]);
 const lineups = ref<AdminLineup[]>([]);
 const selectedMapId = ref(1);
-const activeRole = ref<PairRole>('aim');
+const activeRole = ref<PointRole>('stand');
 const editingLineupId = ref<number | null>(null);
+const editingStandPointId = ref<number | null>(null);
 const editingAimPointId = ref<number | null>(null);
 const editingLandPointId = ref<number | null>(null);
 const error = ref('');
-const uploadingMedia = ref<PairRole | ''>('');
+const success = ref('');
+const uploadingMedia = ref<PointRole | ''>('');
 
 const lineupForm = reactive({
   title: '',
@@ -45,46 +50,49 @@ const lineupForm = reactive({
   status: 'published',
 });
 
-const aimDraft = reactive<PointDraft>({
-  name: '',
-  key: '',
-  x: 50,
-  y: 50,
-  side: 'BOTH',
-  tagsText: '',
-  description: '',
-  aim_image_url: '',
-  effect_image_url: '',
-  video_url: '',
-});
+function createDraft(x: number, y: number): PointDraft {
+  return {
+    name: '',
+    key: '',
+    x,
+    y,
+    side: 'BOTH',
+    tagsText: '',
+    description: '',
+    aim_image_url: '',
+    aim_image_description: '',
+    effect_image_url: '',
+    effect_image_description: '',
+    video_url: '',
+  };
+}
 
-const landDraft = reactive<PointDraft>({
-  name: '',
-  key: '',
-  x: 50,
-  y: 50,
-  side: 'BOTH',
-  tagsText: '',
-  description: '',
-  aim_image_url: '',
-  effect_image_url: '',
-  video_url: '',
-});
+const standDraft = reactive<PointDraft>(createDraft(35, 55));
+const aimDraft = reactive<PointDraft>(createDraft(50, 45));
+const landDraft = reactive<PointDraft>(createDraft(65, 45));
 
-const POINT_ROLE_META: Record<PairRole, { label: string; color: string; pointType: 'staging' | 'site' }> = {
-  aim: { label: '瞄点', color: '#65d6ce', pointType: 'staging' },
-  land: { label: '落点', color: '#f5d76e', pointType: 'site' },
+const POINT_ROLE_META: Record<PointRole, { label: string; short: string; color: string; pointType: 'staging' | 'aim' | 'site' }> = {
+  stand: { label: '站位瞄点', short: '站', color: '#65d6ce', pointType: 'staging' },
+  aim: { label: '道具瞄点', short: '瞄', color: '#ff7a18', pointType: 'aim' },
+  land: { label: '落点', short: '落', color: '#f5d76e', pointType: 'site' },
 };
+const pointRoles: PointRole[] = ['stand', 'aim', 'land'];
+const pointEditorItems = [
+  { role: 'stand' as const, draft: standDraft },
+  { role: 'aim' as const, draft: aimDraft },
+  { role: 'land' as const, draft: landDraft },
+];
 
 const currentMap = computed(() => maps.value.find((map) => map.id === selectedMapId.value) || null);
 const currentRadarUrl = computed(() =>
   currentMap.value ? resolveAssetUrl(`/static/assets/maps/radars/${currentMap.value.slug}-radar.png`) : '',
 );
 const mapPoints = computed(() => points.value.filter((point) => point.map_id === selectedMapId.value));
-const aimPoints = computed(() => mapPoints.value.filter((point) => point.point_type !== 'site'));
+const standPoints = computed(() => mapPoints.value.filter((point) => point.point_type === 'staging'));
+const aimPoints = computed(() => mapPoints.value.filter((point) => point.point_type === 'aim'));
 const landPoints = computed(() => mapPoints.value.filter((point) => point.point_type === 'site'));
-const visiblePoints = computed(() => [...aimPoints.value, ...landPoints.value]);
-const activeDraft = computed(() => activeRole.value === 'aim' ? aimDraft : landDraft);
+const visiblePoints = computed(() => [...standPoints.value, ...aimPoints.value, ...landPoints.value]);
+const activeDraft = computed(() => draftForRole(activeRole.value));
 const editingLineup = computed(() =>
   editingLineupId.value ? lineups.value.find((lineup) => lineup.id === editingLineupId.value) || null : null,
 );
@@ -95,54 +103,65 @@ const lineupsByLanding = computed(() =>
     lineups: mapLineups.value.filter((lineup) => lineup.land_point_id === point.id),
   })).sort((a, b) => b.lineups.length - a.lineups.length || a.point.name.localeCompare(b.point.name)),
 );
-const pairLineupCount = computed(() =>
-  editingAimPointId.value && editingLandPointId.value
-    ? lineups.value.filter((lineup) =>
-      lineup.start_point_id === editingAimPointId.value &&
-      lineup.land_point_id === editingLandPointId.value &&
-      lineup.id !== editingLineupId.value,
-    ).length
-    : 0,
-);
-const pairLineups = computed(() =>
-  lineups.value.filter((lineup) =>
-    lineup.map_id === selectedMapId.value &&
-    lineup.start_point_id === editingAimPointId.value &&
+const selectedComboLineups = computed(() =>
+  mapLineups.value.filter((lineup) =>
+    lineup.start_point_id === editingStandPointId.value &&
+    lineup.aim_point_id === editingAimPointId.value &&
     lineup.land_point_id === editingLandPointId.value,
   ),
 );
 const visibilityState = computed(() => {
-  if (!editingAimPointId.value) return { visible: false, label: '保存后可见', reason: '还没有保存瞄点' };
-  if (!editingLandPointId.value) return { visible: false, label: '保存后可见', reason: '还没有保存落点' };
-  if (lineupForm.status !== 'published') return { visible: false, label: '前台不可见', reason: '状态不是 published' };
-  return { visible: true, label: '前台可见', reason: '已有关联落点并且状态为 published' };
+  if (!editingStandPointId.value || !editingAimPointId.value || !editingLandPointId.value) {
+    return { visible: false, label: '保存后可见', reason: '三个点位还没有全部保存' };
+  }
+  if (lineupForm.status !== 'published') {
+    return { visible: false, label: '前台不可见', reason: '状态不是 published' };
+  }
+  return { visible: true, label: '前台可见', reason: '已有关联落点且状态为 published' };
 });
-const previewPath = computed(() => `M${aimDraft.x} ${aimDraft.y} L${landDraft.x} ${landDraft.y}`);
+const previewPath = computed(() =>
+  `M${standDraft.x} ${standDraft.y} L${aimDraft.x} ${aimDraft.y} L${landDraft.x} ${landDraft.y}`,
+);
 
-function roleForPoint(point: AdminPoint): PairRole {
-  return point.point_type === 'site' ? 'land' : 'aim';
+function draftForRole(role: PointRole) {
+  if (role === 'stand') return standDraft;
+  if (role === 'aim') return aimDraft;
+  return landDraft;
 }
 
-function roleLabel(role: PairRole) {
-  return POINT_ROLE_META[role].label;
+function setEditingIdForRole(role: PointRole, id: number | null) {
+  if (role === 'stand') editingStandPointId.value = id;
+  else if (role === 'aim') editingAimPointId.value = id;
+  else editingLandPointId.value = id;
 }
 
-function roleColor(role: PairRole) {
+function roleForPoint(point: AdminPoint): PointRole {
+  if (point.point_type === 'site') return 'land';
+  if (point.point_type === 'aim') return 'aim';
+  return 'stand';
+}
+
+function roleColor(role: PointRole) {
   return POINT_ROLE_META[role].color;
+}
+
+function roleLabel(role: PointRole) {
+  return POINT_ROLE_META[role].label;
 }
 
 function pointRoleColor(point: AdminPoint) {
   return roleColor(roleForPoint(point));
 }
 
-function refsFor(pointId: number) {
-  const asAim = lineups.value.filter((lineup) => lineup.start_point_id === pointId).length;
-  const asLand = lineups.value.filter((lineup) => lineup.land_point_id === pointId).length;
-  return { aim: asAim, land: asLand, total: asAim + asLand };
-}
-
 function pointName(pointId: number) {
   return points.value.find((point) => point.id === pointId)?.name || `#${pointId}`;
+}
+
+function refsFor(pointId: number) {
+  const asStand = lineups.value.filter((lineup) => lineup.start_point_id === pointId).length;
+  const asAim = lineups.value.filter((lineup) => lineup.aim_point_id === pointId).length;
+  const asLand = lineups.value.filter((lineup) => lineup.land_point_id === pointId).length;
+  return { asStand, asAim, asLand, total: asStand + asAim + asLand };
 }
 
 function parseTags(text: string) {
@@ -170,10 +189,8 @@ function coordsFromRadar(event: MouseEvent) {
 function applyPointToDraft(point: AdminPoint, role = roleForPoint(point)) {
   selectedMapId.value = point.map_id;
   activeRole.value = role;
-  if (role === 'aim') editingAimPointId.value = point.id;
-  else editingLandPointId.value = point.id;
-
-  Object.assign(role === 'aim' ? aimDraft : landDraft, {
+  setEditingIdForRole(role, point.id);
+  Object.assign(draftForRole(role), {
     name: point.name,
     key: point.key,
     x: clampCoordinate(point.x),
@@ -182,7 +199,9 @@ function applyPointToDraft(point: AdminPoint, role = roleForPoint(point)) {
     tagsText: (point.tags || []).join(', '),
     description: point.description || '',
     aim_image_url: point.aim_image_url || '',
+    aim_image_description: point.aim_image_description || '',
     effect_image_url: point.effect_image_url || '',
+    effect_image_description: point.effect_image_description || '',
     video_url: point.video_url || '',
   });
 }
@@ -191,7 +210,7 @@ function selectPoint(point: AdminPoint) {
   applyPointToDraft(point);
 }
 
-function setActiveRole(role: PairRole) {
+function setActiveRole(role: PointRole) {
   activeRole.value = role;
 }
 
@@ -199,26 +218,17 @@ function setDraftCoords(event: MouseEvent) {
   Object.assign(activeDraft.value, coordsFromRadar(event));
 }
 
-function resetDraft(draft: PointDraft, role: PairRole) {
-  Object.assign(draft, {
-    name: '',
-    key: '',
-    x: role === 'aim' ? 42 : 58,
-    y: 50,
-    side: 'BOTH',
-    tagsText: '',
-    description: '',
-    aim_image_url: '',
-    effect_image_url: '',
-    video_url: '',
-  });
+function resetDraft(draft: PointDraft, role: PointRole) {
+  Object.assign(draft, createDraft(role === 'stand' ? 35 : role === 'aim' ? 50 : 65, role === 'land' ? 45 : 55));
 }
 
 function resetForm() {
   editingLineupId.value = null;
+  editingStandPointId.value = null;
   editingAimPointId.value = null;
   editingLandPointId.value = null;
   error.value = '';
+  success.value = '';
   Object.assign(lineupForm, {
     title: '',
     slug: '',
@@ -231,9 +241,10 @@ function resetForm() {
     video_url: '',
     status: 'published',
   });
+  resetDraft(standDraft, 'stand');
   resetDraft(aimDraft, 'aim');
   resetDraft(landDraft, 'land');
-  activeRole.value = 'aim';
+  activeRole.value = 'stand';
 }
 
 function selectMap(mapId: number) {
@@ -270,15 +281,17 @@ function editLineup(lineup: AdminLineup) {
     video_url: lineup.video_url || '',
     status: lineup.status || 'draft',
   });
-  const aimPoint = points.value.find((point) => point.id === lineup.start_point_id);
+  const standPoint = points.value.find((point) => point.id === lineup.start_point_id);
+  const aimPoint = points.value.find((point) => point.id === lineup.aim_point_id);
   const landPoint = points.value.find((point) => point.id === lineup.land_point_id);
+  if (standPoint) applyPointToDraft(standPoint, 'stand');
   if (aimPoint) applyPointToDraft(aimPoint, 'aim');
   if (landPoint) applyPointToDraft(landPoint, 'land');
-  activeRole.value = 'aim';
+  activeRole.value = 'stand';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function validatePointDraft(role: PairRole, draft: PointDraft, editingId: number | null) {
+function validatePointDraft(role: PointRole, draft: PointDraft, editingId: number | null) {
   normalizeDraftCoordinates(draft);
   if (!draft.name.trim()) return `${roleLabel(role)}名称不能为空`;
   if (!draft.key.trim()) return `${roleLabel(role)} Key 不能为空`;
@@ -291,7 +304,7 @@ function validatePointDraft(role: PairRole, draft: PointDraft, editingId: number
   return '';
 }
 
-function buildPointPayload(role: PairRole, draft: PointDraft, original?: AdminPoint) {
+function buildPointPayload(role: PointRole, draft: PointDraft, original?: AdminPoint) {
   normalizeDraftCoordinates(draft);
   return {
     map_id: selectedMapId.value,
@@ -303,13 +316,15 @@ function buildPointPayload(role: PairRole, draft: PointDraft, original?: AdminPo
     point_type: POINT_ROLE_META[role].pointType,
     tags: parseTags(draft.tagsText),
     description: draft.description,
-    aim_image_url: role === 'aim' ? draft.aim_image_url : original?.aim_image_url || '',
+    aim_image_url: role === 'stand' || role === 'aim' ? draft.aim_image_url : original?.aim_image_url || '',
+    aim_image_description: role === 'stand' || role === 'aim' ? draft.aim_image_description : original?.aim_image_description || '',
     effect_image_url: role === 'land' ? draft.effect_image_url : original?.effect_image_url || '',
+    effect_image_description: role === 'land' ? draft.effect_image_description : original?.effect_image_description || '',
     video_url: draft.video_url,
   };
 }
 
-async function savePoint(role: PairRole, draft: PointDraft, editingId: number | null) {
+async function savePoint(role: PointRole, draft: PointDraft, editingId: number | null) {
   const original = editingId ? points.value.find((point) => point.id === editingId) : undefined;
   const payload = buildPointPayload(role, draft, original);
   if (editingId) {
@@ -322,58 +337,67 @@ async function savePoint(role: PairRole, draft: PointDraft, editingId: number | 
 
 function defaultLineupTitle() {
   const mapName = currentMap.value?.name || '地图';
-  return `${mapName} ${aimDraft.name.trim()} -> ${landDraft.name.trim()} ${lineupForm.utility_type}`;
+  return `${mapName} ${standDraft.name.trim()} -> ${landDraft.name.trim()} ${lineupForm.utility_type}`;
 }
 
 async function submitPair() {
   error.value = '';
+  success.value = '';
+  const standError = validatePointDraft('stand', standDraft, editingStandPointId.value);
   const aimError = validatePointDraft('aim', aimDraft, editingAimPointId.value);
   const landError = validatePointDraft('land', landDraft, editingLandPointId.value);
-  if (aimError || landError) {
-    error.value = aimError || landError;
+  if (standError || aimError || landError) {
+    error.value = standError || aimError || landError;
     return;
   }
 
-  const aimPointId = await savePoint('aim', aimDraft, editingAimPointId.value);
-  const landPointId = await savePoint('land', landDraft, editingLandPointId.value);
-  editingAimPointId.value = aimPointId;
-  editingLandPointId.value = landPointId;
+  try {
+    const standPointId = await savePoint('stand', standDraft, editingStandPointId.value);
+    const aimPointId = await savePoint('aim', aimDraft, editingAimPointId.value);
+    const landPointId = await savePoint('land', landDraft, editingLandPointId.value);
+    editingStandPointId.value = standPointId;
+    editingAimPointId.value = aimPointId;
+    editingLandPointId.value = landPointId;
 
-  const payload = {
-    map_id: selectedMapId.value,
-    title: lineupForm.title.trim() || defaultLineupTitle(),
-    slug: lineupForm.slug.trim(),
-    side: lineupForm.side,
-    utility_type: lineupForm.utility_type,
-    start_point_id: aimPointId,
-    aim_point_id: aimPointId,
-    land_point_id: landPointId,
-    purpose: lineupForm.purpose,
-    difficulty: lineupForm.difficulty,
-    summary: lineupForm.summary,
-    steps: lineupForm.stepsText.split('\n').map((item) => item.trim()).filter(Boolean),
-    media: editingLineup.value?.media || [],
-    video_url: lineupForm.video_url,
-    status: lineupForm.status,
-  };
+    const payload = {
+      map_id: selectedMapId.value,
+      title: lineupForm.title.trim() || defaultLineupTitle(),
+      slug: lineupForm.slug.trim(),
+      side: lineupForm.side,
+      utility_type: lineupForm.utility_type,
+      start_point_id: standPointId,
+      aim_point_id: aimPointId,
+      land_point_id: landPointId,
+      purpose: lineupForm.purpose,
+      difficulty: lineupForm.difficulty,
+      summary: lineupForm.summary,
+      steps: lineupForm.stepsText.split('\n').map((item) => item.trim()).filter(Boolean),
+      media: editingLineup.value?.media || [],
+      video_url: lineupForm.video_url,
+      status: lineupForm.status,
+    };
 
-  if (editingLineupId.value) {
-    await api.updateLineup(editingLineupId.value, payload, session.token);
-  } else {
-    const created = await api.createLineup(payload, session.token);
-    editingLineupId.value = created.id;
+    if (editingLineupId.value) {
+      await api.updateLineup(editingLineupId.value, payload, session.token);
+    } else {
+      const created = await api.createLineup(payload, session.token);
+      editingLineupId.value = created.id;
+    }
+    await load();
+    success.value = '已保存，道具会按落点在前台地图页聚合显示';
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '保存失败，请检查必填字段';
   }
-  await load();
 }
 
-async function uploadPointMedia(role: PairRole, file?: File) {
+async function uploadPointMedia(role: PointRole, file?: File) {
   if (!file) return;
   uploadingMedia.value = role;
   error.value = '';
   try {
     const result = await api.uploadAsset(file, session.token);
-    if (role === 'aim') aimDraft.aim_image_url = result.url;
-    else landDraft.effect_image_url = result.url;
+    if (role === 'land') landDraft.effect_image_url = result.url;
+    else draftForRole(role).aim_image_url = result.url;
   } catch (err) {
     error.value = err instanceof Error ? err.message : '上传失败，请检查图片格式和大小';
   } finally {
@@ -387,7 +411,7 @@ onMounted(load);
 <template>
   <div class="page-header">
     <h1>道具点位管理</h1>
-    <p class="muted">选地图、点雷达、填瞄点和落点，保存后前台地图雷达会按落点显示道具。</p>
+    <p class="muted">一次录入站位瞄点、道具瞄点、落点和线路。前台地图页会按落点展示多个道具。</p>
   </div>
 
   <div class="point-admin-layout">
@@ -401,13 +425,16 @@ onMounted(load);
 
       <div class="role-switch">
         <div class="muted">雷达点击填入</div>
-        <button class="ghost-button" :class="{ active: activeRole === 'aim' }" type="button" @click="setActiveRole('aim')">
-          <span class="type-dot" :style="{ background: roleColor('aim') }" />
-          瞄点
-        </button>
-        <button class="ghost-button" :class="{ active: activeRole === 'land' }" type="button" @click="setActiveRole('land')">
-          <span class="type-dot" :style="{ background: roleColor('land') }" />
-          落点
+        <button
+          v-for="role in pointRoles"
+          :key="role"
+          class="ghost-button"
+          :class="{ active: activeRole === role }"
+          type="button"
+          @click="setActiveRole(role)"
+        >
+          <span class="type-dot" :style="{ background: roleColor(role) }" />
+          {{ roleLabel(role) }}
         </button>
       </div>
 
@@ -416,10 +443,10 @@ onMounted(load);
 
     <main class="point-workspace">
       <section class="panel radar-panel">
-        <div class="inline-row" style="justify-content:space-between">
+        <div class="inline-row radar-heading">
           <div>
             <strong>{{ currentMap?.name || '地图雷达' }}</strong>
-            <p class="muted" style="margin:2px 0 0">点击空白处给当前选中的瞄点/落点取整数坐标；点击已有点会回填对应表单。</p>
+            <p class="muted">点击空白处会把整数坐标填到当前选中的点位；点击已有点位会回填编辑。</p>
           </div>
           <span class="chip">{{ visiblePoints.length }} 个点</span>
         </div>
@@ -427,45 +454,46 @@ onMounted(load);
         <div v-if="currentRadarUrl" class="radar-stage" @click="setDraftCoords">
           <img :src="currentRadarUrl" :alt="currentMap?.name || 'radar'" />
           <svg class="radar-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path :d="previewPath" stroke="#ff7a18" stroke-width="0.8" fill="none" stroke-linecap="round" />
+            <path :d="previewPath" stroke="#ff7a18" stroke-width="0.8" fill="none" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
           <button
             v-for="point in visiblePoints"
             :key="point.id"
             type="button"
             class="radar-point"
-            :class="{ active: point.id === editingAimPointId || point.id === editingLandPointId }"
+            :class="{ active: [editingStandPointId, editingAimPointId, editingLandPointId].includes(point.id) }"
             :style="{ left: `${point.x}%`, top: `${point.y}%`, background: pointRoleColor(point) }"
-            :title="`${roleLabel(roleForPoint(point))}：${point.name}`"
+            :title="`${roleLabel(roleForPoint(point))}: ${point.name}`"
             @click.stop="selectPoint(point)"
           >
-            {{ roleForPoint(point) === 'land' ? refsFor(point.id).land || '' : '' }}
+            {{ roleForPoint(point) === 'land' ? refsFor(point.id).asLand || '' : POINT_ROLE_META[roleForPoint(point)].short }}
           </button>
           <span
             v-for="point in visiblePoints"
             :key="`label-${point.id}`"
             class="radar-point-label"
-            :class="{ active: point.id === editingAimPointId || point.id === editingLandPointId }"
             :style="{ left: `${point.x}%`, top: `${point.y}%` }"
           >
             {{ point.name }}
           </span>
+          <span class="radar-marker stand-marker" :style="{ left: `${standDraft.x}%`, top: `${standDraft.y}%` }">站</span>
           <span class="radar-marker aim-marker" :style="{ left: `${aimDraft.x}%`, top: `${aimDraft.y}%` }">瞄</span>
           <span class="radar-marker land-marker" :style="{ left: `${landDraft.x}%`, top: `${landDraft.y}%` }">落</span>
         </div>
       </section>
 
       <form class="panel pair-form" @submit.prevent="submitPair">
-        <div class="inline-row" style="justify-content:space-between">
+        <div class="inline-row form-heading">
           <div>
             <h2>{{ editingLineupId ? '编辑道具' : '新建道具' }}</h2>
-            <p class="muted">保存会自动维护瞄点、落点和底层线路关系。</p>
+            <p class="muted">保存时会先保存三个点位，再创建或更新底层线路。</p>
           </div>
           <span class="visibility-chip" :class="{ visible: visibilityState.visible }">
             {{ visibilityState.label }}：{{ visibilityState.reason }}
           </span>
         </div>
         <p v-if="error" class="error-text">{{ error }}</p>
+        <p v-if="success" class="success-text">{{ success }}</p>
 
         <div class="form-grid">
           <label>
@@ -523,36 +551,41 @@ onMounted(load);
           </label>
           <label class="full">
             视频 URL
-            <input v-model="lineupForm.video_url" class="field" />
+            <input v-model="lineupForm.video_url" class="field" placeholder="B 站、YouTube 或其他视频链接" />
           </label>
         </div>
 
-        <div class="pair-editor">
-          <section class="point-subform" :class="{ active: activeRole === 'aim' }">
-            <div class="inline-row" style="justify-content:space-between">
-              <strong>瞄点</strong>
-              <button class="ghost-button" type="button" @click="setActiveRole('aim')">雷达填这里</button>
+        <div class="point-editor">
+          <section
+            v-for="item in pointEditorItems"
+            :key="item.role"
+            class="point-subform"
+            :class="{ active: activeRole === item.role }"
+          >
+            <div class="inline-row subform-heading">
+              <strong>{{ roleLabel(item.role) }}</strong>
+              <button class="ghost-button" type="button" @click="setActiveRole(item.role)">雷达填这里</button>
             </div>
             <div class="form-grid compact-grid">
               <label>
                 名称
-                <input v-model="aimDraft.name" class="field" required />
+                <input v-model="item.draft.name" class="field" required />
               </label>
               <label>
                 Key
-                <input v-model="aimDraft.key" class="field" required />
+                <input v-model="item.draft.key" class="field" required />
               </label>
               <label>
                 X
-                <input v-model.number="aimDraft.x" type="number" min="0" max="100" step="1" class="field" @change="normalizeDraftCoordinates(aimDraft)" required />
+                <input v-model.number="item.draft.x" type="number" min="0" max="100" step="1" class="field" @change="normalizeDraftCoordinates(item.draft)" required />
               </label>
               <label>
                 Y
-                <input v-model.number="aimDraft.y" type="number" min="0" max="100" step="1" class="field" @change="normalizeDraftCoordinates(aimDraft)" required />
+                <input v-model.number="item.draft.y" type="number" min="0" max="100" step="1" class="field" @change="normalizeDraftCoordinates(item.draft)" required />
               </label>
               <label>
                 阵营
-                <select v-model="aimDraft.side" class="select">
+                <select v-model="item.draft.side" class="select">
                   <option value="T">T</option>
                   <option value="CT">CT</option>
                   <option value="BOTH">BOTH</option>
@@ -560,87 +593,57 @@ onMounted(load);
               </label>
               <label class="full">
                 标签
-                <input v-model="aimDraft.tagsText" class="field" placeholder="逗号分隔" />
+                <input v-model="item.draft.tagsText" class="field" placeholder="逗号分隔" />
               </label>
               <label class="full">
-                说明
-                <textarea v-model="aimDraft.description" class="textarea" />
+                点位说明
+                <textarea v-model="item.draft.description" class="textarea" />
               </label>
-              <label class="full">
-                瞄点图 URL
-                <div class="media-url-row">
-                  <input v-model="aimDraft.aim_image_url" class="field" />
-                  <img v-if="aimDraft.aim_image_url" :src="resolveAssetUrl(aimDraft.aim_image_url)" class="media-preview" />
-                </div>
-                <div class="media-actions">
-                  <label class="ghost-button upload-button">
-                    {{ uploadingMedia === 'aim' ? '上传中...' : '上传瞄点图' }}
-                    <input type="file" accept="image/*" hidden :disabled="uploadingMedia !== ''" @change="(event) => uploadPointMedia('aim', (event.target as HTMLInputElement).files?.[0])" />
-                  </label>
-                  <details class="asset-library">
-                    <summary class="ghost-button">素材库回填</summary>
-                    <AssetPicker compact @select="(url) => { aimDraft.aim_image_url = url; }" />
-                  </details>
-                </div>
-              </label>
-            </div>
-          </section>
 
-          <section class="point-subform" :class="{ active: activeRole === 'land' }">
-            <div class="inline-row" style="justify-content:space-between">
-              <strong>落点</strong>
-              <button class="ghost-button" type="button" @click="setActiveRole('land')">雷达填这里</button>
-            </div>
-            <div class="form-grid compact-grid">
-              <label>
-                名称
-                <input v-model="landDraft.name" class="field" required />
-              </label>
-              <label>
-                Key
-                <input v-model="landDraft.key" class="field" required />
-              </label>
-              <label>
-                X
-                <input v-model.number="landDraft.x" type="number" min="0" max="100" step="1" class="field" @change="normalizeDraftCoordinates(landDraft)" required />
-              </label>
-              <label>
-                Y
-                <input v-model.number="landDraft.y" type="number" min="0" max="100" step="1" class="field" @change="normalizeDraftCoordinates(landDraft)" required />
-              </label>
-              <label>
-                阵营
-                <select v-model="landDraft.side" class="select">
-                  <option value="T">T</option>
-                  <option value="CT">CT</option>
-                  <option value="BOTH">BOTH</option>
-                </select>
-              </label>
-              <label class="full">
-                标签
-                <input v-model="landDraft.tagsText" class="field" placeholder="逗号分隔" />
-              </label>
-              <label class="full">
-                说明
-                <textarea v-model="landDraft.description" class="textarea" />
-              </label>
-              <label class="full">
-                落点/效果图 URL
-                <div class="media-url-row">
-                  <input v-model="landDraft.effect_image_url" class="field" />
-                  <img v-if="landDraft.effect_image_url" :src="resolveAssetUrl(landDraft.effect_image_url)" class="media-preview" />
-                </div>
-                <div class="media-actions">
-                  <label class="ghost-button upload-button">
-                    {{ uploadingMedia === 'land' ? '上传中...' : '上传落点图' }}
-                    <input type="file" accept="image/*" hidden :disabled="uploadingMedia !== ''" @change="(event) => uploadPointMedia('land', (event.target as HTMLInputElement).files?.[0])" />
-                  </label>
-                  <details class="asset-library">
-                    <summary class="ghost-button">素材库回填</summary>
-                    <AssetPicker compact @select="(url) => { landDraft.effect_image_url = url; }" />
-                  </details>
-                </div>
-              </label>
+              <template v-if="item.role !== 'land'">
+                <label class="full">
+                  {{ roleLabel(item.role) }}图片 URL
+                  <div class="media-url-row">
+                    <input v-model="item.draft.aim_image_url" class="field" />
+                    <img v-if="item.draft.aim_image_url" :src="resolveAssetUrl(item.draft.aim_image_url)" class="media-preview" />
+                  </div>
+                </label>
+                <label class="full">
+                  图片描述
+                  <input v-model="item.draft.aim_image_description" class="field" placeholder="例如：准星对准窗框右下角" />
+                </label>
+              </template>
+
+              <template v-else>
+                <label class="full">
+                  落点效果图 URL
+                  <div class="media-url-row">
+                    <input v-model="landDraft.effect_image_url" class="field" />
+                    <img v-if="landDraft.effect_image_url" :src="resolveAssetUrl(landDraft.effect_image_url)" class="media-preview" />
+                  </div>
+                </label>
+                <label class="full">
+                  图片描述
+                  <input v-model="landDraft.effect_image_description" class="field" placeholder="例如：烟雾完全封住窗口视野" />
+                </label>
+              </template>
+
+              <div class="full media-actions">
+                <label class="ghost-button upload-button">
+                  {{ uploadingMedia === item.role ? '上传中...' : `上传${item.role === 'land' ? '效果图' : '瞄点图'}` }}
+                  <input type="file" accept="image/*" hidden :disabled="uploadingMedia !== ''" @change="(event) => uploadPointMedia(item.role, (event.target as HTMLInputElement).files?.[0])" />
+                </label>
+                <details class="asset-library">
+                  <summary class="ghost-button">素材库回填</summary>
+                  <AssetPicker
+                    compact
+                    @select="(url) => {
+                      if (item.role === 'land') landDraft.effect_image_url = url;
+                      else item.draft.aim_image_url = url;
+                    }"
+                  />
+                </details>
+              </div>
             </div>
           </section>
         </div>
@@ -648,19 +651,18 @@ onMounted(load);
         <div class="toolbar">
           <button class="button">{{ editingLineupId ? '保存道具' : '创建道具' }}</button>
           <button class="ghost-button" type="button" @click="resetForm">清空</button>
-          <router-link v-if="editingLineupId" class="ghost-button" :to="`/lineups`">高级线路页</router-link>
         </div>
 
-        <div v-if="pairLineups.length" class="pair-matches">
-          <strong>当前瞄点 -> 落点组合</strong>
-          <button v-for="lineup in pairLineups" :key="lineup.id" class="ghost-button" type="button" @click="editLineup(lineup)">
+        <div v-if="selectedComboLineups.length" class="pair-matches">
+          <strong>当前三点组合已有线路</strong>
+          <button v-for="lineup in selectedComboLineups" :key="lineup.id" class="ghost-button" type="button" @click="editLineup(lineup)">
             {{ lineup.title }} / {{ lineup.utility_type }} / {{ lineup.status }}
           </button>
         </div>
       </form>
 
       <section class="panel point-list-panel">
-        <div class="inline-row" style="justify-content:space-between">
+        <div class="inline-row list-heading">
           <h2>按落点管理道具</h2>
           <span class="muted">{{ landPoints.length }} 个落点 / {{ mapLineups.length }} 条道具</span>
         </div>
@@ -677,7 +679,7 @@ onMounted(load);
               <button v-for="lineup in group.lineups" :key="lineup.id" type="button" class="utility-list-item" @click="editLineup(lineup)">
                 <span>
                   <strong>{{ lineup.title }}</strong>
-                  <small>{{ pointName(lineup.start_point_id) }} -> {{ group.point.name }}</small>
+                  <small>{{ pointName(lineup.start_point_id) }} -> {{ pointName(lineup.aim_point_id) }} -> {{ group.point.name }}</small>
                 </span>
                 <span class="chip" :class="{ strong: lineup.status === 'published' }">
                   {{ lineup.utility_type }} / {{ lineup.status === 'published' ? '前台可见' : '不显示' }}
@@ -727,15 +729,20 @@ onMounted(load);
 }
 .point-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
+}
+.radar-heading,
+.form-heading,
+.subform-heading,
+.list-heading {
+  justify-content: space-between;
 }
 .radar-stage {
   position: relative;
   overflow: hidden;
   margin-top: 12px;
-  border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
   cursor: crosshair;
 }
 .radar-stage img {
@@ -754,14 +761,16 @@ onMounted(load);
   position: absolute;
   transform: translate(-50%, -50%);
   border: 2px solid #fff;
-  border-radius: 50%;
+  border-radius: 999px;
   color: #07111f;
   font-weight: 900;
   line-height: 1;
 }
 .radar-point {
-  width: 18px;
-  height: 18px;
+  z-index: 3;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
   cursor: pointer;
   font-size: 10px;
   box-shadow: 0 0 0 6px rgba(255,122,24,0.18);
@@ -772,24 +781,28 @@ onMounted(load);
   transform: translate(-50%, -50%) scale(1.14);
 }
 .radar-marker {
+  z-index: 4;
   min-width: 24px;
   height: 24px;
   padding: 0 5px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
   font-size: 11px;
   pointer-events: none;
 }
-.aim-marker {
+.stand-marker {
   background: #65d6ce;
+}
+.aim-marker {
+  background: #ff7a18;
 }
 .land-marker {
   background: #f5d76e;
 }
 .radar-point-label {
   position: absolute;
+  z-index: 2;
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -803,11 +816,6 @@ onMounted(load);
   transform: translate(-50%, 12px);
   pointer-events: none;
 }
-.radar-point-label.active {
-  color: #ffb88c;
-  border-color: rgba(255,122,24,0.55);
-  background: rgba(255,122,24,0.18);
-}
 .pair-form h2,
 .point-list-panel h2 {
   margin: 0;
@@ -817,7 +825,7 @@ onMounted(load);
 }
 .visibility-chip {
   display: inline-flex;
-  max-width: 360px;
+  max-width: 380px;
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 999px;
   background: rgba(255,255,255,0.04);
@@ -835,9 +843,13 @@ onMounted(load);
   margin: 10px 0;
   color: #ff9f96;
 }
-.pair-editor {
+.success-text {
+  margin: 10px 0;
+  color: #8de8be;
+}
+.point-editor {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-top: 14px;
 }
@@ -862,14 +874,13 @@ onMounted(load);
   width: 76px;
   height: 52px;
   object-fit: cover;
-  border-radius: 6px;
   border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
 }
 .media-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 8px;
 }
 .upload-button {
   display: inline-flex;
@@ -960,9 +971,13 @@ onMounted(load);
 .empty-landing {
   margin: 10px 0 0;
 }
+@media (max-width: 1100px) {
+  .point-editor {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 900px) {
-  .point-admin-layout,
-  .pair-editor {
+  .point-admin-layout {
     grid-template-columns: 1fr;
   }
   .point-sidebar {

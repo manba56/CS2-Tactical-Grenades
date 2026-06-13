@@ -24,6 +24,12 @@ type LandingGroup = {
   lineups: UtilityLineupDetail[];
 };
 
+type LineupMediaCard = {
+  title: string;
+  description: string;
+  url: string;
+};
+
 function mapSearchText(map: MapSummary) {
   return [map.name, map.slug, map.overview].join(' ').toLowerCase();
 }
@@ -72,10 +78,53 @@ const selectedLineupPoints = computed(() => {
   const lineup = activeLineup.value;
   if (!lineup) return [];
   return [
-    { role: '起点', point: lineup.start_point, color: '#65d6ce' },
+    { role: '站位', point: lineup.start_point, color: '#65d6ce' },
     { role: '瞄点', point: lineup.aim_point, color: '#ff7a18' },
     { role: '落点', point: lineup.land_point, color: '#f5d76e' },
   ].filter((item) => item.point);
+});
+
+const activeLineupMediaCards = computed<LineupMediaCard[]>(() => {
+  const lineup = activeLineup.value;
+  if (!lineup) return [];
+  const cards: LineupMediaCard[] = [];
+
+  if (lineup.start_point?.aim_image_url) {
+    cards.push({
+      title: '站位瞄点',
+      description: lineup.start_point.aim_image_description || lineup.start_point.description || '站到这里后再对准道具瞄点。',
+      url: lineup.start_point.aim_image_url,
+    });
+  }
+  if (lineup.aim_point?.aim_image_url) {
+    cards.push({
+      title: '道具瞄点',
+      description: lineup.aim_point.aim_image_description || lineup.aim_point.description || '准星对准该位置后按步骤投掷。',
+      url: lineup.aim_point.aim_image_url,
+    });
+  }
+  if (lineup.land_point?.effect_image_url) {
+    cards.push({
+      title: '落点效果图',
+      description: lineup.land_point.effect_image_description || lineup.land_point.description || '道具落点和实际遮挡效果。',
+      url: lineup.land_point.effect_image_url,
+    });
+  }
+  for (const [index, url] of (lineup.media || []).entries()) {
+    cards.push({
+      title: `补充截图 ${index + 1}`,
+      description: '',
+      url,
+    });
+  }
+
+  return cards;
+});
+
+const activeVideoUrl = computed(() => {
+  const lineup = activeLineup.value;
+  if (!lineup) return '';
+  return lineup.video_url || lineup.aim_point?.video_url || lineup.start_point?.video_url || lineup.land_point?.video_url || '';
 });
 
 const lineupPath = computed(() =>
@@ -357,24 +406,32 @@ onMounted(() => {
                 </div>
                 <p class="section-intro">{{ activeLineup.summary || activeLineup.purpose }}</p>
                 <div class="point-triplet">
-                  <span><strong>起点</strong>{{ activeLineup.start_point?.name }}</span>
-                  <span><strong>瞄点</strong>{{ activeLineup.aim_point?.name }}</span>
+                  <span><strong>站位瞄点</strong>{{ activeLineup.start_point?.name }}</span>
+                  <span><strong>道具瞄点</strong>{{ activeLineup.aim_point?.name }}</span>
                   <span><strong>落点</strong>{{ activeLineup.land_point?.name }}</span>
                 </div>
                 <ol v-if="activeLineup.steps?.length" class="lineup-steps">
                   <li v-for="step in activeLineup.steps" :key="step">{{ step }}</li>
                 </ol>
-                <div v-if="activeLineup.media?.length" class="lineup-media-grid">
+                <div v-if="activeLineupMediaCards.length" class="lineup-media-grid">
                   <button
-                    v-for="url in activeLineup.media"
-                    :key="url"
+                    v-for="card in activeLineupMediaCards"
+                    :key="`${card.title}-${card.url}`"
                     type="button"
                     class="lineup-media-card"
-                    @click="openLightbox(url)"
+                    @click="openLightbox(card.url)"
                   >
-                    <img :src="resolveAssetUrl(url)" alt="道具截图" loading="lazy" />
+                    <img :src="resolveAssetUrl(card.url)" :alt="card.title" loading="lazy" />
+                    <span>
+                      <strong>{{ card.title }}</strong>
+                      <small v-if="card.description">{{ card.description }}</small>
+                    </span>
                   </button>
                 </div>
+                <a v-if="activeVideoUrl" class="video-link-card" :href="activeVideoUrl" target="_blank" rel="noreferrer">
+                  <strong>视频演示</strong>
+                  <span>{{ activeVideoUrl }}</span>
+                </a>
               </div>
             </template>
 
@@ -738,6 +795,8 @@ onMounted(() => {
   border-radius: 8px;
   background: rgba(255,255,255,0.03);
   padding: 0;
+  color: #dfe9f6;
+  text-align: left;
 }
 
 .lineup-media-card img {
@@ -745,6 +804,41 @@ onMounted(() => {
   width: 100%;
   aspect-ratio: 16 / 10;
   object-fit: cover;
+}
+
+.lineup-media-card span {
+  display: grid;
+  gap: 3px;
+  padding: 9px;
+}
+
+.lineup-media-card strong {
+  font-size: 0.8rem;
+}
+
+.lineup-media-card small {
+  color: #91a3ba;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.video-link-card {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(255,122,24,0.28);
+  border-radius: 8px;
+  background: rgba(255,122,24,0.1);
+  color: #ffd1b3;
+  padding: 10px;
+  text-decoration: none;
+}
+
+.video-link-card span {
+  overflow: hidden;
+  color: #91a3ba;
+  font-size: 0.74rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .empty-landing-panel {
