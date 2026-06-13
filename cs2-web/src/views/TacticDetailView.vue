@@ -18,6 +18,9 @@ const error = ref('');
 const isFavorite = computed(() => tactic.value?.is_favorite ?? false);
 const lightboxUrl = ref('');
 const showRadar = ref(false);
+const detailMode = ref<'execute' | 'detail'>('execute');
+const completedExecOrders = ref<number[]>([]);
+const shareNotice = ref('');
 const bilibiliEmbedUrl = computed(() => {
   const url = (tactic.value as any)?.video_url as string | undefined;
   if (!url) return null;
@@ -38,11 +41,39 @@ const quickExecItems = computed(() => (tactic.value?.steps || []).map((step) => 
   order: step.order,
   role: step.role,
   action: step.instruction,
+  type: step.type,
   utility: step.lineup?.utility_type || step.type,
+  difficulty: step.lineup?.difficulty || '',
+  lineupId: step.lineup?.id || null,
+  lineupTitle: step.lineup?.title || '',
+  lineupSummary: step.lineup?.summary || step.lineup?.purpose || '',
   stand: step.lineup?.start_point?.name || '',
   aim: step.lineup?.aim_point?.name || '',
   land: step.lineup?.land_point?.name || '',
+  mapUrl: step.lineup && tactic.value
+    ? `/maps?map=${tactic.value.map.slug}&land=${step.lineup.land_point_id}&lineup=${step.lineup.id}`
+    : '',
 })));
+const completedExecCount = computed(() => completedExecOrders.value.length);
+const execProgress = computed(() =>
+  quickExecItems.value.length ? Math.round((completedExecCount.value / quickExecItems.value.length) * 100) : 0,
+);
+const tacticUtilityLineups = computed(() => {
+  const unique = new Map<number, TacticDetail['lineups'][number]>();
+  for (const lineup of tactic.value?.lineups || []) {
+    unique.set(lineup.id, lineup);
+  }
+  return Array.from(unique.values());
+});
+const tacticUtilityGroups = computed(() => {
+  const groups = new Map<string, typeof tacticUtilityLineups.value>();
+  for (const lineup of tacticUtilityLineups.value) {
+    const items = groups.get(lineup.utility_type) || [];
+    items.push(lineup);
+    groups.set(lineup.utility_type, items);
+  }
+  return Array.from(groups.entries()).map(([utility, lineups]) => ({ utility, lineups }));
+});
 
 async function load() {
   error.value = '';
@@ -82,6 +113,10 @@ function copyShareLink() {
     ? `${tactic.value.title} — CS2 Tactics Lab\n${window.location.href}`
     : window.location.href;
   navigator.clipboard.writeText(text);
+  shareNotice.value = '链接已复制';
+  window.setTimeout(() => {
+    shareNotice.value = '';
+  }, 1800);
 }
 
 function openLightbox(url: string) {
@@ -93,6 +128,24 @@ function moveLightbox(delta: number) {
   const current = galleryUrls.value.indexOf(lightboxUrl.value);
   const next = (current + delta + galleryUrls.value.length) % galleryUrls.value.length;
   lightboxUrl.value = galleryUrls.value[next];
+}
+
+function toggleExecDone(order: number) {
+  completedExecOrders.value = completedExecOrders.value.includes(order)
+    ? completedExecOrders.value.filter((item) => item !== order)
+    : [...completedExecOrders.value, order];
+}
+
+function isExecDone(order: number) {
+  return completedExecOrders.value.includes(order);
+}
+
+function resetExecProgress() {
+  completedExecOrders.value = [];
+}
+
+function utilityMapUrl(lineup: TacticDetail['lineups'][number]) {
+  return `/maps?map=${tactic.value?.map.slug || ''}&land=${lineup.land_point_id}&lineup=${lineup.id}`;
 }
 
 // Auto-favorite after login redirect
@@ -108,6 +161,8 @@ onMounted(async () => {
 });
 
 watch(() => route.params.tacticSlug, async () => {
+  completedExecOrders.value = [];
+  detailMode.value = 'execute';
   await load();
 });
 
@@ -143,6 +198,11 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
             </button>
             <button class="secondary-button" @click="copyShareLink">复制链接</button>
             <router-link class="secondary-button" :to="`/maps/${tactic.map.slug}`">返回地图页</router-link>
+            <span v-if="shareNotice" class="share-notice">{{ shareNotice }}</span>
+          </div>
+          <div class="mode-switch">
+            <button class="ghost-button" :class="{ active: detailMode === 'execute' }" @click="detailMode = 'execute'">执行清单</button>
+            <button class="ghost-button" :class="{ active: detailMode === 'detail' }" @click="detailMode = 'detail'">完整详情</button>
           </div>
         </div>
 
@@ -158,13 +218,25 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
 
         <div v-if="quickExecItems.length" class="glass-panel quick-exec-panel">
           <div class="section-heading">
-            <h2>快速执行模式</h2>
-            <span class="muted">{{ tactic.players }} 人执行</span>
+            <h2>执行清单</h2>
+            <div class="exec-progress">
+              <span class="muted">{{ completedExecCount }} / {{ quickExecItems.length }} 完成</span>
+              <button class="secondary-button small" type="button" @click="resetExecProgress">重置</button>
+            </div>
+          </div>
+          <div class="exec-progress-bar">
+            <span :style="{ width: `${execProgress}%` }" />
           </div>
           <div class="quick-exec-grid">
-            <article v-for="item in quickExecItems" :key="item.order" class="quick-exec-card">
+            <article v-for="item in quickExecItems" :key="item.order" class="quick-exec-card" :class="{ done: isExecDone(item.order) }">
               <div class="quick-exec-top">
-                <strong>#{{ item.order }} {{ item.role }}</strong>
+                <button class="exec-check" type="button" @click="toggleExecDone(item.order)">
+                  {{ isExecDone(item.order) ? '✓' : item.order }}
+                </button>
+                <div>
+                  <strong>{{ item.role }}</strong>
+                  <small v-if="item.lineupTitle">{{ item.lineupTitle }}</small>
+                </div>
                 <span class="chip">{{ label(item.utility, UTILITY_LABELS) }}</span>
               </div>
               <p>{{ item.action }}</p>
@@ -173,12 +245,17 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
                 <span v-if="item.aim">瞄点：{{ item.aim }}</span>
                 <span v-if="item.land">落点：{{ item.land }}</span>
               </div>
+              <p v-if="item.lineupSummary" class="muted exec-summary">{{ item.lineupSummary }}</p>
+              <div class="quick-exec-actions">
+                <router-link v-if="item.mapUrl" class="secondary-button small" :to="item.mapUrl">查看道具落点</router-link>
+                <span v-if="item.difficulty" class="chip">{{ label(item.difficulty, DIFFICULTY_LABELS) }}</span>
+              </div>
             </article>
           </div>
         </div>
 
       <!-- B站视频演示 -->
-      <div v-if="bilibiliEmbedUrl" id="video" class="glass-panel bilibili-stage">
+      <div v-if="detailMode === 'detail' && bilibiliEmbedUrl" id="video" class="glass-panel bilibili-stage">
           <div class="section-heading">
             <h2>视频演示</h2>
           </div>
@@ -196,7 +273,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
         </div>
 
         <!-- Route screenshots as primary map view -->
-        <div v-if="routeShots.length" id="routes" class="glass-panel map-stage">
+        <div v-if="detailMode === 'detail' && routeShots.length" id="routes" class="glass-panel map-stage">
           <div class="section-heading">
             <h2>路线截图</h2>
             <button class="secondary-button" @click="showRadar = !showRadar">
@@ -218,7 +295,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
         </div>
 
         <!-- Radar template (collapsible) -->
-        <div v-if="showRadar" class="glass-panel map-stage">
+        <div v-if="detailMode === 'detail' && showRadar" class="glass-panel map-stage">
           <div class="section-heading">
             <h2>雷达底图</h2>
           </div>
@@ -248,6 +325,22 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
           </div>
         </div>
 
+        <div v-if="tacticUtilityGroups.length" class="section-block utility-plan">
+          <div class="muted">道具组合</div>
+          <section v-for="group in tacticUtilityGroups" :key="group.utility" class="utility-plan-group">
+            <strong>{{ label(group.utility, UTILITY_LABELS) }}</strong>
+            <router-link
+              v-for="lineup in group.lineups"
+              :key="lineup.id"
+              class="utility-plan-item"
+              :to="utilityMapUrl(lineup)"
+            >
+              <span>{{ lineup.title }}</span>
+              <small>{{ lineup.start_point?.name }} -> {{ lineup.aim_point?.name }} -> {{ lineup.land_point?.name }}</small>
+            </router-link>
+          </section>
+        </div>
+
         <!-- Spot screenshots in sidebar -->
         <div v-if="spotShots.length" class="section-block">
           <div class="muted">点位截图</div>
@@ -261,7 +354,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
       </aside>
     </section>
 
-    <section v-if="tactic.routes && tactic.routes.length" id="path" class="glass-panel section-block">
+    <section v-if="detailMode === 'detail' && tactic.routes && tactic.routes.length" id="path" class="glass-panel section-block">
       <div class="section-heading">
         <h2>进攻路线</h2>
       </div>
@@ -298,7 +391,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
       </div>
     </section>
 
-    <section id="steps" class="section-block glass-panel">
+    <section v-if="detailMode === 'detail'" id="steps" class="section-block glass-panel">
       <div class="section-heading">
         <h2>执行顺序</h2>
       </div>
@@ -373,9 +466,43 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
 .quick-exec-panel {
   margin-top: 12px;
 }
+.mode-switch,
+.exec-progress,
+.quick-exec-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mode-switch {
+  margin-top: 12px;
+}
+.mode-switch .active {
+  border-color: rgba(255,122,24,0.45);
+  background: rgba(255,122,24,0.12);
+  color: #ffb88c;
+}
+.share-notice {
+  color: #8de8be;
+  font-size: 0.8rem;
+}
+.exec-progress-bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  margin-bottom: 12px;
+}
+.exec-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #65d6ce, #ff7a18);
+  transition: width 0.2s ease;
+}
 .quick-exec-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 10px;
 }
 .quick-exec-card {
@@ -384,11 +511,41 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
   padding: 12px;
   background: rgba(255,255,255,0.03);
 }
+.quick-exec-card.done {
+  border-color: rgba(101,214,206,0.35);
+  background: rgba(101,214,206,0.08);
+}
 .quick-exec-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+.quick-exec-top > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.quick-exec-top small {
+  color: #8fa1b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.exec-check {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  font-weight: 900;
+}
+.quick-exec-card.done .exec-check {
+  background: #65d6ce;
+  color: #06131d;
 }
 .quick-exec-card p {
   margin: 10px 0;
@@ -401,6 +558,41 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
   gap: 4px;
   color: #8fa1b8;
   font-size: 12px;
+}
+.exec-summary {
+  font-size: 0.78rem;
+}
+.secondary-button.small {
+  padding: 7px 11px;
+  font-size: 0.76rem;
+}
+.utility-plan {
+  display: grid;
+  gap: 10px;
+}
+.utility-plan-group {
+  display: grid;
+  gap: 7px;
+}
+.utility-plan-group > strong {
+  color: #ffb88c;
+  font-size: 0.8rem;
+}
+.utility-plan-item {
+  display: grid;
+  gap: 2px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+  padding: 9px;
+}
+.utility-plan-item:hover {
+  border-color: rgba(255,122,24,0.36);
+  background: rgba(255,122,24,0.09);
+}
+.utility-plan-item small {
+  color: #8fa1b8;
+  line-height: 1.35;
 }
 .lightbox-nav {
   position: fixed;
