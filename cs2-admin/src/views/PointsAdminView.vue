@@ -36,6 +36,7 @@ const editingLandPointId = ref<number | null>(null);
 const error = ref('');
 const success = ref('');
 const uploadingMedia = ref<PointRole | ''>('');
+const lastSavedPreviewUrl = ref('');
 
 const lineupForm = reactive({
   title: '',
@@ -118,6 +119,32 @@ const visibilityState = computed(() => {
     return { visible: false, label: '前台不可见', reason: '状态不是 published' };
   }
   return { visible: true, label: '前台可见', reason: '已有关联落点且状态为 published' };
+});
+const publishChecklist = computed(() => {
+  const issues: string[] = [];
+  if (!lineupForm.title.trim() && !defaultLineupTitle().trim()) issues.push('需要道具标题');
+  if (!lineupForm.summary.trim() && !lineupForm.purpose.trim()) issues.push('需要摘要或用途');
+  if (!lineupForm.stepsText.split('\n').some((item) => item.trim())) issues.push('至少填写一步投掷步骤');
+  if (!standDraft.aim_image_url.trim()) issues.push('需要站位瞄点图');
+  if (!standDraft.aim_image_description.trim()) issues.push('需要站位瞄点图描述');
+  if (!aimDraft.aim_image_url.trim()) issues.push('需要道具瞄点图');
+  if (!aimDraft.aim_image_description.trim()) issues.push('需要道具瞄点图描述');
+  if (!landDraft.effect_image_url.trim()) issues.push('需要落点效果图');
+  if (!landDraft.effect_image_description.trim()) issues.push('需要落点效果图描述');
+  if (lineupForm.video_url.trim() && !/^https?:\/\//i.test(lineupForm.video_url.trim())) {
+    issues.push('视频 URL 需要以 http:// 或 https:// 开头');
+  }
+  return issues;
+});
+const canPublish = computed(() => publishChecklist.value.length === 0);
+const frontPreviewUrl = computed(() => {
+  if (!currentMap.value || !editingLineupId.value || !editingLandPointId.value) return '';
+  const params = new URLSearchParams({
+    map: currentMap.value.slug,
+    land: String(editingLandPointId.value),
+    lineup: String(editingLineupId.value),
+  });
+  return `${window.location.origin}/maps?${params.toString()}`;
 });
 const previewPath = computed(() =>
   `M${standDraft.x} ${standDraft.y} L${aimDraft.x} ${aimDraft.y} L${landDraft.x} ${landDraft.y}`,
@@ -229,6 +256,7 @@ function resetForm() {
   editingLandPointId.value = null;
   error.value = '';
   success.value = '';
+  lastSavedPreviewUrl.value = '';
   Object.assign(lineupForm, {
     title: '',
     slug: '',
@@ -287,8 +315,19 @@ function editLineup(lineup: AdminLineup) {
   if (standPoint) applyPointToDraft(standPoint, 'stand');
   if (aimPoint) applyPointToDraft(aimPoint, 'aim');
   if (landPoint) applyPointToDraft(landPoint, 'land');
+  lastSavedPreviewUrl.value = '';
   activeRole.value = 'stand';
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cloneLineup(lineup: AdminLineup) {
+  editLineup(lineup);
+  editingLineupId.value = null;
+  lineupForm.title = `${lineup.title} 副本`;
+  lineupForm.slug = '';
+  lineupForm.status = 'draft';
+  success.value = '已复制为新道具草稿，默认复用原来的三个点位；改完标题、道具类型或步骤后保存即可。';
+  lastSavedPreviewUrl.value = '';
 }
 
 function validatePointDraft(role: PointRole, draft: PointDraft, editingId: number | null) {
@@ -343,11 +382,16 @@ function defaultLineupTitle() {
 async function submitPair() {
   error.value = '';
   success.value = '';
+  lastSavedPreviewUrl.value = '';
   const standError = validatePointDraft('stand', standDraft, editingStandPointId.value);
   const aimError = validatePointDraft('aim', aimDraft, editingAimPointId.value);
   const landError = validatePointDraft('land', landDraft, editingLandPointId.value);
   if (standError || aimError || landError) {
     error.value = standError || aimError || landError;
+    return;
+  }
+  if (lineupForm.status === 'published' && !canPublish.value) {
+    error.value = `发布前还需要补齐：${publishChecklist.value.join('、')}`;
     return;
   }
 
@@ -377,14 +421,20 @@ async function submitPair() {
       status: lineupForm.status,
     };
 
+    let savedLineupId = editingLineupId.value;
     if (editingLineupId.value) {
       await api.updateLineup(editingLineupId.value, payload, session.token);
     } else {
       const created = await api.createLineup(payload, session.token);
       editingLineupId.value = created.id;
+      savedLineupId = created.id;
     }
     await load();
-    success.value = '已保存，道具会按落点在前台地图页聚合显示';
+    if (savedLineupId) editingLineupId.value = savedLineupId;
+    lastSavedPreviewUrl.value = frontPreviewUrl.value;
+    success.value = lineupForm.status === 'published'
+      ? '已发布，道具会按落点在前台地图页聚合显示。'
+      : '已保存为草稿，补齐发布检查后再切换为 published。';
   } catch (err) {
     error.value = err instanceof Error ? err.message : '保存失败，请检查必填字段';
   }
@@ -494,6 +544,13 @@ onMounted(load);
         </div>
         <p v-if="error" class="error-text">{{ error }}</p>
         <p v-if="success" class="success-text">{{ success }}</p>
+        <div class="publish-checklist" :class="{ ready: canPublish }">
+          <strong>{{ canPublish ? '发布检查已通过' : '发布前检查' }}</strong>
+          <span v-if="canPublish">图片、描述、摘要和步骤都已补齐，可以发布。</span>
+          <ul v-else>
+            <li v-for="item in publishChecklist" :key="item">{{ item }}</li>
+          </ul>
+        </div>
 
         <div class="form-grid">
           <label>
@@ -651,6 +708,8 @@ onMounted(load);
         <div class="toolbar">
           <button class="button">{{ editingLineupId ? '保存道具' : '创建道具' }}</button>
           <button class="ghost-button" type="button" @click="resetForm">清空</button>
+          <button v-if="editingLineup" class="ghost-button" type="button" @click="cloneLineup(editingLineup)">复制为新道具</button>
+          <a v-if="lastSavedPreviewUrl" class="ghost-button" :href="lastSavedPreviewUrl" target="_blank" rel="noreferrer">查看前台</a>
         </div>
 
         <div v-if="selectedComboLineups.length" class="pair-matches">
@@ -846,6 +905,29 @@ onMounted(load);
 .success-text {
   margin: 10px 0;
   color: #8de8be;
+}
+.publish-checklist {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+  padding: 10px 12px;
+  color: #d6e2f0;
+  font-size: 12px;
+}
+.publish-checklist.ready {
+  border-color: rgba(101,214,206,0.35);
+  background: rgba(101,214,206,0.09);
+}
+.publish-checklist ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #ffb88c;
+}
+.publish-checklist li + li {
+  margin-top: 3px;
 }
 .point-editor {
   display: grid;

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 import { api, resolveAssetUrl } from '../api';
 import { useHead } from '../composables/useHead';
@@ -7,6 +8,8 @@ import type { MapDetail, MapPoint, MapSummary, UtilityLineupDetail } from '../ty
 import { label, DIFFICULTY_LABELS, SIDE_LABELS, UTILITY_LABELS } from '../utils/labels';
 
 const maps = ref<MapSummary[]>([]);
+const route = useRoute();
+const router = useRouter();
 const activeMapSlug = ref('');
 const activeMapDetail = ref<MapDetail | null>(null);
 const searchWord = ref('');
@@ -18,6 +21,8 @@ const radarFallbacks = ref<Record<string, boolean>>({});
 const activeLandingPointId = ref<number | null>(null);
 const activeLineupId = ref<number | null>(null);
 const lightboxUrl = ref('');
+const pendingLandingPointId = ref<number | null>(null);
+const pendingLineupId = ref<number | null>(null);
 
 type LandingGroup = {
   point: MapPoint;
@@ -144,8 +149,9 @@ async function loadMaps() {
   loadError.value = '';
   try {
     maps.value = await api.getMaps();
+    const queryMap = typeof route.query.map === 'string' ? route.query.map : '';
     if (!activeMapSlug.value && maps.value[0]) {
-      activeMapSlug.value = maps.value[0].slug;
+      activeMapSlug.value = maps.value.some((map) => map.slug === queryMap) ? queryMap : maps.value[0].slug;
     }
   } catch {
     loadError.value = '加载失败，请刷新重试';
@@ -168,6 +174,7 @@ async function loadMapDetail(slug: string) {
     const detail = await api.getMapDetail(slug);
     if (requestId !== detailRequestId) return;
     activeMapDetail.value = detail;
+    applyPendingSelection();
   } catch {
     if (requestId !== detailRequestId) return;
     activeMapDetail.value = null;
@@ -179,6 +186,7 @@ async function loadMapDetail(slug: string) {
 
 function selectMap(slug: string) {
   activeMapSlug.value = slug;
+  router.replace({ path: '/maps', query: { map: slug } });
 }
 
 function clearFilters() {
@@ -191,14 +199,23 @@ function selectLanding(group: LandingGroup) {
   if (activeLandingPointId.value === group.point.id) {
     activeLandingPointId.value = null;
     activeLineupId.value = null;
+    syncSelectionToUrl();
     return;
   }
   activeLandingPointId.value = group.point.id;
   activeLineupId.value = group.lineups[0]?.id || null;
+  syncSelectionToUrl();
+}
+
+function clearLandingSelection() {
+  activeLandingPointId.value = null;
+  activeLineupId.value = null;
+  syncSelectionToUrl();
 }
 
 function selectLineup(lineup: UtilityLineupDetail) {
   activeLineupId.value = lineup.id;
+  syncSelectionToUrl();
 }
 
 function utilityTypesForGroup(group: LandingGroup) {
@@ -219,6 +236,30 @@ function openLightbox(url: string) {
   lightboxUrl.value = resolveAssetUrl(url);
 }
 
+function syncSelectionToUrl() {
+  const query: Record<string, string> = {};
+  if (activeMapSlug.value) query.map = activeMapSlug.value;
+  if (activeLandingPointId.value) query.land = String(activeLandingPointId.value);
+  if (activeLineupId.value) query.lineup = String(activeLineupId.value);
+  router.replace({ path: '/maps', query });
+}
+
+function applyPendingSelection() {
+  const detail = activeMapDetail.value;
+  if (!detail) return;
+  const landingId = pendingLandingPointId.value;
+  const lineupId = pendingLineupId.value;
+  if (!landingId) return;
+  const group = landingGroups.value.find((item) => item.point.id === landingId);
+  if (!group) return;
+  activeLandingPointId.value = group.point.id;
+  activeLineupId.value = group.lineups.some((lineup) => lineup.id === lineupId)
+    ? lineupId
+    : group.lineups[0]?.id || null;
+  pendingLandingPointId.value = null;
+  pendingLineupId.value = null;
+}
+
 watch(activeMapSlug, (slug) => {
   loadMapDetail(slug);
 });
@@ -235,6 +276,12 @@ watch(filteredMaps, (items) => {
 
 onMounted(() => {
   useHead('地图库', '在地图库直接查看 CS2 地图雷达落点和投掷物道具线路');
+  const queryMap = typeof route.query.map === 'string' ? route.query.map : '';
+  const queryLand = Number(route.query.land || 0);
+  const queryLineup = Number(route.query.lineup || 0);
+  if (queryMap) activeMapSlug.value = queryMap;
+  if (queryLand) pendingLandingPointId.value = queryLand;
+  if (queryLineup) pendingLineupId.value = queryLineup;
   loadMaps();
 });
 </script>
@@ -299,7 +346,7 @@ onMounted(() => {
                   {{ loadingDetail ? '加载道具中...' : `${landingGroups.length} 个落点` }}
                 </span>
               </div>
-              <button v-if="activeLandingGroup" class="secondary-button" @click="activeLandingPointId = null; activeLineupId = null">
+              <button v-if="activeLandingGroup" class="secondary-button" @click="clearLandingSelection">
                 清除落点
               </button>
             </div>
