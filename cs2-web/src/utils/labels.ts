@@ -52,8 +52,8 @@ export const PHASE_LABELS_EN: Record<string, string> = {
 };
 
 export const SIDE_LABELS_EN: Record<string, string> = {
-  T: 'Attack',
-  CT: 'Defense',
+  T: 'T Side',
+  CT: 'CT Side',
 };
 
 export function label(term: string, dict: Record<string, string>): string {

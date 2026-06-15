@@ -22,9 +22,9 @@ export function buildLineupMediaCards(lineup, language = 'zh') {
   const cards = [];
   const copy = language === 'en'
     ? {
-        standAimPoint: 'Position aim',
-        standDescription: 'Stand here, then align to the utility aim point.',
-        utilityAimPoint: 'Utility aim',
+        standAimPoint: 'Position',
+        standDescription: 'Stand here, then align to the crosshair aim point.',
+        utilityAimPoint: 'Crosshair Aim',
         utilityDescription: 'Align your crosshair to this position, then throw by the steps.',
         effectImage: 'Landing effect',
         effectDescription: 'Utility landing point and real blocking effect.',

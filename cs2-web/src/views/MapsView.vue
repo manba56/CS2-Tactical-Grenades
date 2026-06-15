@@ -529,7 +529,7 @@ onMounted(() => {
             <template v-else-if="activeLandingGroup">
               <div class="landing-panel-heading">
                 <div>
-                  <div class="kicker">{{ t('landingPointEnglish') }}</div>
+                  <div class="kicker">{{ t('landingPointKicker') }}</div>
                   <h2>{{ activeLandingGroup.point.name }}</h2>
                 </div>
                 <span class="chip strong">{{ activeLandingGroup.lineups.length }} {{ t('utilityCount') }}</span>
@@ -613,7 +613,7 @@ onMounted(() => {
             </template>
 
             <div v-else class="empty-landing-panel">
-              <div class="kicker">{{ t('landingPointEnglish') }}</div>
+              <div class="kicker">{{ t('landingPointKicker') }}</div>
               <h2>{{ loadingDetail ? t('loadingUtilityDetail') : t('clickLandingPoint') }}</h2>
               <p class="muted">{{ t('landingPanelHint') }}</p>
             </div>

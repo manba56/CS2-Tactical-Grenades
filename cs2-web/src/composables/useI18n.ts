@@ -11,6 +11,11 @@ const initialLanguage = (() => {
 
 const language = ref<Language>(initialLanguage);
 
+export const languageOptions = [
+  { value: 'zh', label: '中文', shortLabel: '中文' },
+  { value: 'en', label: 'English', shortLabel: 'EN' },
+] satisfies Array<{ value: Language; label: string; shortLabel: string }>;
+
 const messages = {
   zh: {
     brandName: 'CS2 战术实验室',
@@ -24,7 +29,7 @@ const messages = {
     loggedIn: '已登录',
     logout: '退出',
     menu: '菜单',
-    languageToggle: '切换到英文',
+    languageToggle: '切换界面语言',
     search: '搜索',
     searchTacticsPlaceholder: '搜索战术、目标、标签',
     popularMaps: '热门地图',
@@ -72,7 +77,7 @@ const messages = {
     utilityLoadFailed: '道具加载失败',
     mapUtilityLoadFailed: '地图道具加载失败，请稍后重试',
     landingPoint: '落点',
-    landingPointEnglish: '落点',
+    landingPointKicker: '落点',
     favoriteAdded: '已收藏',
     favoriteUtility: '收藏道具',
     copyLink: '复制链接',
@@ -163,7 +168,7 @@ const messages = {
     loggedIn: 'Signed in',
     logout: 'Log out',
     menu: 'Menu',
-    languageToggle: 'Switch to Chinese',
+    languageToggle: 'Change interface language',
     search: 'Search',
     searchTacticsPlaceholder: 'Search tactics, goals, tags',
     popularMaps: 'Popular Maps',
@@ -174,8 +179,8 @@ const messages = {
     allSides: 'All sides',
     allUtilities: 'All utility',
     allDifficulties: 'All difficulties',
-    attackSide: 'Attack',
-    defenseSide: 'Defense',
+    attackSide: 'T Side',
+    defenseSide: 'CT Side',
     easy: 'Easy',
     medium: 'Medium',
     hard: 'Hard',
@@ -210,14 +215,14 @@ const messages = {
     clearLanding: 'Clear landing',
     utilityLoadFailed: 'Utility failed to load',
     mapUtilityLoadFailed: 'Map utility failed to load. Please try again later.',
-    landingPoint: 'Landing',
-    landingPointEnglish: 'Landing Point',
+    landingPoint: 'Landing Point',
+    landingPointKicker: 'Landing Point',
     favoriteAdded: 'Favorited',
     favoriteUtility: 'Favorite utility',
     copyLink: 'Copy link',
     linkCopied: 'Link copied',
-    standAimPoint: 'Position aim',
-    utilityAimPoint: 'Utility aim',
+    standAimPoint: 'Position',
+    utilityAimPoint: 'Crosshair Aim',
     effectImage: 'Landing effect',
     videoDemo: 'Video demo',
     loadingUtilityDetail: 'Loading utility',
@@ -304,10 +309,17 @@ export function setLanguage(nextLanguage: Language) {
 
 export function useI18n() {
   const isEnglish = computed(() => language.value === 'en');
-  const nextLanguageLabel = computed(() => (isEnglish.value ? '中文' : 'EN'));
+  const currentLanguageOption = computed(() =>
+    languageOptions.find((option) => option.value === language.value) || languageOptions[0],
+  );
+  const currentLanguageLabel = computed(() => currentLanguageOption.value.shortLabel);
 
   function t(key: keyof typeof messages.zh) {
     return messages[language.value][key] || messages.zh[key] || key;
+  }
+
+  function selectLanguage(nextLanguage: Language) {
+    setLanguage(nextLanguage);
   }
 
   function toggleLanguage() {
@@ -316,8 +328,12 @@ export function useI18n() {
 
   return {
     language,
+    languageOptions,
     isEnglish,
-    nextLanguageLabel,
+    currentLanguageLabel,
+    currentLanguageOption,
+    selectLanguage,
+    setLanguage,
     t,
     toggleLanguage,
   };
