@@ -11,6 +11,14 @@ import type {
 
 export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8008';
 
+function fallbackErrorMessage(type: 'network' | 'request' = 'request'): string {
+  const isEnglish = typeof localStorage !== 'undefined' && localStorage.getItem('cs2-language') === 'en';
+  if (type === 'network') {
+    return isEnglish ? 'Network error. Please try again later.' : '网络异常，请稍后重试';
+  }
+  return isEnglish ? 'Request failed' : '请求失败';
+}
+
 export function resolveAssetUrl(path: string): string {
   if (!path) {
     return '';
@@ -71,8 +79,8 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string):
         clearTimeout(timer);
 
         if (!response.ok) {
-          const data = await response.json().catch(() => ({ detail: '请求失败' }));
-          throw new Error(data.detail || '请求失败');
+          const data = await response.json().catch(() => ({ detail: fallbackErrorMessage('request') }));
+          throw new Error(data.detail || fallbackErrorMessage('request'));
         }
         return response.json() as Promise<T>;
       } catch (err: any) {
@@ -81,10 +89,10 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string):
           await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
           continue;
         }
-        throw new Error(lastError?.message || '网络异常，请稍后重试');
+        throw new Error(lastError?.message || fallbackErrorMessage('network'));
       }
     }
-    throw lastError || new Error('请求失败');
+    throw lastError || new Error(fallbackErrorMessage('request'));
   })();
 
   if (cacheKey) {

@@ -4,10 +4,22 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { api, resolveAssetUrl } from '../api';
 import { useHead } from '../composables/useHead';
+import { useI18n } from '../composables/useI18n';
 import SideNav from '../components/SideNav.vue';
 import TacticCard from '../components/TacticCard.vue';
 import type { CollectionSummary, MapSummary, TacticCard as TacticCardType } from '../types';
-import { label, DIFFICULTY_LABELS, PHASE_LABELS, SIDE_LABELS, UTILITY_LABELS } from '../utils/labels';
+import {
+  DIFFICULTY_LABELS,
+  DIFFICULTY_LABELS_EN,
+  PHASE_LABELS,
+  PHASE_LABELS_EN,
+  SIDE_LABELS,
+  SIDE_LABELS_EN,
+  UTILITY_LABELS,
+  UTILITY_LABELS_EN,
+  label,
+  labelByLanguage,
+} from '../utils/labels';
 
 const route = useRoute();
 const router = useRouter();
@@ -21,6 +33,7 @@ const filterMapSlug = ref('');
 const filterSide = ref('');
 const filterDifficulty = ref('');
 const searchWord = ref('');
+const { language, t } = useI18n();
 
 function selectMap(slug: string) { filterMapSlug.value = filterMapSlug.value === slug ? '' : slug; }
 function selectSide(side: string) { filterSide.value = side; }
@@ -33,7 +46,7 @@ function clearFilters() {
 }
 
 onMounted(async () => {
-  useHead('CS2战术百科', '以地图为入口的CS2战术手册，浏览投掷物线路、团队配合战术');
+  useHead(t('brandName'), t('brandKicker'));
   searchWord.value = (route.query.search as string) || '';
   filterMapSlug.value = (route.query.map as string) || '';
   filterSide.value = (route.query.side as string) || '';
@@ -47,7 +60,7 @@ onMounted(async () => {
     collections.value = (homeData as any).collections || [];
     allTactics.value = tacticsData.items;
   } catch {
-    loadError.value = '加载失败，请刷新重试';
+    loadError.value = t('loadingFailedRefresh');
   } finally {
     loading.value = false;
   }
@@ -78,15 +91,19 @@ function searchableText(t: TacticCardType) {
     t.goal,
     t.phase,
     label(t.phase, PHASE_LABELS),
+    labelByLanguage(t.phase, PHASE_LABELS, PHASE_LABELS_EN, language.value),
     t.side,
     label(t.side, SIDE_LABELS),
+    labelByLanguage(t.side, SIDE_LABELS, SIDE_LABELS_EN, language.value),
     t.difficulty,
     label(t.difficulty, DIFFICULTY_LABELS),
+    labelByLanguage(t.difficulty, DIFFICULTY_LABELS, DIFFICULTY_LABELS_EN, language.value),
     t.map.name,
     t.map.slug,
     ...t.tags,
     ...t.utility_types,
     ...t.utility_types.map((utility) => label(utility, UTILITY_LABELS)),
+    ...t.utility_types.map((utility) => labelByLanguage(utility, UTILITY_LABELS, UTILITY_LABELS_EN, language.value)),
   ].join(' ').toLowerCase();
 }
 
@@ -106,12 +123,12 @@ const filteredTactics = computed(() => {
     <!-- Compact Hero -->
     <section class="hero-compact">
       <div class="hero-compact-left">
-        <h1 class="hero-title">CS2 战术实验室</h1>
-        <p class="hero-sub">全地图道具 & 战术手册</p>
+        <h1 class="hero-title">{{ t('brandName') }}</h1>
+        <p class="hero-sub">{{ t('brandKicker') }}</p>
       </div>
       <div class="hero-compact-right">
-        <div class="hero-stat"><strong>{{ maps.length }}</strong><span>张地图</span></div>
-        <div class="hero-stat"><strong>{{ allTactics.length }}</strong><span>条战术</span></div>
+        <div class="hero-stat"><strong>{{ maps.length }}</strong><span>{{ t('mapCount') }}</span></div>
+        <div class="hero-stat"><strong>{{ allTactics.length }}</strong><span>{{ t('tacticCount') }}</span></div>
       </div>
     </section>
 
@@ -142,7 +159,7 @@ const filteredTactics = computed(() => {
       <div class="home-main">
         <!-- Featured -->
         <section v-if="!hasFilters && featuredTactics.length" class="section-block">
-          <div class="section-heading"><h2>推荐战术</h2></div>
+          <div class="section-heading"><h2>{{ t('recommendedTactics') }}</h2></div>
           <div class="card-grid">
             <TacticCard v-for="t in featuredTactics" :key="'feat-'+t.id" :tactic="t" />
           </div>
@@ -151,13 +168,13 @@ const filteredTactics = computed(() => {
         <!-- Collections -->
         <section v-if="!hasFilters && collections.length" class="section-block">
           <div class="section-heading">
-            <h2>战术合集</h2>
-            <router-link to="/collections" class="chip">全部</router-link>
+            <h2>{{ t('tacticCollections') }}</h2>
+            <router-link to="/collections" class="chip">{{ t('all') }}</router-link>
           </div>
           <div class="collection-scroll">
             <router-link v-for="col in collections" :key="col.id" :to="`/collections/${col.slug}`" class="collection-card">
               <img v-if="col.cover_url" :src="resolveAssetUrl(col.cover_url)" alt="" />
-              <div class="collection-info"><strong>{{ col.title }}</strong><span class="muted">{{ col.tactic_count }} 条</span></div>
+              <div class="collection-info"><strong>{{ col.title }}</strong><span class="muted">{{ col.tactic_count }} {{ t('itemSuffix') }}</span></div>
             </router-link>
           </div>
         </section>
@@ -165,13 +182,13 @@ const filteredTactics = computed(() => {
         <!-- Filtered tactics -->
         <section class="section-block">
           <div class="section-heading">
-            <h2>{{ hasFilters ? '筛选结果' : '全部战术' }}</h2>
-            <span class="muted">{{ filteredTactics.length }} 条</span>
+            <h2>{{ hasFilters ? t('filterResults') : t('allTactics') }}</h2>
+            <span class="muted">{{ filteredTactics.length }} {{ t('itemSuffix') }}</span>
           </div>
           <div class="card-grid">
             <TacticCard v-for="t in filteredTactics" :key="t.id" :tactic="t" />
           </div>
-          <div v-if="filteredTactics.length===0" class="empty-card"><p class="muted">没有匹配的战术</p></div>
+          <div v-if="filteredTactics.length===0" class="empty-card"><p class="muted">{{ t('noMatchedTactics') }}</p></div>
         </section>
       </div>
     </div>

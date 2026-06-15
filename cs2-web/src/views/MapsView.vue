@@ -4,8 +4,17 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { api, resolveAssetUrl } from '../api';
 import { useHead } from '../composables/useHead';
+import { useI18n } from '../composables/useI18n';
 import type { MapDetail, MapPoint, MapSummary, UtilityLineupDetail } from '../types';
-import { label, DIFFICULTY_LABELS, SIDE_LABELS, UTILITY_LABELS } from '../utils/labels';
+import {
+  DIFFICULTY_LABELS,
+  DIFFICULTY_LABELS_EN,
+  SIDE_LABELS,
+  SIDE_LABELS_EN,
+  UTILITY_LABELS,
+  UTILITY_LABELS_EN,
+  labelByLanguage,
+} from '../utils/labels';
 import {
   buildLineupMediaCards,
   groupLineupsByLandingPoint,
@@ -36,6 +45,7 @@ const radarZoom = ref(1);
 const shareMessage = ref('');
 const favoriteLineupIds = ref<number[]>([]);
 const FAVORITE_UTILITY_KEY = 'cs2-favorite-lineups';
+const { language, t } = useI18n();
 
 type UtilitySection = {
   utility: string;
@@ -120,14 +130,14 @@ const selectedLineupPoints = computed(() => {
   const lineup = activeLineup.value;
   if (!lineup) return [];
   return [
-    { role: '站位', point: lineup.start_point, color: '#65d6ce' },
-    { role: '瞄点', point: lineup.aim_point, color: '#ff7a18' },
-    { role: '落点', point: lineup.land_point, color: '#f5d76e' },
+    { role: t('standAimPoint'), point: lineup.start_point, color: '#65d6ce' },
+    { role: t('utilityAimPoint'), point: lineup.aim_point, color: '#ff7a18' },
+    { role: t('landingPoint'), point: lineup.land_point, color: '#f5d76e' },
   ].filter((item) => item.point);
 });
 
 const activeLineupMediaCards = computed<LineupMediaCard[]>(() => {
-  return buildLineupMediaCards(activeLineup.value);
+  return buildLineupMediaCards(activeLineup.value, language.value);
 });
 
 const activeVideoUrl = computed(() => {
@@ -158,7 +168,7 @@ async function loadMaps() {
       activeMapSlug.value = maps.value.some((map) => map.slug === queryMap) ? queryMap : maps.value[0].slug;
     }
   } catch {
-    loadError.value = '加载失败，请刷新重试';
+    loadError.value = t('loadingFailedRefresh');
   }
 }
 
@@ -183,7 +193,7 @@ async function loadMapDetail(slug: string) {
   } catch {
     if (requestId !== detailRequestId) return;
     activeMapDetail.value = null;
-    detailError.value = '地图道具加载失败，请稍后重试';
+    detailError.value = t('mapUtilityLoadFailed');
   } finally {
     if (requestId === detailRequestId) loadingDetail.value = false;
   }
@@ -299,7 +309,7 @@ async function copyShareLink() {
   if (!activeLineupShareUrl.value) return;
   try {
     await navigator.clipboard.writeText(activeLineupShareUrl.value);
-    shareMessage.value = '链接已复制';
+    shareMessage.value = t('linkCopied');
   } catch {
     shareMessage.value = activeLineupShareUrl.value;
   }
@@ -344,7 +354,7 @@ watch(filteredMaps, (items) => {
 });
 
 onMounted(() => {
-  useHead('地图库', '在地图库直接查看 CS2 地图雷达落点和投掷物道具线路');
+  useHead(t('maps'), t('mapPageIntro'));
   const queryMap = typeof route.query.map === 'string' ? route.query.map : '';
   const queryLand = Number(route.query.land || 0);
   const queryLineup = Number(route.query.lineup || 0);
@@ -366,10 +376,10 @@ onMounted(() => {
   <div class="maps-page">
     <section class="maps-heading">
       <div>
-        <div class="kicker">Utility Radar Browser</div>
-        <h1>地图库</h1>
+        <div class="kicker">{{ t('utilityRadarBrowser') }}</div>
+        <h1>{{ t('maps') }}</h1>
       </div>
-      <p class="section-intro">左侧切换地图，右侧直接点击雷达落点查看对应道具。</p>
+      <p class="section-intro">{{ t('mapPageIntro') }}</p>
     </section>
 
     <div v-if="loadError" class="empty-card">
@@ -379,46 +389,46 @@ onMounted(() => {
     <div v-else class="maps-layout">
       <aside class="maps-sidebar">
         <div class="map-filter-section">
-          <div class="side-label">搜索</div>
+          <div class="side-label">{{ t('search') }}</div>
           <input
             v-model="searchWord"
             class="map-search"
-            placeholder="搜索地图名称 / slug"
+            :placeholder="t('mapSearchPlaceholder')"
           />
         </div>
 
         <div class="map-filter-section">
-          <div class="side-label">范围</div>
+          <div class="side-label">{{ t('scope') }}</div>
           <label class="filter-toggle">
             <input v-model="activePoolOnly" type="checkbox" />
-            <span>只看现役地图池</span>
+            <span>{{ t('activePoolOnly') }}</span>
           </label>
         </div>
 
         <div class="map-filter-section">
-          <div class="side-label">道具筛选</div>
+          <div class="side-label">{{ t('utilityFilter') }}</div>
           <select v-model="selectedUtility" class="map-filter-select">
-            <option value="all">全部道具</option>
+            <option value="all">{{ t('allUtilities') }}</option>
             <option v-for="utility in utilityOptions" :key="utility" :value="utility">
-              {{ label(utility, UTILITY_LABELS) }}
+              {{ labelByLanguage(utility, UTILITY_LABELS, UTILITY_LABELS_EN, language) }}
             </option>
           </select>
           <select v-model="selectedSide" class="map-filter-select">
-            <option value="all">全部阵营</option>
+            <option value="all">{{ t('allSides') }}</option>
             <option v-for="side in sideOptions" :key="side" :value="side">
-              {{ label(side, SIDE_LABELS) }}
+              {{ labelByLanguage(side, SIDE_LABELS, SIDE_LABELS_EN, language) }}
             </option>
           </select>
           <select v-model="selectedDifficulty" class="map-filter-select">
-            <option value="all">全部难度</option>
+            <option value="all">{{ t('allDifficulties') }}</option>
             <option v-for="difficulty in difficultyOptions" :key="difficulty" :value="difficulty">
-              {{ label(difficulty, DIFFICULTY_LABELS) }}
+              {{ labelByLanguage(difficulty, DIFFICULTY_LABELS, DIFFICULTY_LABELS_EN, language) }}
             </option>
           </select>
         </div>
 
         <div class="map-filter-section">
-          <div class="side-label">地图</div>
+          <div class="side-label">{{ t('maps') }}</div>
           <button
             v-for="map in filteredMaps"
             :key="map.slug"
@@ -428,10 +438,10 @@ onMounted(() => {
           >
             <span>{{ map.name }}</span>
           </button>
-          <p v-if="filteredMaps.length === 0" class="muted small-empty">没有匹配的地图</p>
+          <p v-if="filteredMaps.length === 0" class="muted small-empty">{{ t('noMatchedMaps') }}</p>
         </div>
 
-        <button class="map-reset" @click="clearFilters">清除筛选</button>
+        <button class="map-reset" @click="clearFilters">{{ t('clearFilters') }}</button>
       </aside>
 
       <main class="maps-main">
@@ -441,16 +451,16 @@ onMounted(() => {
               <div>
                 <strong>{{ activeMap.name }}</strong>
                 <span class="muted">
-                  {{ loadingDetail ? '加载道具中...' : `${landingGroups.length} 个落点` }}
-                  <template v-if="activeMapDetail"> / {{ filteredLineups.length }} 个道具</template>
+                  {{ loadingDetail ? t('loadingUtilities') : `${landingGroups.length} ${t('landingPointCount')}` }}
+                  <template v-if="activeMapDetail"> / {{ filteredLineups.length }} {{ t('utilityCount') }}</template>
                 </span>
               </div>
               <div class="radar-actions">
-                <button class="secondary-button compact" type="button" @click="changeRadarZoom(0.2)">放大</button>
-                <button class="secondary-button compact" type="button" @click="changeRadarZoom(-0.2)">缩小</button>
-                <button v-if="radarZoom > 1" class="secondary-button compact" type="button" @click="resetRadarZoom">重置</button>
+                <button class="secondary-button compact" type="button" @click="changeRadarZoom(0.2)">{{ t('zoomIn') }}</button>
+                <button class="secondary-button compact" type="button" @click="changeRadarZoom(-0.2)">{{ t('zoomOut') }}</button>
+                <button v-if="radarZoom > 1" class="secondary-button compact" type="button" @click="resetRadarZoom">{{ t('reset') }}</button>
                 <button v-if="activeLandingGroup" class="secondary-button compact" type="button" @click="clearLandingSelection">
-                  清除落点
+                  {{ t('clearLanding') }}
                 </button>
               </div>
             </div>
@@ -512,17 +522,17 @@ onMounted(() => {
           <aside class="glass-panel landing-panel">
             <div v-if="detailError" class="empty-landing-panel">
               <div class="kicker">Error</div>
-              <h2>道具加载失败</h2>
+              <h2>{{ t('utilityLoadFailed') }}</h2>
               <p class="muted">{{ detailError }}</p>
             </div>
 
             <template v-else-if="activeLandingGroup">
               <div class="landing-panel-heading">
                 <div>
-                  <div class="kicker">Landing Point</div>
+                  <div class="kicker">{{ t('landingPointEnglish') }}</div>
                   <h2>{{ activeLandingGroup.point.name }}</h2>
                 </div>
-                <span class="chip strong">{{ activeLandingGroup.lineups.length }} 个道具</span>
+                <span class="chip strong">{{ activeLandingGroup.lineups.length }} {{ t('utilityCount') }}</span>
               </div>
               <p v-if="activeLandingGroup.point.description" class="section-intro">
                 {{ activeLandingGroup.point.description }}
@@ -534,13 +544,13 @@ onMounted(() => {
                   class="chip util-badge"
                   :class="'util-' + utility"
                 >
-                  {{ label(utility, UTILITY_LABELS) }}
+                  {{ labelByLanguage(utility, UTILITY_LABELS, UTILITY_LABELS_EN, language) }}
                 </span>
               </div>
 
               <div class="lineup-list">
                 <section v-for="section in activeLandingSections" :key="section.utility" class="lineup-section">
-                  <div class="lineup-section-title">{{ label(section.utility, UTILITY_LABELS) }}</div>
+                  <div class="lineup-section-title">{{ labelByLanguage(section.utility, UTILITY_LABELS, UTILITY_LABELS_EN, language) }}</div>
                   <button
                     v-for="lineup in section.lineups"
                     :key="lineup.id"
@@ -549,7 +559,11 @@ onMounted(() => {
                     @click="selectLineup(lineup)"
                   >
                     <strong>{{ lineup.title }}</strong>
-                    <span>{{ label(lineup.utility_type, UTILITY_LABELS) }} · {{ label(lineup.side, SIDE_LABELS) }} · {{ label(lineup.difficulty, DIFFICULTY_LABELS) }}</span>
+                    <span>
+                      {{ labelByLanguage(lineup.utility_type, UTILITY_LABELS, UTILITY_LABELS_EN, language) }}
+                      · {{ labelByLanguage(lineup.side, SIDE_LABELS, SIDE_LABELS_EN, language) }}
+                      · {{ labelByLanguage(lineup.difficulty, DIFFICULTY_LABELS, DIFFICULTY_LABELS_EN, language) }}
+                    </span>
                   </button>
                 </section>
               </div>
@@ -557,21 +571,21 @@ onMounted(() => {
               <div v-if="activeLineup" class="lineup-detail">
                 <div class="lineup-action-row">
                   <button class="secondary-button compact" type="button" @click="toggleActiveLineupFavorite">
-                    {{ isActiveLineupFavorite ? '已收藏' : '收藏道具' }}
+                    {{ isActiveLineupFavorite ? t('favoriteAdded') : t('favoriteUtility') }}
                   </button>
-                  <button class="secondary-button compact" type="button" @click="copyShareLink">复制链接</button>
+                  <button class="secondary-button compact" type="button" @click="copyShareLink">{{ t('copyLink') }}</button>
                   <span v-if="shareMessage" class="share-message">{{ shareMessage }}</span>
                 </div>
                 <div class="lineup-detail-meta">
-                  <span class="chip">{{ label(activeLineup.utility_type, UTILITY_LABELS) }}</span>
-                  <span class="chip">{{ label(activeLineup.side, SIDE_LABELS) }}</span>
-                  <span class="chip">{{ label(activeLineup.difficulty, DIFFICULTY_LABELS) }}</span>
+                  <span class="chip">{{ labelByLanguage(activeLineup.utility_type, UTILITY_LABELS, UTILITY_LABELS_EN, language) }}</span>
+                  <span class="chip">{{ labelByLanguage(activeLineup.side, SIDE_LABELS, SIDE_LABELS_EN, language) }}</span>
+                  <span class="chip">{{ labelByLanguage(activeLineup.difficulty, DIFFICULTY_LABELS, DIFFICULTY_LABELS_EN, language) }}</span>
                 </div>
                 <p class="section-intro">{{ activeLineup.summary || activeLineup.purpose }}</p>
                 <div class="point-triplet">
-                  <span><strong>站位瞄点</strong>{{ activeLineup.start_point?.name }}</span>
-                  <span><strong>道具瞄点</strong>{{ activeLineup.aim_point?.name }}</span>
-                  <span><strong>落点</strong>{{ activeLineup.land_point?.name }}</span>
+                  <span><strong>{{ t('standAimPoint') }}</strong>{{ activeLineup.start_point?.name }}</span>
+                  <span><strong>{{ t('utilityAimPoint') }}</strong>{{ activeLineup.aim_point?.name }}</span>
+                  <span><strong>{{ t('landingPoint') }}</strong>{{ activeLineup.land_point?.name }}</span>
                 </div>
                 <ol v-if="activeLineup.steps?.length" class="lineup-steps">
                   <li v-for="step in activeLineup.steps" :key="step">{{ step }}</li>
@@ -592,22 +606,22 @@ onMounted(() => {
                   </button>
                 </div>
                 <a v-if="activeVideoUrl" class="video-link-card" :href="activeVideoUrl" target="_blank" rel="noreferrer">
-                  <strong>视频演示</strong>
+                  <strong>{{ t('videoDemo') }}</strong>
                   <span>{{ activeVideoUrl }}</span>
                 </a>
               </div>
             </template>
 
             <div v-else class="empty-landing-panel">
-              <div class="kicker">Landing Point</div>
-              <h2>{{ loadingDetail ? '正在加载道具' : '点击雷达上的落点' }}</h2>
-              <p class="muted">这里会显示该落点下所有烟、闪、火、雷线路。一个落点可以关联多个道具。</p>
+              <div class="kicker">{{ t('landingPointEnglish') }}</div>
+              <h2>{{ loadingDetail ? t('loadingUtilityDetail') : t('clickLandingPoint') }}</h2>
+              <p class="muted">{{ t('landingPanelHint') }}</p>
             </div>
           </aside>
         </section>
 
         <div v-else class="empty-card">
-          <p class="muted">没有匹配的地图</p>
+          <p class="muted">{{ t('noMatchedMaps') }}</p>
         </div>
       </main>
     </div>

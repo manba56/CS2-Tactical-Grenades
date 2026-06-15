@@ -1,4 +1,5 @@
-/** Chinese labels for utility types, difficulty, phase, side */
+import type { Language } from '../composables/useI18n';
+
 export const UTILITY_LABELS: Record<string, string> = {
   smoke: '烟雾弹',
   flash: '闪光弹',
@@ -27,6 +28,43 @@ export const SIDE_LABELS: Record<string, string> = {
   CT: '防守方',
 };
 
+export const UTILITY_LABELS_EN: Record<string, string> = {
+  smoke: 'Smoke',
+  flash: 'Flash',
+  molotov: 'Molotov',
+  he: 'HE Grenade',
+  decoy: 'Decoy',
+};
+
+export const DIFFICULTY_LABELS_EN: Record<string, string> = {
+  easy: 'Easy',
+  medium: 'Medium',
+  hard: 'Hard',
+};
+
+export const PHASE_LABELS_EN: Record<string, string> = {
+  pistol: 'Pistol',
+  default: 'Default',
+  'mid-round': 'Mid-round',
+  exec: 'Execute',
+  retake: 'Retake',
+  'late-round': 'Late round',
+};
+
+export const SIDE_LABELS_EN: Record<string, string> = {
+  T: 'Attack',
+  CT: 'Defense',
+};
+
 export function label(term: string, dict: Record<string, string>): string {
   return dict[term] || term;
+}
+
+export function labelByLanguage(
+  term: string,
+  zhDict: Record<string, string>,
+  enDict: Record<string, string>,
+  language: Language,
+): string {
+  return (language === 'en' ? enDict[term] : zhDict[term]) || term;
 }

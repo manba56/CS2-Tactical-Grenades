@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import type { MapSummary, TacticCard as TacticCardType } from '../types';
+import { useI18n } from '../composables/useI18n';
+
+const { t } = useI18n();
 
 defineProps<{
   maps: MapSummary[];
@@ -22,17 +25,17 @@ const emit = defineEmits<{
 <template>
   <aside class="side-nav">
     <div class="side-section">
-      <div class="side-label">搜索</div>
+      <div class="side-label">{{ t('search') }}</div>
       <input
         class="side-search"
         :value="searchWord"
-        placeholder="搜索战术、目标、标签"
+        :placeholder="t('searchTacticsPlaceholder')"
         @input="emit('update-search', ($event.target as HTMLInputElement).value)"
       />
     </div>
 
     <div class="side-section">
-      <div class="side-label">热门地图</div>
+      <div class="side-label">{{ t('popularMaps') }}</div>
       <a
         v-for="map in maps" :key="map.slug"
         class="side-map-item"
@@ -46,29 +49,29 @@ const emit = defineEmits<{
     </div>
 
     <div class="side-section">
-      <div class="side-label">阵营</div>
+      <div class="side-label">{{ t('side') }}</div>
       <div class="side-chips">
-        <button :class="{ active: !activeSide }" @click="emit('select-side','')">全部</button>
+        <button :class="{ active: !activeSide }" @click="emit('select-side','')">{{ t('all') }}</button>
         <button :class="{ active: activeSide === 'T' }" @click="emit('select-side','T')">
-          <span class="side-dot t"></span>进攻方
+          <span class="side-dot t"></span>{{ t('attackSide') }}
         </button>
         <button :class="{ active: activeSide === 'CT' }" @click="emit('select-side','CT')">
-          <span class="side-dot ct"></span>防守方
+          <span class="side-dot ct"></span>{{ t('defenseSide') }}
         </button>
       </div>
     </div>
 
     <div class="side-section">
-      <div class="side-label">难度</div>
+      <div class="side-label">{{ t('difficulty') }}</div>
       <div class="side-chips">
-        <button :class="{ active: !activeDifficulty }" @click="emit('select-difficulty','')">全部</button>
-        <button :class="{ active: activeDifficulty === 'easy' }" @click="emit('select-difficulty','easy')">简单</button>
-        <button :class="{ active: activeDifficulty === 'medium' }" @click="emit('select-difficulty','medium')">中等</button>
-        <button :class="{ active: activeDifficulty === 'hard' }" @click="emit('select-difficulty','hard')">困难</button>
+        <button :class="{ active: !activeDifficulty }" @click="emit('select-difficulty','')">{{ t('all') }}</button>
+        <button :class="{ active: activeDifficulty === 'easy' }" @click="emit('select-difficulty','easy')">{{ t('easy') }}</button>
+        <button :class="{ active: activeDifficulty === 'medium' }" @click="emit('select-difficulty','medium')">{{ t('medium') }}</button>
+        <button :class="{ active: activeDifficulty === 'hard' }" @click="emit('select-difficulty','hard')">{{ t('hard') }}</button>
       </div>
     </div>
 
-    <button class="side-reset" @click="emit('clear-filters')">清除筛选</button>
+    <button class="side-reset" @click="emit('clear-filters')">{{ t('clearFilters') }}</button>
   </aside>
 </template>
 

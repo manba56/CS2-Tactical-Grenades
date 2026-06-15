@@ -17,46 +17,65 @@ export function groupLineupsByLandingPoint(points, lineups) {
     .sort((a, b) => a.point.name.localeCompare(b.point.name));
 }
 
-export function buildLineupMediaCards(lineup) {
+export function buildLineupMediaCards(lineup, language = 'zh') {
   if (!lineup) return [];
   const cards = [];
+  const copy = language === 'en'
+    ? {
+        standAimPoint: 'Position aim',
+        standDescription: 'Stand here, then align to the utility aim point.',
+        utilityAimPoint: 'Utility aim',
+        utilityDescription: 'Align your crosshair to this position, then throw by the steps.',
+        effectImage: 'Landing effect',
+        effectDescription: 'Utility landing point and real blocking effect.',
+        extraImage: 'Extra image',
+      }
+    : {
+        standAimPoint: '站位瞄点',
+        standDescription: '站到这里后，再对准道具瞄点。',
+        utilityAimPoint: '道具瞄点',
+        utilityDescription: '准星对准该位置后按步骤投掷。',
+        effectImage: '落点效果图',
+        effectDescription: '道具落点和实际遮挡效果。',
+        extraImage: '补充截图',
+      };
 
   if (lineup.start_point?.aim_image_url) {
     cards.push({
-      title: '站位瞄点',
+      title: copy.standAimPoint,
       description:
         lineup.start_point.aim_image_description
         || lineup.start_point.description
-        || '站到这里后，再对准道具瞄点。',
+        || copy.standDescription,
       url: lineup.start_point.aim_image_url,
     });
   }
 
   if (lineup.aim_point?.aim_image_url && lineup.aim_point?.id !== lineup.start_point?.id) {
     cards.push({
-      title: '道具瞄点',
+      title: copy.utilityAimPoint,
       description:
         lineup.aim_point.aim_image_description
         || lineup.aim_point.description
-        || '准星对准该位置后按步骤投掷。',
+        || copy.utilityDescription,
       url: lineup.aim_point.aim_image_url,
     });
   }
 
   if (lineup.land_point?.effect_image_url) {
     cards.push({
-      title: '落点效果图',
+      title: copy.effectImage,
       description:
         lineup.land_point.effect_image_description
         || lineup.land_point.description
-        || '道具落点和实际遮挡效果。',
+        || copy.effectDescription,
       url: lineup.land_point.effect_image_url,
     });
   }
 
   for (const [index, url] of (lineup.media || []).entries()) {
     cards.push({
-      title: `补充截图 ${index + 1}`,
+      title: `${copy.extraImage} ${index + 1}`,
       description: '',
       url,
     });

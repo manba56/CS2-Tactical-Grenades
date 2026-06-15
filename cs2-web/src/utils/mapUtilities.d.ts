@@ -1,4 +1,5 @@
 import type { MapPoint, UtilityLineupDetail } from '../types';
+import type { Language } from '../composables/useI18n';
 
 export type LandingGroup = {
   point: MapPoint;
@@ -18,4 +19,5 @@ export function groupLineupsByLandingPoint(
 
 export function buildLineupMediaCards(
   lineup: UtilityLineupDetail | null,
+  language?: Language,
 ): LineupMediaCard[];

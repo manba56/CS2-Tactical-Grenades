@@ -4,19 +4,21 @@ import { useRoute } from 'vue-router';
 
 import { api } from '../api';
 import { useHead } from '../composables/useHead';
+import { useI18n } from '../composables/useI18n';
 import TacticCard from '../components/TacticCard.vue';
 import type { CollectionDetail } from '../types';
 
 const route = useRoute();
 const collection = ref<CollectionDetail | null>(null);
 const error = ref('');
+const { t } = useI18n();
 
 onMounted(async () => {
   try {
     collection.value = await api.getCollection(route.params.slug as string);
-    useHead(collection.value?.title || '战术合集', collection.value?.description || '战术合集');
+    useHead(collection.value?.title || t('tacticCollection'), collection.value?.description || t('tacticCollection'));
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '加载失败';
+    error.value = err instanceof Error ? err.message : t('loadingFailedRefresh');
   }
 });
 </script>
@@ -26,7 +28,7 @@ onMounted(async () => {
   <template v-else-if="collection">
     <div class="section-heading">
       <div>
-        <div class="kicker">Tactic Collection</div>
+        <div class="kicker">{{ t('tacticCollectionKicker') }}</div>
         <h1>{{ collection.title }}</h1>
       </div>
       <p class="section-intro">{{ collection.description }}</p>
@@ -34,8 +36,8 @@ onMounted(async () => {
 
     <section class="section-block">
       <div class="section-heading">
-        <h2>包含战术</h2>
-        <span class="muted">{{ collection.tactics.length }} 条</span>
+        <h2>{{ t('includedTactics') }}</h2>
+        <span class="muted">{{ collection.tactics.length }} {{ t('itemSuffix') }}</span>
       </div>
       <div class="card-grid">
         <TacticCard v-for="t in collection.tactics" :key="t.id" :tactic="t" />

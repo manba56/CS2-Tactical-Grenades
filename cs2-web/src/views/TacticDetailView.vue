@@ -4,7 +4,18 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { api, resolveAssetUrl } from '../api';
 import { useHead } from '../composables/useHead';
-import { label, DIFFICULTY_LABELS, SIDE_LABELS, UTILITY_LABELS } from '../utils/labels';
+import { useI18n } from '../composables/useI18n';
+import {
+  DIFFICULTY_LABELS,
+  DIFFICULTY_LABELS_EN,
+  PHASE_LABELS,
+  PHASE_LABELS_EN,
+  SIDE_LABELS,
+  SIDE_LABELS_EN,
+  UTILITY_LABELS,
+  UTILITY_LABELS_EN,
+  labelByLanguage,
+} from '../utils/labels';
 import TacticCard from '../components/TacticCard.vue';
 import { useSessionStore } from '../stores/session';
 import type { TacticDetail } from '../types';
@@ -12,6 +23,7 @@ import type { TacticDetail } from '../types';
 const route = useRoute();
 const router = useRouter();
 const session = useSessionStore();
+const { language, t } = useI18n();
 
 const tactic = ref<TacticDetail | null>(null);
 const error = ref('');
@@ -90,7 +102,7 @@ async function load() {
     }
   } catch (err) {
     tactic.value = null;
-    error.value = err instanceof Error ? err.message : '加载失败';
+    error.value = err instanceof Error ? err.message : t('loadingFailedRefresh');
   }
 }
 
@@ -113,7 +125,7 @@ function copyShareLink() {
     ? `${tactic.value.title} — CS2 Tactics Lab\n${window.location.href}`
     : window.location.href;
   navigator.clipboard.writeText(text);
-  shareNotice.value = '链接已复制';
+  shareNotice.value = t('linkCopied');
   window.setTimeout(() => {
     shareNotice.value = '';
   }, 1800);
@@ -146,6 +158,22 @@ function resetExecProgress() {
 
 function utilityMapUrl(lineup: TacticDetail['lineups'][number]) {
   return `/maps?map=${tactic.value?.map.slug || ''}&land=${lineup.land_point_id}&lineup=${lineup.id}`;
+}
+
+function utilityLabel(value: string) {
+  return labelByLanguage(value, UTILITY_LABELS, UTILITY_LABELS_EN, language.value);
+}
+
+function difficultyLabel(value: string) {
+  return labelByLanguage(value, DIFFICULTY_LABELS, DIFFICULTY_LABELS_EN, language.value);
+}
+
+function sideLabel(value: string) {
+  return labelByLanguage(value, SIDE_LABELS, SIDE_LABELS_EN, language.value);
+}
+
+function phaseLabel(value: string) {
+  return labelByLanguage(value, PHASE_LABELS, PHASE_LABELS_EN, language.value);
 }
 
 // Auto-favorite after login redirect
@@ -181,47 +209,47 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
         <div class="glass-panel">
           <div class="eyebrow-row">
             <span class="chip strong">{{ tactic.map.name }}</span>
-            <span class="chip">{{ label(tactic.side, SIDE_LABELS) }}</span>
-            <span class="chip">{{ tactic.phase }}</span>
-            <span class="chip">{{ label(tactic.difficulty, DIFFICULTY_LABELS) }}</span>
+            <span class="chip">{{ sideLabel(tactic.side) }}</span>
+            <span class="chip">{{ phaseLabel(tactic.phase) }}</span>
+            <span class="chip">{{ difficultyLabel(tactic.difficulty) }}</span>
           </div>
           <h1 class="detail-title">{{ tactic.title }}</h1>
           <p class="section-intro">{{ tactic.summary }}</p>
           <div class="chip-row">
             <span class="chip strong">{{ tactic.goal }}</span>
-            <span class="chip">{{ tactic.players }} 人参与</span>
+            <span class="chip">{{ tactic.players }} {{ t('participants') }}</span>
             <span v-for="tag in tactic.tags" :key="tag" class="chip">{{ tag }}</span>
           </div>
           <div class="split-actions section-block">
             <button class="primary-button" @click="toggleFavorite">
-              {{ isFavorite ? '取消收藏' : '收藏战术' }}
+              {{ isFavorite ? t('unfavorite') : t('favoriteTactic') }}
             </button>
-            <button class="secondary-button" @click="copyShareLink">复制链接</button>
-            <router-link class="secondary-button" :to="`/maps/${tactic.map.slug}`">返回地图页</router-link>
+            <button class="secondary-button" @click="copyShareLink">{{ t('copyLink') }}</button>
+            <router-link class="secondary-button" :to="`/maps/${tactic.map.slug}`">{{ t('backToMap') }}</router-link>
             <span v-if="shareNotice" class="share-notice">{{ shareNotice }}</span>
           </div>
           <div class="mode-switch">
-            <button class="ghost-button" :class="{ active: detailMode === 'execute' }" @click="detailMode = 'execute'">执行清单</button>
-            <button class="ghost-button" :class="{ active: detailMode === 'detail' }" @click="detailMode = 'detail'">完整详情</button>
+            <button class="ghost-button" :class="{ active: detailMode === 'execute' }" @click="detailMode = 'execute'">{{ t('executeChecklist') }}</button>
+            <button class="ghost-button" :class="{ active: detailMode === 'detail' }" @click="detailMode = 'detail'">{{ t('fullDetail') }}</button>
           </div>
         </div>
 
         <!-- Anchor nav -->
         <nav class="anchor-nav">
-          <a v-if="bilibiliEmbedUrl" href="#video">视频</a>
-          <a v-if="routeShots.length" href="#routes">路线截图</a>
-          <a href="#note">注意事项</a>
-          <a v-if="tactic.routes?.length" href="#path">进攻路线</a>
-          <a v-if="tactic.steps?.length" href="#steps">执行顺序</a>
-          <a v-if="tactic.related?.length" href="#related">相关战术</a>
+          <a v-if="bilibiliEmbedUrl" href="#video">{{ t('video') }}</a>
+          <a v-if="routeShots.length" href="#routes">{{ t('routeScreenshots') }}</a>
+          <a href="#note">{{ t('notes') }}</a>
+          <a v-if="tactic.routes?.length" href="#path">{{ t('attackRoute') }}</a>
+          <a v-if="tactic.steps?.length" href="#steps">{{ t('executeOrder') }}</a>
+          <a v-if="tactic.related?.length" href="#related">{{ t('relatedTactics') }}</a>
         </nav>
 
         <div v-if="quickExecItems.length" class="glass-panel quick-exec-panel">
           <div class="section-heading">
-            <h2>执行清单</h2>
+            <h2>{{ t('executeChecklist') }}</h2>
             <div class="exec-progress">
-              <span class="muted">{{ completedExecCount }} / {{ quickExecItems.length }} 完成</span>
-              <button class="secondary-button small" type="button" @click="resetExecProgress">重置</button>
+              <span class="muted">{{ completedExecCount }} / {{ quickExecItems.length }} {{ t('completed') }}</span>
+              <button class="secondary-button small" type="button" @click="resetExecProgress">{{ t('reset') }}</button>
             </div>
           </div>
           <div class="exec-progress-bar">
@@ -237,27 +265,27 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
                   <strong>{{ item.role }}</strong>
                   <small v-if="item.lineupTitle">{{ item.lineupTitle }}</small>
                 </div>
-                <span class="chip">{{ label(item.utility, UTILITY_LABELS) }}</span>
+                <span class="chip">{{ utilityLabel(item.utility) }}</span>
               </div>
               <p>{{ item.action }}</p>
               <div class="quick-exec-meta">
-                <span v-if="item.stand">站位：{{ item.stand }}</span>
-                <span v-if="item.aim">瞄点：{{ item.aim }}</span>
-                <span v-if="item.land">落点：{{ item.land }}</span>
+                <span v-if="item.stand">{{ t('stand') }}: {{ item.stand }}</span>
+                <span v-if="item.aim">{{ t('aim') }}: {{ item.aim }}</span>
+                <span v-if="item.land">{{ t('landingPoint') }}: {{ item.land }}</span>
               </div>
               <p v-if="item.lineupSummary" class="muted exec-summary">{{ item.lineupSummary }}</p>
               <div class="quick-exec-actions">
-                <router-link v-if="item.mapUrl" class="secondary-button small" :to="item.mapUrl">查看道具落点</router-link>
-                <span v-if="item.difficulty" class="chip">{{ label(item.difficulty, DIFFICULTY_LABELS) }}</span>
+                <router-link v-if="item.mapUrl" class="secondary-button small" :to="item.mapUrl">{{ t('viewUtilityLanding') }}</router-link>
+                <span v-if="item.difficulty" class="chip">{{ difficultyLabel(item.difficulty) }}</span>
               </div>
             </article>
           </div>
         </div>
 
-      <!-- B站视频演示 -->
+      <!-- Video demo -->
       <div v-if="detailMode === 'detail' && bilibiliEmbedUrl" id="video" class="glass-panel bilibili-stage">
           <div class="section-heading">
-            <h2>视频演示</h2>
+            <h2>{{ t('videoDemo') }}</h2>
           </div>
           <div class="bilibili-wrapper">
             <iframe
@@ -275,17 +303,17 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
         <!-- Route screenshots as primary map view -->
         <div v-if="detailMode === 'detail' && routeShots.length" id="routes" class="glass-panel map-stage">
           <div class="section-heading">
-            <h2>路线截图</h2>
+            <h2>{{ t('routeScreenshots') }}</h2>
             <button class="secondary-button" @click="showRadar = !showRadar">
-              {{ showRadar ? '隐藏雷达底图' : '显示雷达底图' }}
+              {{ showRadar ? t('hideRadarBase') : t('showRadarBase') }}
             </button>
           </div>
           <div class="screenshot-main-list">
             <div v-for="(shot, idx) in routeShots" :key="idx" class="shot-full-block">
-              <p class="shot-desc">{{ shot.description || `路线截图 #${idx + 1}` }}</p>
+              <p class="shot-desc">{{ shot.description || `${t('routeScreenshotFallback')} #${idx + 1}` }}</p>
               <img
                 :src="resolveAssetUrl(shot.url)"
-                :alt="shot.description || `路线截图 #${idx + 1}`"
+                :alt="shot.description || `${t('routeScreenshotFallback')} #${idx + 1}`"
                 class="shot-full-img"
                 loading="lazy"
                 @click="openLightbox(resolveAssetUrl(shot.url))"
@@ -297,7 +325,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
         <!-- Radar template (collapsible) -->
         <div v-if="detailMode === 'detail' && showRadar" class="glass-panel map-stage">
           <div class="section-heading">
-            <h2>雷达底图</h2>
+            <h2>{{ t('radarBase') }}</h2>
           </div>
           <img :src="resolveAssetUrl(tactic.map_radar_url)" :alt="tactic.map.name" />
           <template v-for="point in tactic.map_points" :key="point.id">
@@ -315,20 +343,20 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
 
       <aside id="note" class="glass-panel">
         <div class="section-heading">
-          <h2>执行注意事项</h2>
+          <h2>{{ t('executionNotes') }}</h2>
         </div>
         <p>{{ tactic.note }}</p>
         <div class="section-block">
-          <div class="muted">所需道具</div>
+          <div class="muted">{{ t('requiredUtility') }}</div>
           <div class="chip-row">
-            <span v-for="utility in tactic.utility_types" :key="utility" class="chip strong">{{ label(utility, UTILITY_LABELS) }}</span>
+            <span v-for="utility in tactic.utility_types" :key="utility" class="chip strong">{{ utilityLabel(utility) }}</span>
           </div>
         </div>
 
         <div v-if="tacticUtilityGroups.length" class="section-block utility-plan">
-          <div class="muted">道具组合</div>
+          <div class="muted">{{ t('utilityCombo') }}</div>
           <section v-for="group in tacticUtilityGroups" :key="group.utility" class="utility-plan-group">
-            <strong>{{ label(group.utility, UTILITY_LABELS) }}</strong>
+            <strong>{{ utilityLabel(group.utility) }}</strong>
             <router-link
               v-for="lineup in group.lineups"
               :key="lineup.id"
@@ -343,11 +371,11 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
 
         <!-- Spot screenshots in sidebar -->
         <div v-if="spotShots.length" class="section-block">
-          <div class="muted">点位截图</div>
+          <div class="muted">{{ t('pointScreenshots') }}</div>
           <div class="screenshot-grid">
             <div v-for="(shot, idx) in spotShots" :key="idx" class="screenshot-card" @click="openLightbox(resolveAssetUrl(shot.url))">
-              <img :src="resolveAssetUrl(shot.url)" :alt="shot.description || `点位 #${idx + 1}`" loading="lazy" />
-              <span class="screenshot-caption">{{ shot.description || `点位 #${idx + 1}` }}</span>
+              <img :src="resolveAssetUrl(shot.url)" :alt="shot.description || `${t('pointScreenshotFallback')} #${idx + 1}`" loading="lazy" />
+              <span class="screenshot-caption">{{ shot.description || `${t('pointScreenshotFallback')} #${idx + 1}` }}</span>
             </div>
           </div>
         </div>
@@ -356,7 +384,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
 
     <section v-if="detailMode === 'detail' && tactic.routes && tactic.routes.length" id="path" class="glass-panel section-block">
       <div class="section-heading">
-        <h2>进攻路线</h2>
+        <h2>{{ t('attackRoute') }}</h2>
       </div>
       <div class="route-map-stage">
         <img :src="resolveAssetUrl(tactic.map_radar_url)" :alt="tactic.map.name" />
@@ -393,7 +421,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
 
     <section v-if="detailMode === 'detail'" id="steps" class="section-block glass-panel">
       <div class="section-heading">
-        <h2>执行顺序</h2>
+        <h2>{{ t('executeOrder') }}</h2>
       </div>
       <div class="timeline">
         <article v-for="step in tactic.steps" :key="step.order" class="timeline-item">
@@ -405,8 +433,8 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
           <div v-if="step.lineup" class="section-block">
             <div class="chip-row">
               <span class="chip strong">{{ step.lineup.title }}</span>
-              <span class="chip">{{ label(step.lineup.utility_type, UTILITY_LABELS) }}</span>
-              <span class="chip">{{ step.lineup.difficulty }}</span>
+              <span class="chip">{{ utilityLabel(step.lineup.utility_type) }}</span>
+              <span class="chip">{{ difficultyLabel(step.lineup.difficulty) }}</span>
             </div>
             <p class="muted">{{ step.lineup.purpose }}</p>
             <!-- Screenshot gallery — all media images -->
@@ -417,12 +445,12 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
                 @click="openLightbox(resolveAssetUrl(url))"
               >
                 <img :src="resolveAssetUrl(url)" :alt="`${step.lineup.title} ${idx + 1}`" loading="lazy" />
-                <span class="screenshot-caption">瞄点截图 {{ idx + 1 }}</span>
+                <span class="screenshot-caption">{{ t('aimScreenshot') }} {{ idx + 1 }}</span>
               </div>
             </div>
             <!-- Empty placeholder when no media -->
             <div v-else class="screenshot-placeholder">
-              <span>在此添加道具瞄点截图</span>
+              <span>{{ t('addUtilityAimImage') }}</span>
             </div>
           </div>
         </article>
@@ -431,7 +459,7 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
 
     <section id="related" v-if="tactic.related?.length" class="section-block">
       <div class="section-heading">
-        <h2>相关战术</h2>
+        <h2>{{ t('relatedTactics') }}</h2>
       </div>
       <div class="card-grid">
         <TacticCard v-for="item in tactic.related" :key="item.id" :tactic="item" />

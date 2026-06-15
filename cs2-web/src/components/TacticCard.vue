@@ -2,8 +2,19 @@
 import { computed, ref } from 'vue';
 
 import { resolveAssetUrl } from '../api';
+import { useI18n } from '../composables/useI18n';
 import type { TacticCard as TacticCardType } from '../types';
-import { label, DIFFICULTY_LABELS, PHASE_LABELS, SIDE_LABELS, UTILITY_LABELS } from '../utils/labels';
+import {
+  DIFFICULTY_LABELS,
+  DIFFICULTY_LABELS_EN,
+  PHASE_LABELS,
+  PHASE_LABELS_EN,
+  SIDE_LABELS,
+  SIDE_LABELS_EN,
+  UTILITY_LABELS,
+  UTILITY_LABELS_EN,
+  labelByLanguage,
+} from '../utils/labels';
 
 const props = defineProps<{
   tactic: TacticCardType;
@@ -13,10 +24,11 @@ const imageBroken = ref(false);
 const detailTo = computed(() => `/tactics/${props.tactic.slug}`);
 const visibleUtilities = computed(() => props.tactic.utility_types.slice(0, 3));
 const extraUtilities = computed(() => Math.max(props.tactic.utility_types.length - visibleUtilities.value.length, 0));
+const { language, t } = useI18n();
 </script>
 
 <template>
-  <router-link class="tactic-card" :to="detailTo" :aria-label="`查看战术详情：${tactic.title}`">
+  <router-link class="tactic-card" :to="detailTo" :aria-label="`${t('viewTacticDetail')}：${tactic.title}`">
     <div class="tactic-card-cover-wrapper">
       <img
         v-if="tactic.cover_url && !imageBroken"
@@ -28,19 +40,21 @@ const extraUtilities = computed(() => Math.max(props.tactic.utility_types.length
       />
       <div v-else class="tactic-card-cover-placeholder">
         <strong>{{ tactic.map.name }}</strong>
-        <span>{{ tactic.goal || '战术' }}</span>
+        <span>{{ tactic.goal || t('tactic') }}</span>
       </div>
       <div class="tactic-card-badges">
         <span class="map-badge">{{ tactic.map.name }}</span>
-        <span class="side-badge" :class="'side-' + tactic.side">{{ label(tactic.side, SIDE_LABELS) }}</span>
+        <span class="side-badge" :class="'side-' + tactic.side">
+          {{ labelByLanguage(tactic.side, SIDE_LABELS, SIDE_LABELS_EN, language) }}
+        </span>
       </div>
     </div>
     <div class="tactic-card-body">
       <div class="tactic-card-meta">
-        <span>{{ label(tactic.phase, PHASE_LABELS) }}</span>
-        <span>{{ tactic.players }}人</span>
+        <span>{{ labelByLanguage(tactic.phase, PHASE_LABELS, PHASE_LABELS_EN, language) }}</span>
+        <span>{{ tactic.players }}{{ t('playersSuffix') }}</span>
         <span class="diff-badge" :class="'diff-' + tactic.difficulty">
-          {{ label(tactic.difficulty, DIFFICULTY_LABELS) }}
+          {{ labelByLanguage(tactic.difficulty, DIFFICULTY_LABELS, DIFFICULTY_LABELS_EN, language) }}
         </span>
       </div>
       <h3 class="tactic-card-title">{{ tactic.title }}</h3>
@@ -53,11 +67,11 @@ const extraUtilities = computed(() => Math.max(props.tactic.utility_types.length
           class="chip util-badge"
           :class="'util-' + utility"
         >
-          {{ label(utility, UTILITY_LABELS) }}
+          {{ labelByLanguage(utility, UTILITY_LABELS, UTILITY_LABELS_EN, language) }}
         </span>
         <span v-if="extraUtilities" class="chip muted-chip">+{{ extraUtilities }}</span>
       </div>
-      <span class="tactic-card-link">查看详情</span>
+      <span class="tactic-card-link">{{ t('viewDetail') }}</span>
     </div>
   </router-link>
 </template>

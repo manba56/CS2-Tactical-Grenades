@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue';
 
+import { useI18n } from '../composables/useI18n';
+
 const visible = ref(false);
+const { t } = useI18n();
 
 function onScroll() {
   visible.value = window.scrollY > 400;
@@ -31,7 +34,7 @@ onUnmounted(() => window.removeEventListener('scroll', throttledScroll));
     v-show="visible"
     class="back-to-top"
     @click="scrollTop"
-    aria-label="回到顶部"
+    :aria-label="t('backToTop')"
   >
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>
   </button>

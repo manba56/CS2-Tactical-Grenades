@@ -4,11 +4,21 @@ import { useRoute } from 'vue-router';
 
 import { api, resolveAssetUrl } from '../api';
 import { useHead } from '../composables/useHead';
+import { useI18n } from '../composables/useI18n';
 import TacticCard from '../components/TacticCard.vue';
 import type { MapDetail, MapPoint, UtilityLineupDetail } from '../types';
-import { label, DIFFICULTY_LABELS, SIDE_LABELS, UTILITY_LABELS } from '../utils/labels';
+import {
+  DIFFICULTY_LABELS,
+  DIFFICULTY_LABELS_EN,
+  SIDE_LABELS,
+  SIDE_LABELS_EN,
+  UTILITY_LABELS,
+  UTILITY_LABELS_EN,
+  labelByLanguage,
+} from '../utils/labels';
 
 const route = useRoute();
+const { language, t } = useI18n();
 const mapDetail = ref<MapDetail | null>(null);
 const activeLandingPointId = ref<number | null>(null);
 const activeLineupId = ref<number | null>(null);
@@ -58,9 +68,9 @@ const selectedLineupPoints = computed(() => {
   const lineup = activeLineup.value;
   if (!lineup) return [];
   return [
-    { role: '起点', point: lineup.start_point, color: '#65d6ce' },
-    { role: '瞄点', point: lineup.aim_point, color: '#ff7a18' },
-    { role: '落点', point: lineup.land_point, color: '#f5d76e' },
+    { role: t('stand'), point: lineup.start_point, color: '#65d6ce' },
+    { role: t('aim'), point: lineup.aim_point, color: '#ff7a18' },
+    { role: t('landingPoint'), point: lineup.land_point, color: '#f5d76e' },
   ].filter((item) => item.point);
 });
 
@@ -106,15 +116,27 @@ function openLightbox(url: string) {
   lightboxUrl.value = resolveAssetUrl(url);
 }
 
+function utilityLabel(value: string) {
+  return labelByLanguage(value, UTILITY_LABELS, UTILITY_LABELS_EN, language.value);
+}
+
+function difficultyLabel(value: string) {
+  return labelByLanguage(value, DIFFICULTY_LABELS, DIFFICULTY_LABELS_EN, language.value);
+}
+
+function sideLabel(value: string) {
+  return labelByLanguage(value, SIDE_LABELS, SIDE_LABELS_EN, language.value);
+}
+
 onMounted(async () => {
   try {
     mapDetail.value = await api.getMapDetail(route.params.mapSlug as string);
     useHead(
-      mapDetail.value?.name || '地图详情',
-      `${mapDetail.value?.name || '地图'}的投掷物落点和道具线路`,
+      mapDetail.value?.name || t('mapDetailFallbackTitle'),
+      `${mapDetail.value?.name || t('maps')}${t('mapUtilityMetaSuffix')}`,
     );
   } catch {
-    loadError.value = '加载失败，请刷新重试';
+    loadError.value = t('loadingFailedRefresh');
   }
 });
 </script>
@@ -123,7 +145,7 @@ onMounted(async () => {
   <div v-if="mapDetail" class="map-detail-root">
     <section class="map-detail-heading">
       <div>
-        <div class="kicker">Utility Landing Map</div>
+        <div class="kicker">{{ t('utilityRadarBrowser') }}</div>
         <h1 class="map-title">{{ mapDetail.name }}</h1>
       </div>
       <p class="section-intro">{{ mapDetail.overview }}</p>
@@ -133,11 +155,11 @@ onMounted(async () => {
       <div class="glass-panel radar-panel">
         <div class="radar-toolbar">
           <div>
-            <strong>投掷落点</strong>
-            <span class="muted">{{ landingGroups.length }} 个落点</span>
+            <strong>{{ t('landingPoint') }}</strong>
+            <span class="muted">{{ landingGroups.length }} {{ t('landingPointCount') }}</span>
           </div>
           <button v-if="activeLandingGroup" class="secondary-button" @click="activeLandingPointId = null; activeLineupId = null">
-            清除落点
+            {{ t('clearLanding') }}
           </button>
         </div>
 
@@ -192,10 +214,10 @@ onMounted(async () => {
         <template v-if="activeLandingGroup">
           <div class="landing-panel-heading">
             <div>
-              <div class="kicker">Landing Point</div>
+              <div class="kicker">{{ t('landingPointEnglish') }}</div>
               <h2>{{ activeLandingGroup.point.name }}</h2>
             </div>
-            <span class="chip strong">{{ activeLandingGroup.lineups.length }} 个道具</span>
+            <span class="chip strong">{{ activeLandingGroup.lineups.length }} {{ t('utilityCount') }}</span>
           </div>
           <p v-if="activeLandingGroup.point.description" class="section-intro">
             {{ activeLandingGroup.point.description }}
@@ -207,7 +229,7 @@ onMounted(async () => {
               class="chip util-badge"
               :class="'util-' + utility"
             >
-              {{ label(utility, UTILITY_LABELS) }}
+              {{ utilityLabel(utility) }}
             </span>
           </div>
 
@@ -220,21 +242,21 @@ onMounted(async () => {
               @click="selectLineup(lineup)"
             >
               <strong>{{ lineup.title }}</strong>
-              <span>{{ label(lineup.utility_type, UTILITY_LABELS) }} · {{ label(lineup.side, SIDE_LABELS) }}</span>
+              <span>{{ utilityLabel(lineup.utility_type) }} · {{ sideLabel(lineup.side) }}</span>
             </button>
           </div>
 
           <div v-if="activeLineup" class="lineup-detail">
             <div class="lineup-detail-meta">
-              <span class="chip">{{ label(activeLineup.utility_type, UTILITY_LABELS) }}</span>
-              <span class="chip">{{ label(activeLineup.side, SIDE_LABELS) }}</span>
-              <span class="chip">{{ label(activeLineup.difficulty, DIFFICULTY_LABELS) }}</span>
+              <span class="chip">{{ utilityLabel(activeLineup.utility_type) }}</span>
+              <span class="chip">{{ sideLabel(activeLineup.side) }}</span>
+              <span class="chip">{{ difficultyLabel(activeLineup.difficulty) }}</span>
             </div>
             <p class="section-intro">{{ activeLineup.summary || activeLineup.purpose }}</p>
             <div class="point-triplet">
-              <span><strong>起点</strong>{{ activeLineup.start_point?.name }}</span>
-              <span><strong>瞄点</strong>{{ activeLineup.aim_point?.name }}</span>
-              <span><strong>落点</strong>{{ activeLineup.land_point?.name }}</span>
+              <span><strong>{{ t('stand') }}</strong>{{ activeLineup.start_point?.name }}</span>
+              <span><strong>{{ t('aim') }}</strong>{{ activeLineup.aim_point?.name }}</span>
+              <span><strong>{{ t('landingPoint') }}</strong>{{ activeLineup.land_point?.name }}</span>
             </div>
             <ol v-if="activeLineup.steps?.length" class="lineup-steps">
               <li v-for="step in activeLineup.steps" :key="step">{{ step }}</li>
@@ -247,7 +269,7 @@ onMounted(async () => {
                 class="lineup-media-card"
                 @click="openLightbox(url)"
               >
-                <img :src="resolveAssetUrl(url)" alt="道具截图" loading="lazy" />
+                <img :src="resolveAssetUrl(url)" :alt="t('utilityScreenshot')" loading="lazy" />
               </button>
             </div>
           </div>
@@ -255,9 +277,9 @@ onMounted(async () => {
 
         <template v-else>
           <div class="empty-landing-panel">
-            <div class="kicker">Landing Point</div>
-            <h2>点击雷达上的落点</h2>
-            <p class="muted">这里会显示该落点下所有烟、闪、火、雷线路。一个落点可以关联多个道具。</p>
+            <div class="kicker">{{ t('landingPointEnglish') }}</div>
+            <h2>{{ t('clickLandingPoint') }}</h2>
+            <p class="muted">{{ t('landingPanelHint') }}</p>
           </div>
         </template>
       </aside>
@@ -265,14 +287,14 @@ onMounted(async () => {
 
     <section v-if="activeLandingGroup" class="section-block">
       <div class="section-heading">
-        <h2>关联战术</h2>
-        <span class="muted">{{ relatedTactics.length }} 条</span>
+        <h2>{{ t('landingTactics') }}</h2>
+        <span class="muted">{{ relatedTactics.length }} {{ t('itemSuffix') }}</span>
       </div>
       <div v-if="relatedTactics.length" class="card-grid">
         <TacticCard v-for="tactic in relatedTactics" :key="tactic.id" :tactic="tactic" />
       </div>
       <div v-else class="empty-card">
-        <p class="muted">这个落点暂时还没有关联战术</p>
+        <p class="muted">{{ t('noLandingTactics') }}</p>
       </div>
     </section>
 
@@ -285,7 +307,7 @@ onMounted(async () => {
     <p class="muted">{{ loadError }}</p>
   </div>
   <div v-else class="glass-panel load-state">
-    <p class="muted">加载中...</p>
+    <p class="muted">{{ t('loading') }}</p>
   </div>
 </template>
 

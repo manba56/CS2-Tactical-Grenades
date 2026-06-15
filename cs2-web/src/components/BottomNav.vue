@@ -1,16 +1,19 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useRoute } from 'vue-router';
+import { useI18n } from '../composables/useI18n';
 import { useSessionStore } from '../stores/session';
 
 const route = useRoute();
 const session = useSessionStore();
+const { t } = useI18n();
 
-const tabs = [
-  { label: '首页', to: '/', icon: 'home' },
-  { label: '地图库', to: '/maps', icon: 'maps' },
-  { label: '收藏夹', to: '/favorites', icon: 'fav' },
-  { label: session.user ? '我的' : '登录', to: session.user ? '/favorites' : '/login', icon: 'user' },
-];
+const tabs = computed(() => [
+  { label: t('home'), to: '/', icon: 'home' },
+  { label: t('maps'), to: '/maps', icon: 'maps' },
+  { label: t('favorites'), to: '/favorites', icon: 'fav' },
+  { label: session.user ? t('my') : t('login'), to: session.user ? '/favorites' : '/login', icon: 'user' },
+]);
 
 function isActive(to: string) {
   if (to === '/') return route.path === '/';
