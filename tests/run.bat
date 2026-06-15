@@ -8,6 +8,21 @@ cd /d "%~dp0"
 
 set API_BASE=%TEST_API_BASE%
 if "%API_BASE%"=="" set API_BASE=http://127.0.0.1:8008
+set ALLURE_ARGS=
+set PYTEST_EXTRA=
+
+:parse_args
+if "%~1"=="" goto after_parse
+if "%~1"=="--allure" (
+    set ALLURE_ARGS=--alluredir=allure-results --clean-alluredir
+    shift
+    goto parse_args
+)
+set PYTEST_EXTRA=!PYTEST_EXTRA! %1
+shift
+goto parse_args
+
+:after_parse
 
 echo [TEST] Checking API health at %API_BASE%...
 curl -sf "%API_BASE%/api/health" >nul 2>&1
@@ -27,7 +42,7 @@ if errorlevel 1 (
 
 REM Run API tests
 echo [TEST] Running API tests...
-python -m pytest api/ -v --tb=short --color=yes --alluredir=allure-results --clean-alluredir %*
+python -m pytest api/ -v --tb=short --color=yes %ALLURE_ARGS% %PYTEST_EXTRA%
 
 if errorlevel 1 (
     echo [FAIL] Some tests failed
@@ -35,7 +50,9 @@ if errorlevel 1 (
     echo [PASS] All tests passed
 )
 
-echo.
-echo Allure results saved to allure-results\
-echo View: allure serve allure-results
+if not "%ALLURE_ARGS%"=="" (
+    echo.
+    echo Allure results saved to allure-results\
+    echo View: allure serve allure-results
+)
 pause

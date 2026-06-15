@@ -1,4 +1,4 @@
-"""E2E — Map detail: navigate from homepage, view tactics, filter dropdowns."""
+"""E2E checks for the map-first utility radar page."""
 
 import pytest
 import allure
@@ -9,55 +9,55 @@ import config
 WEB = config.WEB_BASE.rstrip("/")
 
 
-@allure.feature("E2E — Map Detail")
-class TestMapDetail:
+@allure.feature("E2E - Map Utility Radar")
+class TestMapUtilityRadar:
 
-    @allure.title("Navigate to map detail from map card")
+    @allure.title("/maps opens the radar browser")
     @allure.severity(allure.severity_level.CRITICAL)
-    def test_map_detail_navigation(self, page: Page):
-        page.goto(WEB, wait_until="domcontentloaded", timeout=15000)
+    def test_maps_page_loads_current_utility_browser(self, page: Page):
+        page.goto(f"{WEB}/maps?map=mirage", wait_until="domcontentloaded", timeout=15000)
 
-        with allure.step("Click first map card"):
-            map_card = page.locator(".map-entry-card").first
-            expect(map_card).to_be_visible(timeout=5000)
-            map_card.click()
-            page.wait_for_url("**/maps/**", timeout=8000)
+        expect(page.locator(".maps-page")).to_be_visible(timeout=8000)
+        expect(page.locator(".maps-sidebar")).to_be_visible(timeout=8000)
+        expect(page.locator(".radar-panel")).to_be_visible(timeout=8000)
+        expect(page.locator(".radar-stage img")).to_be_visible(timeout=8000)
 
-        with allure.step("URL contains /maps/"):
-            assert "/maps/" in page.url, f"URL should contain /maps/, got {page.url}"
+    @allure.title("Clicking a landing marker shows related utility lineups")
+    def test_landing_marker_opens_utility_detail(self, page: Page):
+        page.goto(f"{WEB}/maps?map=mirage", wait_until="domcontentloaded", timeout=15000)
+        expect(page.locator(".radar-stage img")).to_be_visible(timeout=8000)
 
-        with allure.step("Map detail page has filter dropdowns"):
-            selects = page.locator("select")
-            count = selects.count()
-            assert count > 0, f"Expected filter <select> elements, found {count}"
+        markers = page.locator(".landing-marker")
+        if markers.count() == 0:
+            pytest.skip("No published utility landing markers on Mirage")
 
-        with allure.step("Tactic cards visible"):
-            cards = page.locator(".tactic-card")
-            if cards.count() == 0:
-                # May genuinely have no tactics — page should still not error
-                page.wait_for_timeout(1000)
+        markers.first.click()
+        expect(page.locator(".landing-panel-heading")).to_be_visible(timeout=5000)
+        expect(page.locator(".lineup-item").first).to_be_visible(timeout=5000)
+        assert "land=" in page.url, f"Landing selection should sync to URL, got {page.url}"
 
-    @allure.title("Map detail filter dropdowns are interactive")
-    def test_filter_dropdowns(self, page: Page):
-        page.goto(f"{WEB}/maps/mirage", wait_until="domcontentloaded", timeout=15000)
+        media_cards = page.locator(".lineup-media-card")
+        if media_cards.count() > 0:
+            expect(media_cards.first.locator("img")).to_be_visible(timeout=5000)
 
-        with allure.step("Find and interact with side select"):
-            selects = page.locator("select")
-            if selects.count() == 0:
-                pytest.skip("No filter <select> elements")
-            # Try to select T
-            for i in range(selects.count()):
-                sel = selects.nth(i)
-                options = sel.locator("option")
-                option_values = [options.nth(j).get_attribute("value") for j in range(options.count())]
-                if "T" in option_values:
-                    sel.select_option("T")
-                    page.wait_for_timeout(500)
-                    break
+    @allure.title("Utility filters keep the radar page usable")
+    def test_map_utility_filters_are_interactive(self, page: Page):
+        page.goto(f"{WEB}/maps?map=mirage", wait_until="domcontentloaded", timeout=15000)
+        expect(page.locator(".maps-page")).to_be_visible(timeout=8000)
 
-    @allure.title("404 or empty state when map slug is invalid")
-    def test_map_not_found(self, page: Page):
-        page.goto(f"{WEB}/maps/no-such-map-999", wait_until="domcontentloaded", timeout=10000)
-        # Should not crash — either shows error or empty page
-        page.wait_for_timeout(1000)
-        assert page.locator("body").is_visible()
+        selects = page.locator(".map-filter-select")
+        assert selects.count() >= 3, f"Expected utility/side/difficulty filters, got {selects.count()}"
+
+        utility_select = selects.nth(0)
+        options = utility_select.locator("option")
+        if options.count() > 1:
+            value = options.nth(1).get_attribute("value")
+            utility_select.select_option(value)
+            page.wait_for_timeout(300)
+            assert f"utility={value}" in page.url
+
+    @allure.title("Invalid map query does not white-screen")
+    def test_invalid_map_query_falls_back_or_shows_empty_state(self, page: Page):
+        page.goto(f"{WEB}/maps?map=no-such-map-999", wait_until="domcontentloaded", timeout=15000)
+        expect(page.locator("body")).to_be_visible(timeout=5000)
+        assert len(page.locator("body").text_content() or "") > 20

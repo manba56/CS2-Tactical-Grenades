@@ -6,6 +6,12 @@ import { api, resolveAssetUrl } from '../api';
 import { useHead } from '../composables/useHead';
 import type { MapDetail, MapPoint, MapSummary, UtilityLineupDetail } from '../types';
 import { label, DIFFICULTY_LABELS, SIDE_LABELS, UTILITY_LABELS } from '../utils/labels';
+import {
+  buildLineupMediaCards,
+  groupLineupsByLandingPoint,
+  type LandingGroup,
+  type LineupMediaCard,
+} from '../utils/mapUtilities.js';
 
 const maps = ref<MapSummary[]>([]);
 const route = useRoute();
@@ -31,17 +37,6 @@ const shareMessage = ref('');
 const favoriteLineupIds = ref<number[]>([]);
 const FAVORITE_UTILITY_KEY = 'cs2-favorite-lineups';
 
-type LandingGroup = {
-  point: MapPoint;
-  lineups: UtilityLineupDetail[];
-};
-
-type LineupMediaCard = {
-  title: string;
-  description: string;
-  url: string;
-};
-
 type UtilitySection = {
   utility: string;
   lineups: UtilityLineupDetail[];
@@ -66,19 +61,7 @@ const activeMap = computed(() =>
 
 const landingGroups = computed<LandingGroup[]>(() => {
   if (!activeMapDetail.value) return [];
-  const byPoint = new Map<number, UtilityLineupDetail[]>();
-  for (const lineup of filteredLineups.value) {
-    const items = byPoint.get(lineup.land_point_id) || [];
-    items.push(lineup);
-    byPoint.set(lineup.land_point_id, items);
-  }
-  return Array.from(byPoint.entries())
-    .map(([pointId, lineups]) => {
-      const point = activeMapDetail.value?.points.find((item) => item.id === pointId);
-      return point ? { point, lineups } : null;
-    })
-    .filter((item): item is LandingGroup => Boolean(item))
-    .sort((a, b) => a.point.name.localeCompare(b.point.name));
+  return groupLineupsByLandingPoint(activeMapDetail.value.points, filteredLineups.value);
 });
 
 const activeLandingGroup = computed(() =>
@@ -144,40 +127,7 @@ const selectedLineupPoints = computed(() => {
 });
 
 const activeLineupMediaCards = computed<LineupMediaCard[]>(() => {
-  const lineup = activeLineup.value;
-  if (!lineup) return [];
-  const cards: LineupMediaCard[] = [];
-
-  if (lineup.start_point?.aim_image_url) {
-    cards.push({
-      title: '站位瞄点',
-      description: lineup.start_point.aim_image_description || lineup.start_point.description || '站到这里后再对准道具瞄点。',
-      url: lineup.start_point.aim_image_url,
-    });
-  }
-  if (lineup.aim_point?.aim_image_url) {
-    cards.push({
-      title: '道具瞄点',
-      description: lineup.aim_point.aim_image_description || lineup.aim_point.description || '准星对准该位置后按步骤投掷。',
-      url: lineup.aim_point.aim_image_url,
-    });
-  }
-  if (lineup.land_point?.effect_image_url) {
-    cards.push({
-      title: '落点效果图',
-      description: lineup.land_point.effect_image_description || lineup.land_point.description || '道具落点和实际遮挡效果。',
-      url: lineup.land_point.effect_image_url,
-    });
-  }
-  for (const [index, url] of (lineup.media || []).entries()) {
-    cards.push({
-      title: `补充截图 ${index + 1}`,
-      description: '',
-      url,
-    });
-  }
-
-  return cards;
+  return buildLineupMediaCards(activeLineup.value);
 });
 
 const activeVideoUrl = computed(() => {

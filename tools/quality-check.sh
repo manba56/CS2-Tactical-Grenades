@@ -5,19 +5,37 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKIP_BACKEND=0
 SKIP_FRONTEND=0
 SKIP_BUILD=0
+MODE="full"
 
 for arg in "$@"; do
   case "$arg" in
+    --mode=*) MODE="${arg#*=}" ;;
+    --quick) MODE="quick" ;;
+    --full) MODE="full" ;;
+    --release) MODE="release" ;;
+    --smoke) MODE="smoke" ;;
     --skip-backend) SKIP_BACKEND=1 ;;
     --skip-frontend) SKIP_FRONTEND=1 ;;
     --skip-build) SKIP_BUILD=1 ;;
     *)
       echo "Unknown option: $arg" >&2
-      echo "Usage: tools/quality-check.sh [--skip-backend] [--skip-frontend] [--skip-build]" >&2
+      echo "Usage: tools/quality-check.sh [--quick|--full|--release|--smoke|--mode=MODE] [--skip-backend] [--skip-frontend] [--skip-build]" >&2
       exit 2
       ;;
   esac
 done
+
+case "$MODE" in
+  quick|full|release|smoke) ;;
+  *)
+    echo "Unknown mode: $MODE" >&2
+    exit 2
+    ;;
+esac
+
+if [[ "$MODE" == "quick" || "$MODE" == "smoke" ]]; then
+  SKIP_BUILD=1
+fi
 
 step() {
   echo
@@ -32,14 +50,24 @@ else
 fi
 
 echo "[quality] Repo: $REPO_ROOT"
+echo "[quality] Mode: $MODE"
 
 if [[ "$SKIP_BACKEND" -eq 0 ]]; then
-  step "backend unit tests"
-  (cd "$REPO_ROOT/tests" && python3 -m pytest unit -q "${pytest_timeout_args[@]}")
+  backend_target="unit"
+  if [[ "$MODE" == "smoke" ]]; then
+    backend_target="unit/test_schemas_unit.py"
+  fi
+  step "backend tests ($backend_target)"
+  (cd "$REPO_ROOT/tests" && python3 -m pytest "$backend_target" -q "${pytest_timeout_args[@]}")
 fi
 
 run_node_app_checks() {
   local app_dir="$1"
+  if [[ -d "$REPO_ROOT/$app_dir/tests" ]]; then
+    step "$app_dir unit tests"
+    (cd "$REPO_ROOT/$app_dir" && npm run test:unit)
+  fi
+
   step "$app_dir typecheck"
   (cd "$REPO_ROOT/$app_dir" && npm run typecheck)
 

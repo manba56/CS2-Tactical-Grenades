@@ -117,10 +117,13 @@ CMD+=(
   "-v"
   "--tb=short"
   "--color=yes"
-  "--alluredir=${ALLURE_DIR}"
-  "--clean-alluredir"
-  "${PYTEST_ARGS[@]}"
 )
+
+if $SERVE_ALLURE; then
+  CMD+=("--alluredir=${ALLURE_DIR}" "--clean-alluredir")
+fi
+
+CMD+=("${PYTEST_ARGS[@]}")
 
 log "Running: ${CMD[*]}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

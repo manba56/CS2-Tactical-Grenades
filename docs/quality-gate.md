@@ -1,8 +1,8 @@
 # 质量门禁与发布检查
 
-第四阶段的目标是让项目进入“每次改完都能被验证”的状态。以后改前台、后台或部署脚本，先跑质量门禁，再提交和触发 webhook。
+这个质量门禁的目标是：每次改完前台、后台、接口或部署脚本，都能用固定命令快速确认“没有明显回归”，再提交和触发 webhook。
 
-## 本地一键检查
+## 本地命令
 
 Windows:
 
@@ -16,16 +16,50 @@ Linux / 服务器:
 bash tools/quality-check.sh
 ```
 
-检查内容：
+默认 `full` 模式会检查：
 
 - 后端单元测试：`tests/unit`
-- 玩家前台：`npm run typecheck`、`npm run build`
+- 玩家前台：`npm run test:unit`、`npm run typecheck`、`npm run build`
 - 管理后台：`npm run typecheck`、`npm run build`
 - Git 空白字符检查：`git diff --check`
 
-如果当前环境没有安装 `pytest-timeout`，脚本会自动跳过 `--timeout=60`，避免 pytest 报 `unknown config option: timeout`。
+如果当前环境没有安装 `pytest-timeout`，脚本会自动跳过 `--timeout=60`，避免 pytest 提示 unknown config option。
 
-## 常用快速模式
+## 分层模式
+
+快速模式：跳过生产构建，适合开发中频繁自测。
+
+```powershell
+.\tools\quality-check.ps1 -Mode quick
+```
+
+```bash
+bash tools/quality-check.sh --quick
+```
+
+完整模式：默认模式。
+
+```powershell
+.\tools\quality-check.ps1 -Mode full
+```
+
+发布模式：显式的完整发布前检查。
+
+```powershell
+.\tools\quality-check.ps1 -Mode release
+```
+
+冒烟模式：只跑最轻的后端冒烟目标，并跳过生产构建。
+
+```powershell
+.\tools\quality-check.ps1 -Mode smoke
+```
+
+```bash
+bash tools/quality-check.sh --smoke
+```
+
+## 常用参数
 
 只检查后端：
 
@@ -39,13 +73,13 @@ bash tools/quality-check.sh
 .\tools\quality-check.ps1 -SkipBackend
 ```
 
-跳过生产构建，只跑类型检查和单元测试：
+跳过生产构建：
 
 ```powershell
 .\tools\quality-check.ps1 -SkipBuild
 ```
 
-Linux 参数对应为：
+Linux 对应参数：
 
 ```bash
 bash tools/quality-check.sh --skip-frontend
@@ -55,7 +89,7 @@ bash tools/quality-check.sh --skip-build
 
 ## 部署后验证
 
-GitHub webhook 返回 `200` 只代表“部署任务已接收”。真正部署是否完成，要看服务器：
+GitHub webhook 返回 `200` 只代表“部署任务已接收”。真正是否部署完成，要看服务器：
 
 ```bash
 cd /www/wwwroot/cs2-tactics
@@ -70,20 +104,4 @@ curl -i http://127.0.0.1:8008/api/health
 ```text
 API health check passed
 Deployment completed successfully
-```
-
-如果 webhook 超时但服务器日志继续构建，优先确认当前代码是否已经变成 GitHub 最新提交；新版 webhook 会尽快返回，并把耗时构建放到后台执行。
-
-## 提交前建议
-
-小改动至少跑：
-
-```powershell
-.\tools\quality-check.ps1 -SkipBuild
-```
-
-涉及前台页面、后台页面、部署脚本或 API 返回结构时，跑完整检查：
-
-```powershell
-.\tools\quality-check.ps1
 ```

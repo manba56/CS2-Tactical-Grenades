@@ -1,4 +1,4 @@
-"""Public API endpoints — home, maps, tactics, tactic detail."""
+"""Public API endpoints: home, maps, tactics, tactic detail."""
 
 import pytest
 import allure
@@ -7,7 +7,6 @@ from utils.allure_helper import (
     assert_status,
     assert_not_empty,
     assert_has_key,
-    assert_field,
     attach_body,
 )
 
@@ -30,9 +29,9 @@ class TestHome:
         status, body = anon_client.home()
         assert_status(status, 200)
         assert_not_empty(body["featured_maps"])
-        m = body["featured_maps"][0]
-        for k in ("id", "name", "slug", "tactic_count", "cover_url"):
-            assert_has_key(m, k)
+        map_item = body["featured_maps"][0]
+        for key in ("id", "name", "slug", "tactic_count", "cover_url"):
+            assert_has_key(map_item, key)
 
 
 @allure.feature("Public Maps")
@@ -50,8 +49,8 @@ class TestMaps:
         status, body = anon_client.map_detail(first_map_slug)
         attach_body(body)
         assert_status(status, 200)
-        for k in ("name", "slug", "points", "lineups", "tactics", "filters"):
-            assert_has_key(body, k)
+        for key in ("name", "slug", "points", "lineups", "tactics", "filters"):
+            assert_has_key(body, key)
 
     @allure.title("Map detail 404 for unknown slug")
     def test_map_detail_404(self, anon_client):
@@ -67,8 +66,8 @@ class TestTactics:
         status, data = anon_client.list_tactics()
         attach_body(data)
         assert_status(status, 200)
-        for k in ("items", "total", "page", "page_size"):
-            assert_has_key(data, k)
+        for key in ("items", "total", "page", "page_size"):
+            assert_has_key(data, key)
         assert_not_empty(data["items"])
 
     @allure.title("Tactic detail returns full structure")
@@ -76,9 +75,18 @@ class TestTactics:
         status, body = anon_client.tactic_detail(first_tactic_slug)
         attach_body(body)
         assert_status(status, 200)
-        for k in ("title", "slug", "steps", "lineups", "routes", "screenshots",
-                  "map_radar_url", "map_layout_url", "related"):
-            assert_has_key(body, k)
+        for key in (
+            "title",
+            "slug",
+            "steps",
+            "lineups",
+            "routes",
+            "screenshots",
+            "map_radar_url",
+            "map_layout_url",
+            "related",
+        ):
+            assert_has_key(body, key)
 
     @allure.title("Tactic detail 404 for non-existent slug")
     def test_tactic_detail_404(self, anon_client):
@@ -91,8 +99,9 @@ class TestTactics:
         status, data = anon_client.list_tactics({"map_slug": map_slug})
         assert_status(status, 200)
         for item in data["items"]:
-            assert item["map"]["slug"] == map_slug, \
+            assert item["map"]["slug"] == map_slug, (
                 f"Tactic {item['id']} on {item['map']['slug']}, expected {map_slug}"
+            )
 
     @allure.title("Tactic list filter by side")
     @pytest.mark.parametrize("side", ["T", "CT"])
@@ -104,26 +113,26 @@ class TestTactics:
 
     @allure.title("Tactic list filter by difficulty")
     def test_filter_by_difficulty(self, anon_client):
-        for diff in ("easy", "medium", "hard"):
-            status, data = anon_client.list_tactics({"difficulty": diff})
+        for difficulty in ("easy", "medium", "hard"):
+            status, data = anon_client.list_tactics({"difficulty": difficulty})
             assert_status(status, 200)
             for item in data["items"]:
-                assert item["difficulty"] == diff
+                assert item["difficulty"] == difficulty
 
     @allure.title("Tactic list search by keyword")
     def test_search(self, anon_client):
-        status, data = anon_client.list_tactics({"search": "烟"})
+        status, _data = anon_client.list_tactics({"search": "smoke"})
         assert_status(status, 200)
-        # Results may be empty — just verify no error
+        # Results may be empty; just verify search does not error.
 
     @allure.title("Tactic list pagination")
     def test_pagination(self, anon_client):
-        status, p1 = anon_client.list_tactics({"page": 1, "page_size": 3})
+        status, page_one = anon_client.list_tactics({"page": 1, "page_size": 3})
         assert_status(status, 200)
-        assert len(p1["items"]) <= 3
-        if p1["total"] > 3:
-            status, p2 = anon_client.list_tactics({"page": 2, "page_size": 3})
+        assert len(page_one["items"]) <= 3
+        if page_one["total"] > 3:
+            status, page_two = anon_client.list_tactics({"page": 2, "page_size": 3})
             assert_status(status, 200)
-            ids1 = {t["id"] for t in p1["items"]}
-            ids2 = {t["id"] for t in p2["items"]}
-            assert ids1.isdisjoint(ids2), "Page 1 and page 2 overlap"
+            ids_one = {tactic["id"] for tactic in page_one["items"]}
+            ids_two = {tactic["id"] for tactic in page_two["items"]}
+            assert ids_one.isdisjoint(ids_two), "Page 1 and page 2 overlap"

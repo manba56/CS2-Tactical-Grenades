@@ -1,4 +1,6 @@
 param(
+    [ValidateSet("quick", "full", "release", "smoke")]
+    [string]$Mode = "full",
     [switch]$SkipBackend,
     [switch]$SkipFrontend,
     [switch]$SkipBuild
@@ -35,8 +37,11 @@ function Invoke-NodeAppChecks {
 
     Push-Location (Join-Path $RepoRoot $AppDir)
     try {
+        if (Test-Path "tests") {
+            Invoke-QualityStep "$AppDir unit tests" { npm run test:unit }
+        }
         Invoke-QualityStep "$AppDir typecheck" { npm run typecheck }
-        if (-not $SkipBuild) {
+        if (-not $EffectiveSkipBuild) {
             Invoke-QualityStep "$AppDir build" { npm run build }
         }
     }
@@ -45,13 +50,22 @@ function Invoke-NodeAppChecks {
     }
 }
 
+if ($Mode -eq "smoke") {
+    $EffectiveSkipBuild = $true
+}
+else {
+    $EffectiveSkipBuild = [bool]$SkipBuild -or $Mode -eq "quick"
+}
+
 Write-Host "[quality] Repo: $RepoRoot"
+Write-Host "[quality] Mode: $Mode"
 
 if (-not $SkipBackend) {
     $TimeoutArgs = @(Get-PytestTimeoutArgs)
+    $BackendTarget = if ($Mode -eq "smoke") { "unit/test_schemas_unit.py" } else { "unit" }
     Push-Location (Join-Path $RepoRoot "tests")
     try {
-        Invoke-QualityStep "backend unit tests" { python -m pytest unit -q $TimeoutArgs }
+        Invoke-QualityStep "backend tests ($BackendTarget)" { python -m pytest $BackendTarget -q $TimeoutArgs }
     }
     finally {
         Pop-Location
