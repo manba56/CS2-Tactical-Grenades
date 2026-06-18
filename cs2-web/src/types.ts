@@ -54,10 +54,19 @@ export interface UtilityLineupDetail {
   media: string[];
   video_url?: string;
   status: string;
+  map?: {
+    id: number;
+    name: string;
+    slug: string;
+  };
   start_point: MapPoint;
   aim_point: MapPoint;
   land_point: MapPoint;
 }
+
+export type TrainingStatus = 'practicing' | 'mastered' | 'match_ready';
+
+export type ProgressMap = Record<string, TrainingStatus>;
 
 export interface TacticCard {
   id: number;
@@ -104,6 +113,37 @@ export interface RouteData {
   points: RoutePoint[];
 }
 
+export type BoardMarkerRole = 'player' | 'smoke' | 'flash' | 'molotov' | 'he' | 'note';
+
+export interface BoardMarker {
+  x: number;
+  y: number;
+  label: string;
+  role: BoardMarkerRole;
+  side: 'T' | 'CT' | 'BOTH';
+}
+
+export interface PersonalBoard {
+  id: number;
+  user_id: number;
+  map_id: number;
+  title: string;
+  side: 'T' | 'CT';
+  plan_type: 'exec' | 'default' | 'retake' | 'anti-rush' | 'practice';
+  summary: string;
+  markers: BoardMarker[];
+  routes: RouteData[];
+  created_at: string;
+  updated_at: string;
+  map: {
+    id: number;
+    name: string;
+    slug: string;
+  };
+  map_radar_url: string;
+  map_layout_url: string;
+}
+
 export interface ScreenshotItem {
   url: string;
   description: string;
@@ -141,7 +181,9 @@ export interface MapDetail extends MapSummary {
 export interface FavoriteBundle {
   favorites: TacticDetail[];
   recent: TacticDetail[];
-  collections: CollectionSummary[];
+  favorite_lineups: UtilityLineupDetail[];
+  lineup_progress: ProgressMap;
+  tactic_progress: ProgressMap;
 }
 
 export interface CollectionSummary {

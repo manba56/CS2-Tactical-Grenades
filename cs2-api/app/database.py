@@ -57,7 +57,10 @@ CREATE TABLE IF NOT EXISTS tactics (
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
     username TEXT, email TEXT, password_hash TEXT, role TEXT,
-    favorite_ids TEXT, recent_tactic_ids TEXT
+    favorite_ids TEXT, recent_tactic_ids TEXT,
+    favorite_lineup_ids TEXT DEFAULT '[]',
+    lineup_progress TEXT DEFAULT '{}',
+    tactic_progress TEXT DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS assets (
@@ -90,6 +93,20 @@ CREATE TABLE IF NOT EXISTS collections (
     created_at TEXT
 );
 
+CREATE TABLE IF NOT EXISTS personal_boards (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    map_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    side TEXT,
+    plan_type TEXT,
+    summary TEXT,
+    markers TEXT,
+    routes TEXT,
+    created_at TEXT,
+    updated_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS counters (
     table_name TEXT PRIMARY KEY,
     next_id INTEGER
@@ -111,8 +128,10 @@ TABLE_COLUMNS: dict[str, list[str]] = {
                   "players", "summary", "note", "tags", "cover_url", "video_url", "featured",
                   "status", "created_at", "step_items", "routes", "screenshots"],
     "users":     ["username", "email", "password_hash", "role",
-                  "favorite_ids", "recent_tactic_ids"],
+                  "favorite_ids", "recent_tactic_ids",
+                  "favorite_lineup_ids", "lineup_progress", "tactic_progress"],
     "collections": ["title", "slug", "description", "cover_url", "tactic_ids", "status", "created_at"],
+    "personal_boards": ["user_id", "map_id", "title", "side", "plan_type", "summary", "markers", "routes", "created_at", "updated_at"],
     "assets":    ["filename", "original_name", "url", "width", "height", "type"],
     "tokens":    ["user_id", "token_hash", "created_at", "expires_at"],
     "login_log": ["user_id", "username", "ip", "success", "created_at"],
@@ -123,8 +142,9 @@ JSON_COLUMNS: dict[str, set[str]] = {
     "points":    {"tags"},
     "lineups":   {"steps", "media"},
     "tactics":   {"tags", "step_items", "routes", "screenshots"},
-    "users":     {"favorite_ids", "recent_tactic_ids"},
+    "users":     {"favorite_ids", "recent_tactic_ids", "favorite_lineup_ids", "lineup_progress", "tactic_progress"},
     "collections": {"tactic_ids"},
+    "personal_boards": {"markers", "routes"},
 }
 
 
@@ -194,6 +214,9 @@ class Database:
                 "ALTER TABLE points ADD COLUMN effect_image_url TEXT DEFAULT ''",
                 "ALTER TABLE points ADD COLUMN effect_image_description TEXT DEFAULT ''",
                 "ALTER TABLE points ADD COLUMN video_url TEXT DEFAULT ''",
+                "ALTER TABLE users ADD COLUMN favorite_lineup_ids TEXT DEFAULT '[]'",
+                "ALTER TABLE users ADD COLUMN lineup_progress TEXT DEFAULT '{}'",
+                "ALTER TABLE users ADD COLUMN tactic_progress TEXT DEFAULT '{}'",
             ]:
                 try:
                     conn.execute(sql)

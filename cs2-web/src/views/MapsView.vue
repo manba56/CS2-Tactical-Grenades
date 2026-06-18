@@ -5,7 +5,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { api, resolveAssetUrl } from '../api';
 import { useHead } from '../composables/useHead';
 import { useI18n } from '../composables/useI18n';
-import type { MapDetail, MapPoint, MapSummary, UtilityLineupDetail } from '../types';
+import { useSessionStore } from '../stores/session';
+import type { MapDetail, MapPoint, MapSummary, ProgressMap, TrainingStatus, UtilityLineupDetail } from '../types';
 import {
   DIFFICULTY_LABELS,
   DIFFICULTY_LABELS_EN,
@@ -21,10 +22,20 @@ import {
   type LandingGroup,
   type LineupMediaCard,
 } from '../utils/mapUtilities.js';
+import {
+  TRAINING_STATUSES,
+  progressLabel,
+  readLocalFavoriteLineups,
+  readLocalLineupProgress,
+  setProgressValue,
+  writeLocalFavoriteLineups,
+  writeLocalLineupProgress,
+} from '../utils/personalPlaybook';
 
 const maps = ref<MapSummary[]>([]);
 const route = useRoute();
 const router = useRouter();
+const session = useSessionStore();
 const activeMapSlug = ref('');
 const activeMapDetail = ref<MapDetail | null>(null);
 const searchWord = ref('');
@@ -44,7 +55,7 @@ const selectedDifficulty = ref('all');
 const radarZoom = ref(1);
 const shareMessage = ref('');
 const favoriteLineupIds = ref<number[]>([]);
-const FAVORITE_UTILITY_KEY = 'cs2-favorite-lineups';
+const lineupProgress = ref<ProgressMap>({});
 const { language, t } = useI18n();
 
 type UtilitySection = {
@@ -124,6 +135,10 @@ const activeLineupShareUrl = computed(() => {
 
 const isActiveLineupFavorite = computed(() =>
   activeLineup.value ? favoriteLineupIds.value.includes(activeLineup.value.id) : false,
+);
+
+const activeLineupProgress = computed(() =>
+  activeLineup.value ? lineupProgress.value[String(activeLineup.value.id)] : undefined,
 );
 
 const selectedLineupPoints = computed(() => {
@@ -284,25 +299,59 @@ function applyPendingSelection() {
 }
 
 function loadFavoriteLineups() {
+  favoriteLineupIds.value = readLocalFavoriteLineups();
+  lineupProgress.value = readLocalLineupProgress();
+}
+
+async function loadAccountPersonalData() {
+  if (!session.token) {
+    loadFavoriteLineups();
+    return;
+  }
   try {
-    favoriteLineupIds.value = JSON.parse(localStorage.getItem(FAVORITE_UTILITY_KEY) || '[]');
+    const bundle = await api.getFavorites(session.token);
+    favoriteLineupIds.value = bundle.favorite_lineups.map((item) => item.id);
+    lineupProgress.value = bundle.lineup_progress || {};
   } catch {
-    favoriteLineupIds.value = [];
+    loadFavoriteLineups();
   }
 }
 
-function saveFavoriteLineups() {
-  localStorage.setItem(FAVORITE_UTILITY_KEY, JSON.stringify(favoriteLineupIds.value));
-}
-
-function toggleActiveLineupFavorite() {
+async function toggleActiveLineupFavorite() {
   const lineup = activeLineup.value;
   if (!lineup) return;
   const exists = favoriteLineupIds.value.includes(lineup.id);
   favoriteLineupIds.value = exists
     ? favoriteLineupIds.value.filter((id) => id !== lineup.id)
     : [...favoriteLineupIds.value, lineup.id];
-  saveFavoriteLineups();
+  if (session.token) {
+    try {
+      if (exists) {
+        await api.removeLineupFavorite(lineup.id, session.token);
+      } else {
+        await api.addLineupFavorite(lineup.id, session.token);
+      }
+    } catch {
+      // Keep optimistic UI; the next load will reconcile.
+    }
+  } else {
+    writeLocalFavoriteLineups(favoriteLineupIds.value);
+  }
+}
+
+async function setActiveLineupProgress(status: TrainingStatus | null) {
+  const lineup = activeLineup.value;
+  if (!lineup) return;
+  lineupProgress.value = setProgressValue(lineupProgress.value, lineup.id, status);
+  if (session.token) {
+    try {
+      await api.setLineupProgress(lineup.id, status, session.token);
+    } catch {
+      // Keep optimistic UI; the next load will reconcile.
+    }
+  } else {
+    writeLocalLineupProgress(lineupProgress.value);
+  }
 }
 
 async function copyShareLink() {
@@ -367,7 +416,7 @@ onMounted(() => {
   if (queryUtility) selectedUtility.value = queryUtility;
   if (querySide) selectedSide.value = querySide;
   if (queryDifficulty) selectedDifficulty.value = queryDifficulty;
-  loadFavoriteLineups();
+  loadAccountPersonalData();
   loadMaps();
 });
 </script>
@@ -575,6 +624,27 @@ onMounted(() => {
                   </button>
                   <button class="secondary-button compact" type="button" @click="copyShareLink">{{ t('copyLink') }}</button>
                   <span v-if="shareMessage" class="share-message">{{ shareMessage }}</span>
+                </div>
+                <div class="progress-picker">
+                  <span class="muted">{{ progressLabel(activeLineupProgress, language) }}</span>
+                  <button
+                    class="progress-chip"
+                    :class="{ active: !activeLineupProgress }"
+                    type="button"
+                    @click="setActiveLineupProgress(null)"
+                  >
+                    {{ progressLabel(undefined, language) }}
+                  </button>
+                  <button
+                    v-for="option in TRAINING_STATUSES"
+                    :key="option.value"
+                    class="progress-chip"
+                    :class="{ active: activeLineupProgress === option.value }"
+                    type="button"
+                    @click="setActiveLineupProgress(option.value)"
+                  >
+                    {{ language === 'en' ? option.en : option.zh }}
+                  </button>
                 </div>
                 <div class="lineup-detail-meta">
                   <span class="chip">{{ labelByLanguage(activeLineup.utility_type, UTILITY_LABELS, UTILITY_LABELS_EN, language) }}</span>
@@ -796,11 +866,36 @@ onMounted(() => {
 }
 
 .radar-actions,
-.lineup-action-row {
+.lineup-action-row,
+.progress-picker {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.progress-picker {
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+}
+
+.progress-chip {
+  min-height: 28px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.03);
+  color: #bcc8d6;
+  padding: 5px 9px;
+  font-size: 0.72rem;
+}
+
+.progress-chip:hover,
+.progress-chip.active {
+  border-color: rgba(255,122,24,0.4);
+  background: rgba(255,122,24,0.12);
+  color: #ffbd82;
 }
 
 .secondary-button.compact {

@@ -103,6 +103,25 @@ class TestToken:
         status, body = anon_client.get_favorites()
         assert status == 401, f"Expected 401, got {status}: {body}"
 
+    @allure.title("Logout revokes token")
+    def test_logout_revokes_token(self, anon_client):
+        import uuid
+        from utils.api_client import Client
+
+        uname = f"logout_{uuid.uuid4().hex[:6]}"
+        status, body = anon_client.register(uname, f"{uname}@test.com", "pass123456")
+        assert_status(status, 200)
+        client = Client(token=body["token"])
+
+        status, body = client.get_favorites()
+        assert_status(status, 200)
+
+        status, body = client.logout()
+        assert_status(status, 200)
+
+        status, body = client.get_favorites()
+        assert status == 401, f"Expected 401 after logout, got {status}: {body}"
+
 
 @allure.feature("Auth — Favorites")
 class TestFavorites:

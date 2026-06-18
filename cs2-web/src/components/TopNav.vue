@@ -21,6 +21,7 @@ const {
 const navItems = computed(() => [
   { label: t('home'), to: '/' },
   { label: t('maps'), to: '/maps' },
+  { label: language.value === 'en' ? 'Boards' : '战术板', to: '/boards' },
   { label: t('favorites'), to: '/favorites' },
 ]);
 
@@ -34,8 +35,8 @@ function toggleMobileMenu() {
   languageMenuOpen.value = false;
 }
 
-function logout() {
-  session.clearSession();
+async function logout() {
+  await session.logout();
   router.push('/');
   closeMenu();
 }

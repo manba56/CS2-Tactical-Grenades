@@ -28,9 +28,12 @@ from .auth import (
 from .schemas import (
     AdminLoginRequest,
     LineupPayload,
+    LocalSyncPayload,
     LoginRequest,
     MapPayload,
+    PersonalBoardPayload,
     PointPayload,
+    ProgressPayload,
     RegisterRequest,
     TacticPayload,
     dump_model,
@@ -111,6 +114,72 @@ def next_id(state: dict[str, Any], key: str) -> int:
     return entity_id
 
 
+VALID_PROGRESS_STATUSES = {"practicing", "mastered", "match_ready"}
+
+
+def normalize_user_personal_fields(user: dict[str, Any]) -> dict[str, Any]:
+    user.setdefault("favorite_ids", [])
+    user.setdefault("recent_tactic_ids", [])
+    user.setdefault("favorite_lineup_ids", [])
+    user.setdefault("lineup_progress", {})
+    user.setdefault("tactic_progress", {})
+    if user["favorite_lineup_ids"] is None:
+        user["favorite_lineup_ids"] = []
+    if user["lineup_progress"] is None:
+        user["lineup_progress"] = {}
+    if user["tactic_progress"] is None:
+        user["tactic_progress"] = {}
+    return user
+
+
+def clean_progress(progress: dict[str, Any]) -> dict[str, str]:
+    return {
+        str(key): value
+        for key, value in progress.items()
+        if value in VALID_PROGRESS_STATUSES
+    }
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def utc_iso(dt: datetime) -> str:
+    return dt.astimezone(timezone.utc).isoformat()
+
+
+def parse_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def is_token_expired(token_row: dict[str, Any], now: datetime | None = None) -> bool:
+    expires_at = parse_datetime(token_row.get("expires_at"))
+    return bool(expires_at and expires_at <= (now or utc_now()))
+
+
+def revoke_token(raw_token: str) -> bool:
+    removed = False
+
+    def mutate(state: dict[str, Any]) -> dict[str, bool]:
+        nonlocal removed
+        kept = []
+        for item in state.get("tokens", []):
+            if verify_token(raw_token, item["token_hash"]):
+                removed = True
+                continue
+            kept.append(item)
+        state["tokens"] = kept
+        return {"revoked": removed}
+
+    STORE.mutate(mutate)
+    return removed
+
+
 def get_current_user(token: str = Depends(get_bearer_token)) -> dict[str, Any]:
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未登录")
@@ -118,11 +187,18 @@ def get_current_user(token: str = Depends(get_bearer_token)) -> dict[str, Any]:
     state = STORE.snapshot()
 
     # New token path: lookup by hash
+    expired = False
     for t in state.get("tokens", []):
         if verify_token(token, t["token_hash"]):
+            if is_token_expired(t):
+                expired = True
+                break
             user = next((u for u in state["users"] if u["id"] == t["user_id"]), None)
             if user:
-                return user
+                return normalize_user_personal_fields(user)
+    if expired:
+        revoke_token(token)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录已过期，请重新登录")
 
     # Legacy token path: {role}:{user_id} — will be removed after migration
     parsed = parse_legacy_token(token)
@@ -130,7 +206,7 @@ def get_current_user(token: str = Depends(get_bearer_token)) -> dict[str, Any]:
         role, user_id = parsed
         user = next((u for u in state["users"] if u["id"] == user_id and u["role"] == role), None)
         if user:
-            return user
+            return normalize_user_personal_fields(user)
 
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录状态失效")
 
@@ -149,6 +225,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEPLOY_WEBHOOK_SECRET = os.getenv("DEPLOY_WEBHOOK_SECRET") or os.getenv("GITHUB_WEBHOOK_SECRET")
+TOKEN_TTL_DAYS = int(os.getenv("TOKEN_TTL_DAYS", "7"))
 _ai_executor = ThreadPoolExecutor(max_workers=1)
 
 
@@ -395,8 +472,10 @@ def summarize_tactic(state: dict[str, Any], tactic: dict[str, Any]) -> dict[str,
 
 
 def build_lineup_detail(state: dict[str, Any], lineup: dict[str, Any]) -> dict[str, Any]:
+    map_item = find_by_id(state["maps"], lineup["map_id"])
     return {
         **lineup,
+        "map": {"id": map_item["id"], "name": map_item["name"], "slug": map_item["slug"]},
         "start_point": find_by_id(state["points"], lineup["start_point_id"]),
         "aim_point": find_by_id(state["points"], lineup["aim_point_id"]),
         "land_point": find_by_id(state["points"], lineup["land_point_id"]),
@@ -450,7 +529,11 @@ def maybe_get_user(token: str | None = Depends(get_bearer_token)) -> dict[str, A
     # New token path: lookup by hash
     for t in state.get("tokens", []):
         if verify_token(token, t["token_hash"]):
-            return next((u for u in state["users"] if u["id"] == t["user_id"]), None)
+            if is_token_expired(t):
+                revoke_token(token)
+                return None
+            user = next((u for u in state["users"] if u["id"] == t["user_id"]), None)
+            return normalize_user_personal_fields(user) if user else None
 
     # Legacy token path
     parsed = parse_legacy_token(token)
@@ -663,12 +746,13 @@ def _record_login(
 def _issue_token(state: dict[str, Any], user: dict[str, Any]) -> str:
     """Generate a random token, store its hash, return the raw token."""
     raw, token_hash = generate_token()
+    now = utc_now()
     state.setdefault("tokens", []).append({
         "id": next_id(state, "tokens"),
         "user_id": user["id"],
         "token_hash": token_hash,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "expires_at": None,
+        "created_at": utc_iso(now),
+        "expires_at": utc_iso(now + timedelta(days=TOKEN_TTL_DAYS)),
     })
     return raw
 
@@ -690,6 +774,9 @@ def register(payload: RegisterRequest, request: Request) -> dict[str, Any]:
             "role": "player",
             "favorite_ids": [],
             "recent_tactic_ids": [],
+            "favorite_lineup_ids": [],
+            "lineup_progress": {},
+            "tactic_progress": {},
         }
         state["users"].append(user)
         token = _issue_token(state, user)
@@ -743,6 +830,13 @@ def login(payload: LoginRequest, request: Request) -> dict[str, Any]:
     return STORE.mutate(mutate)
 
 
+@app.post("/api/public/auth/logout")
+def logout(token: str = Depends(get_bearer_token)) -> dict[str, str]:
+    if token:
+        revoke_token(token)
+    return {"status": "ok"}
+
+
 @app.post("/api/admin/auth/login")
 def admin_login(payload: AdminLoginRequest, request: Request) -> dict[str, Any]:
     ip = get_client_ip(request)
@@ -771,18 +865,106 @@ def admin_login(payload: AdminLoginRequest, request: Request) -> dict[str, Any]:
     return STORE.mutate(mutate)
 
 
+@app.post("/api/admin/auth/logout")
+def admin_logout(token: str = Depends(get_bearer_token)) -> dict[str, str]:
+    if token:
+        revoke_token(token)
+    return {"status": "ok"}
+
+
 @app.get("/api/public/me/favorites")
 def get_favorites(user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
     state = STORE.snapshot()
+    user = normalize_user_personal_fields(user)
     favorites = [build_tactic_detail(state, find_by_id(state["tactics"], tactic_id), user) for tactic_id in user["favorite_ids"] if any(item["id"] == tactic_id for item in state["tactics"])]
     recent = [build_tactic_detail(state, find_by_id(state["tactics"], tactic_id), user) for tactic_id in user["recent_tactic_ids"] if any(item["id"] == tactic_id for item in state["tactics"])]
-    return {"favorites": favorites, "recent": recent}
+    favorite_lineups = [
+        build_lineup_detail(state, find_by_id(state["lineups"], lineup_id))
+        for lineup_id in user["favorite_lineup_ids"]
+        if any(item["id"] == lineup_id and item["status"] == "published" for item in state["lineups"])
+    ]
+    return {
+        "favorites": favorites,
+        "recent": recent,
+        "favorite_lineups": favorite_lineups,
+        "lineup_progress": clean_progress(user.get("lineup_progress", {})),
+        "tactic_progress": clean_progress(user.get("tactic_progress", {})),
+    }
+
+
+def build_personal_board_detail(state: dict[str, Any], board: dict[str, Any]) -> dict[str, Any]:
+    map_item = find_by_id(state["maps"], board["map_id"])
+    return {
+        **board,
+        "map": {"id": map_item["id"], "name": map_item["name"], "slug": map_item["slug"]},
+        "map_radar_url": f"/static/assets/maps/radars/{map_item['slug']}-radar.png",
+        "map_layout_url": map_item["layout_url"],
+    }
+
+
+@app.get("/api/public/me/boards")
+def list_personal_boards(user: dict[str, Any] = Depends(get_current_user)) -> list[dict[str, Any]]:
+    state = STORE.snapshot()
+    boards = [
+        build_personal_board_detail(state, item)
+        for item in state.get("personal_boards", [])
+        if item["user_id"] == user["id"]
+    ]
+    return sorted(boards, key=lambda item: item.get("updated_at") or item.get("created_at") or "", reverse=True)
+
+
+@app.post("/api/public/me/boards")
+def create_personal_board(payload: PersonalBoardPayload, user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
+    def mutate(state: dict[str, Any]) -> dict[str, Any]:
+        find_by_id(state["maps"], payload.map_id)
+        now = utc_iso(utc_now())
+        item = dump_model(payload)
+        item.update({
+            "id": next_id(state, "personal_boards"),
+            "user_id": user["id"],
+            "created_at": now,
+            "updated_at": now,
+        })
+        state.setdefault("personal_boards", []).append(item)
+        return build_personal_board_detail(state, item)
+
+    return STORE.mutate(mutate)
+
+
+@app.put("/api/public/me/boards/{board_id}")
+def update_personal_board(board_id: int, payload: PersonalBoardPayload, user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
+    def mutate(state: dict[str, Any]) -> dict[str, Any]:
+        find_by_id(state["maps"], payload.map_id)
+        item = find_by_id(state.get("personal_boards", []), board_id)
+        if item["user_id"] != user["id"]:
+            raise HTTPException(status_code=404, detail="资源不存在")
+        original_created_at = item["created_at"]
+        item.update(dump_model(payload))
+        item["user_id"] = user["id"]
+        item["created_at"] = original_created_at
+        item["updated_at"] = utc_iso(utc_now())
+        return build_personal_board_detail(state, item)
+
+    return STORE.mutate(mutate)
+
+
+@app.delete("/api/public/me/boards/{board_id}")
+def delete_personal_board(board_id: int, user: dict[str, Any] = Depends(get_current_user)) -> dict[str, str]:
+    def mutate(state: dict[str, Any]) -> dict[str, str]:
+        item = find_by_id(state.get("personal_boards", []), board_id)
+        if item["user_id"] != user["id"]:
+            raise HTTPException(status_code=404, detail="资源不存在")
+        state["personal_boards"] = [board for board in state.get("personal_boards", []) if board["id"] != board_id]
+        return {"status": "ok"}
+
+    return STORE.mutate(mutate)
 
 
 @app.post("/api/public/me/favorites/{tactic_id}")
 def add_favorite(tactic_id: int, user: dict[str, Any] = Depends(get_current_user)) -> dict[str, str]:
     def mutate(state: dict[str, Any]) -> dict[str, str]:
         db_user = find_by_id(state["users"], user["id"])
+        normalize_user_personal_fields(db_user)
         find_by_id(state["tactics"], tactic_id)
         if tactic_id not in db_user["favorite_ids"]:
             db_user["favorite_ids"].insert(0, tactic_id)
@@ -795,6 +977,7 @@ def add_favorite(tactic_id: int, user: dict[str, Any] = Depends(get_current_user
 def remove_favorite(tactic_id: int, user: dict[str, Any] = Depends(get_current_user)) -> dict[str, str]:
     def mutate(state: dict[str, Any]) -> dict[str, str]:
         db_user = find_by_id(state["users"], user["id"])
+        normalize_user_personal_fields(db_user)
         db_user["favorite_ids"] = [item for item in db_user["favorite_ids"] if item != tactic_id]
         return {"status": "ok"}
 
@@ -805,9 +988,94 @@ def remove_favorite(tactic_id: int, user: dict[str, Any] = Depends(get_current_u
 def track_recent(tactic_id: int, user: dict[str, Any] = Depends(get_current_user)) -> dict[str, str]:
     def mutate(state: dict[str, Any]) -> dict[str, str]:
         db_user = find_by_id(state["users"], user["id"])
+        normalize_user_personal_fields(db_user)
         find_by_id(state["tactics"], tactic_id)
         existing = [item for item in db_user["recent_tactic_ids"] if item != tactic_id]
         db_user["recent_tactic_ids"] = [tactic_id, *existing][:8]
+        return {"status": "ok"}
+
+    return STORE.mutate(mutate)
+
+
+@app.post("/api/public/me/lineups/favorites/{lineup_id}")
+def add_lineup_favorite(lineup_id: int, user: dict[str, Any] = Depends(get_current_user)) -> dict[str, str]:
+    def mutate(state: dict[str, Any]) -> dict[str, str]:
+        db_user = normalize_user_personal_fields(find_by_id(state["users"], user["id"]))
+        find_by_id(state["lineups"], lineup_id)
+        if lineup_id not in db_user["favorite_lineup_ids"]:
+            db_user["favorite_lineup_ids"].insert(0, lineup_id)
+        return {"status": "ok"}
+
+    return STORE.mutate(mutate)
+
+
+@app.delete("/api/public/me/lineups/favorites/{lineup_id}")
+def remove_lineup_favorite(lineup_id: int, user: dict[str, Any] = Depends(get_current_user)) -> dict[str, str]:
+    def mutate(state: dict[str, Any]) -> dict[str, str]:
+        db_user = normalize_user_personal_fields(find_by_id(state["users"], user["id"]))
+        db_user["favorite_lineup_ids"] = [item for item in db_user["favorite_lineup_ids"] if item != lineup_id]
+        return {"status": "ok"}
+
+    return STORE.mutate(mutate)
+
+
+@app.put("/api/public/me/progress/tactics/{tactic_id}")
+def set_tactic_progress(tactic_id: int, payload: ProgressPayload, user: dict[str, Any] = Depends(get_current_user)) -> dict[str, str]:
+    def mutate(state: dict[str, Any]) -> dict[str, str]:
+        db_user = normalize_user_personal_fields(find_by_id(state["users"], user["id"]))
+        find_by_id(state["tactics"], tactic_id)
+        key = str(tactic_id)
+        if payload.status:
+            db_user["tactic_progress"][key] = payload.status
+        else:
+            db_user["tactic_progress"].pop(key, None)
+        return {"status": "ok"}
+
+    return STORE.mutate(mutate)
+
+
+@app.put("/api/public/me/progress/lineups/{lineup_id}")
+def set_lineup_progress(lineup_id: int, payload: ProgressPayload, user: dict[str, Any] = Depends(get_current_user)) -> dict[str, str]:
+    def mutate(state: dict[str, Any]) -> dict[str, str]:
+        db_user = normalize_user_personal_fields(find_by_id(state["users"], user["id"]))
+        find_by_id(state["lineups"], lineup_id)
+        key = str(lineup_id)
+        if payload.status:
+            db_user["lineup_progress"][key] = payload.status
+        else:
+            db_user["lineup_progress"].pop(key, None)
+        return {"status": "ok"}
+
+    return STORE.mutate(mutate)
+
+
+@app.post("/api/public/me/sync-local")
+def sync_local_personal_data(payload: LocalSyncPayload, user: dict[str, Any] = Depends(get_current_user)) -> dict[str, str]:
+    def mutate(state: dict[str, Any]) -> dict[str, str]:
+        db_user = normalize_user_personal_fields(find_by_id(state["users"], user["id"]))
+        valid_lineup_ids = {item["id"] for item in state["lineups"]}
+        valid_tactic_ids = {item["id"] for item in state["tactics"]}
+
+        for lineup_id in payload.favorite_lineup_ids:
+            if lineup_id in valid_lineup_ids and lineup_id not in db_user["favorite_lineup_ids"]:
+                db_user["favorite_lineup_ids"].insert(0, lineup_id)
+
+        for raw_id, progress in payload.lineup_progress.items():
+            try:
+                lineup_id = int(raw_id)
+            except (TypeError, ValueError):
+                continue
+            if lineup_id in valid_lineup_ids:
+                db_user["lineup_progress"][str(lineup_id)] = progress
+
+        for raw_id, progress in payload.tactic_progress.items():
+            try:
+                tactic_id = int(raw_id)
+            except (TypeError, ValueError):
+                continue
+            if tactic_id in valid_tactic_ids:
+                db_user["tactic_progress"][str(tactic_id)] = progress
+
         return {"status": "ok"}
 
     return STORE.mutate(mutate)

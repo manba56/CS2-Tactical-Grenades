@@ -2,14 +2,19 @@ import type {
   CollectionDetail,
   CollectionSummary,
   FavoriteBundle,
+  PersonalBoard,
   MapDetail,
   MapSummary,
+  ProgressMap,
   SessionUser,
   TacticCard,
   TacticDetail,
+  TrainingStatus,
 } from './types';
 
 export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8008';
+
+const AUTH_EXPIRED_EVENT = 'cs2-web-auth-expired';
 
 function fallbackErrorMessage(type: 'network' | 'request' = 'request'): string {
   const isEnglish = typeof localStorage !== 'undefined' && localStorage.getItem('cs2-language') === 'en';
@@ -80,6 +85,9 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string):
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({ detail: fallbackErrorMessage('request') }));
+          if (response.status === 401 && typeof window !== 'undefined') {
+            window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+          }
           throw new Error(data.detail || fallbackErrorMessage('request'));
         }
         return response.json() as Promise<T>;
@@ -128,6 +136,7 @@ function toQueryString(query: TacticQuery): string {
 }
 
 export const api = {
+  AUTH_EXPIRED_EVENT,
   getHome() {
     return request<{
       featured_maps: MapSummary[];
@@ -156,6 +165,11 @@ export const api = {
       body: JSON.stringify({ username_or_email: usernameOrEmail, password }),
     });
   },
+  logout(token: string) {
+    return request<{ status: string }>('/api/public/auth/logout', {
+      method: 'POST',
+    }, token);
+  },
   register(username: string, email: string, password: string) {
     return request<AuthResponse>('/api/public/auth/register', {
       method: 'POST',
@@ -173,6 +187,54 @@ export const api = {
   },
   trackRecent(tacticId: number, token: string) {
     return request('/api/public/me/recent/' + tacticId, { method: 'POST' }, token);
+  },
+  addLineupFavorite(lineupId: number, token: string) {
+    return request('/api/public/me/lineups/favorites/' + lineupId, { method: 'POST' }, token);
+  },
+  removeLineupFavorite(lineupId: number, token: string) {
+    return request('/api/public/me/lineups/favorites/' + lineupId, { method: 'DELETE' }, token);
+  },
+  setTacticProgress(tacticId: number, status: TrainingStatus | null, token: string) {
+    return request('/api/public/me/progress/tactics/' + tacticId, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }, token);
+  },
+  setLineupProgress(lineupId: number, status: TrainingStatus | null, token: string) {
+    return request('/api/public/me/progress/lineups/' + lineupId, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }, token);
+  },
+  syncLocalPersonalData(payload: {
+    favorite_lineup_ids: number[];
+    lineup_progress: ProgressMap;
+    tactic_progress: ProgressMap;
+  }, token: string) {
+    return request('/api/public/me/sync-local', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, token);
+  },
+  getPersonalBoards(token: string) {
+    return request<PersonalBoard[]>('/api/public/me/boards', {}, token);
+  },
+  createPersonalBoard(payload: Omit<PersonalBoard, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'map' | 'map_radar_url' | 'map_layout_url'>, token: string) {
+    return request<PersonalBoard>('/api/public/me/boards', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, token);
+  },
+  updatePersonalBoard(boardId: number, payload: Omit<PersonalBoard, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'map' | 'map_radar_url' | 'map_layout_url'>, token: string) {
+    return request<PersonalBoard>(`/api/public/me/boards/${boardId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }, token);
+  },
+  deletePersonalBoard(boardId: number, token: string) {
+    return request<{ status: string }>(`/api/public/me/boards/${boardId}`, {
+      method: 'DELETE',
+    }, token);
   },
   getCollections() {
     return request<CollectionSummary[]>('/api/public/collections');

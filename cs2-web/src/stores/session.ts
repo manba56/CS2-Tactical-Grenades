@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 
+import { api } from '../api';
 import type { SessionUser } from '../types';
 
 const TOKEN_KEY = 'cs2-web-token';
@@ -31,11 +32,24 @@ export const useSessionStore = defineStore('session', () => {
     localStorage.removeItem(USER_KEY);
   }
 
+  async function logout() {
+    const currentToken = token.value;
+    clearSession();
+    if (currentToken) {
+      await api.logout(currentToken).catch(() => undefined);
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener(api.AUTH_EXPIRED_EVENT, clearSession);
+  }
+
   return {
     token,
     user,
     isAuthenticated,
     setSession,
     clearSession,
+    logout,
   };
 });

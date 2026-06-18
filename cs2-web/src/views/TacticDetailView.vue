@@ -18,7 +18,14 @@ import {
 } from '../utils/labels';
 import TacticCard from '../components/TacticCard.vue';
 import { useSessionStore } from '../stores/session';
-import type { TacticDetail } from '../types';
+import type { ProgressMap, TacticDetail, TrainingStatus } from '../types';
+import {
+  TRAINING_STATUSES,
+  progressLabel,
+  readLocalTacticProgress,
+  setProgressValue,
+  writeLocalTacticProgress,
+} from '../utils/personalPlaybook';
 
 const route = useRoute();
 const router = useRouter();
@@ -33,6 +40,7 @@ const showRadar = ref(false);
 const detailMode = ref<'execute' | 'detail'>('execute');
 const completedExecOrders = ref<number[]>([]);
 const shareNotice = ref('');
+const tacticProgress = ref<ProgressMap>(readLocalTacticProgress());
 const bilibiliEmbedUrl = computed(() => {
   const url = (tactic.value as any)?.video_url as string | undefined;
   if (!url) return null;
@@ -86,6 +94,9 @@ const tacticUtilityGroups = computed(() => {
   }
   return Array.from(groups.entries()).map(([utility, lineups]) => ({ utility, lineups }));
 });
+const activeTacticProgress = computed(() =>
+  tactic.value ? tacticProgress.value[String(tactic.value.id)] : undefined,
+);
 
 async function load() {
   error.value = '';
@@ -99,6 +110,8 @@ async function load() {
     }
     if (session.token && tactic.value) {
       await api.trackRecent(tactic.value.id, session.token);
+      const bundle = await api.getFavorites(session.token);
+      tacticProgress.value = bundle.tactic_progress || {};
     }
   } catch (err) {
     tactic.value = null;
@@ -154,6 +167,20 @@ function isExecDone(order: number) {
 
 function resetExecProgress() {
   completedExecOrders.value = [];
+}
+
+async function setCurrentTacticProgress(status: TrainingStatus | null) {
+  if (!tactic.value) return;
+  tacticProgress.value = setProgressValue(tacticProgress.value, tactic.value.id, status);
+  if (session.token) {
+    try {
+      await api.setTacticProgress(tactic.value.id, status, session.token);
+    } catch {
+      // Keep optimistic UI; the next detail load will reconcile.
+    }
+  } else {
+    writeLocalTacticProgress(tacticProgress.value);
+  }
 }
 
 function utilityMapUrl(lineup: TacticDetail['lineups'][number]) {
@@ -227,6 +254,27 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
             <button class="secondary-button" @click="copyShareLink">{{ t('copyLink') }}</button>
             <router-link class="secondary-button" :to="`/maps/${tactic.map.slug}`">{{ t('backToMap') }}</router-link>
             <span v-if="shareNotice" class="share-notice">{{ shareNotice }}</span>
+          </div>
+          <div class="progress-picker">
+            <span class="muted">{{ progressLabel(activeTacticProgress, language) }}</span>
+            <button
+              class="progress-chip"
+              :class="{ active: !activeTacticProgress }"
+              type="button"
+              @click="setCurrentTacticProgress(null)"
+            >
+              {{ progressLabel(undefined, language) }}
+            </button>
+            <button
+              v-for="option in TRAINING_STATUSES"
+              :key="option.value"
+              class="progress-chip"
+              :class="{ active: activeTacticProgress === option.value }"
+              type="button"
+              @click="setCurrentTacticProgress(option.value)"
+            >
+              {{ language === 'en' ? option.en : option.zh }}
+            </button>
           </div>
           <div class="mode-switch">
             <button class="ghost-button" :class="{ active: detailMode === 'execute' }" @click="detailMode = 'execute'">{{ t('executeChecklist') }}</button>
@@ -496,7 +544,8 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
 }
 .mode-switch,
 .exec-progress,
-.quick-exec-actions {
+.quick-exec-actions,
+.progress-picker {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -513,6 +562,28 @@ function routePath(r: { points: { x: number; y: number }[] }): string {
 .share-notice {
   color: #8de8be;
   font-size: 0.8rem;
+}
+.progress-picker {
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+}
+.progress-chip {
+  min-height: 28px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.03);
+  color: #bcc8d6;
+  padding: 5px 9px;
+  font-size: 0.72rem;
+}
+.progress-chip:hover,
+.progress-chip.active {
+  border-color: rgba(255,122,24,0.4);
+  background: rgba(255,122,24,0.12);
+  color: #ffbd82;
 }
 .exec-progress-bar {
   height: 6px;

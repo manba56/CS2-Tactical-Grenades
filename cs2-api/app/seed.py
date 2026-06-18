@@ -300,11 +300,13 @@ def build_seed_state() -> dict:
             "id": 1, "username": "demo", "email": "demo@cs2tactics.local",
             "password_hash": hash_password("demo123"), "role": "player",
             "favorite_ids": [1], "recent_tactic_ids": [3, 1],
+            "favorite_lineup_ids": [1], "lineup_progress": {"1": "practicing"}, "tactic_progress": {"1": "mastered"},
         },
         {
             "id": 2, "username": "admin", "email": "admin@cs2tactics.local",
             "password_hash": hash_password("admin123"), "role": "admin",
             "favorite_ids": [], "recent_tactic_ids": [],
+            "favorite_lineup_ids": [], "lineup_progress": {}, "tactic_progress": {},
         },
     ]
 
@@ -315,6 +317,7 @@ def build_seed_state() -> dict:
         "tactics": tactics,
         "users": users,
         "assets": [],
+        "personal_boards": [],
         "counters": {
             "maps": len(maps) + 1,
             "points": len(points) + 1,
@@ -322,5 +325,6 @@ def build_seed_state() -> dict:
             "tactics": len(tactics) + 1,
             "users": len(users) + 1,
             "assets": 1,
+            "personal_boards": 1,
         },
     }

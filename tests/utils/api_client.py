@@ -63,6 +63,9 @@ class Client:
             "password": password,
         })
 
+    def logout(self) -> tuple[int, dict]:
+        return self._do("POST", "/api/public/auth/logout")
+
     def register(self, username: str, email: str, password: str) -> tuple[int, dict]:
         return self._do("POST", "/api/public/auth/register", json={
             "username": username,
@@ -76,6 +79,9 @@ class Client:
             "password": password,
         })
 
+    def admin_logout(self) -> tuple[int, dict]:
+        return self._do("POST", "/api/admin/auth/logout")
+
     # ── User favorites / recent ────────────────
     def get_favorites(self) -> tuple[int, dict]:
         return self._do("GET", "/api/public/me/favorites")
@@ -88,6 +94,37 @@ class Client:
 
     def track_recent(self, tactic_id: int) -> tuple[int, dict]:
         return self._do("POST", f"/api/public/me/recent/{tactic_id}")
+
+    def add_lineup_favorite(self, lineup_id: int) -> tuple[int, dict]:
+        return self._do("POST", f"/api/public/me/lineups/favorites/{lineup_id}")
+
+    def remove_lineup_favorite(self, lineup_id: int) -> tuple[int, dict]:
+        return self._do("DELETE", f"/api/public/me/lineups/favorites/{lineup_id}")
+
+    def set_tactic_progress(self, tactic_id: int, status: str | None) -> tuple[int, dict]:
+        return self._do("PUT", f"/api/public/me/progress/tactics/{tactic_id}", json={
+            "status": status,
+        })
+
+    def set_lineup_progress(self, lineup_id: int, status: str | None) -> tuple[int, dict]:
+        return self._do("PUT", f"/api/public/me/progress/lineups/{lineup_id}", json={
+            "status": status,
+        })
+
+    def sync_local_playbook(self, payload: dict) -> tuple[int, dict]:
+        return self._do("POST", "/api/public/me/sync-local", json=payload)
+
+    def list_personal_boards(self) -> tuple[int, list]:
+        return self._do("GET", "/api/public/me/boards")
+
+    def create_personal_board(self, payload: dict) -> tuple[int, dict]:
+        return self._do("POST", "/api/public/me/boards", json=payload)
+
+    def update_personal_board(self, board_id: int, payload: dict) -> tuple[int, dict]:
+        return self._do("PUT", f"/api/public/me/boards/{board_id}", json=payload)
+
+    def delete_personal_board(self, board_id: int) -> tuple[int, dict]:
+        return self._do("DELETE", f"/api/public/me/boards/{board_id}")
 
     # ── Admin ──────────────────────────────────
     def admin_dashboard(self) -> tuple[int, dict]:

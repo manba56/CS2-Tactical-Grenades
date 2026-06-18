@@ -173,3 +173,13 @@ def test_public_user_payload_excludes_password():
     result = public_user_payload(user, "tok")
     assert "password_hash" not in result
     assert "password_hash" not in result["user"]
+
+
+def test_token_expiry_detection():
+    from datetime import datetime, timedelta, timezone
+    from app.main import is_token_expired, utc_iso
+
+    now = datetime.now(timezone.utc)
+    assert is_token_expired({"expires_at": utc_iso(now - timedelta(seconds=1))}, now) is True
+    assert is_token_expired({"expires_at": utc_iso(now + timedelta(seconds=1))}, now) is False
+    assert is_token_expired({"expires_at": None}, now) is False

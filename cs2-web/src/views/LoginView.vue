@@ -6,6 +6,7 @@ import { api } from '../api';
 import { useHead } from '../composables/useHead';
 import { useI18n } from '../composables/useI18n';
 import { useSessionStore } from '../stores/session';
+import { syncLocalPersonalData } from '../utils/personalPlaybook';
 
 const route = useRoute();
 const router = useRouter();
@@ -33,6 +34,7 @@ async function submit() {
         ? await api.login(usernameOrEmail.value, password.value)
         : await api.register(username.value, email.value, password.value);
     session.setSession(result.token, result.user);
+    await syncLocalPersonalData(result.token);
     router.push((route.query.redirect as string) || '/favorites');
   } catch (err) {
     error.value = err instanceof Error ? err.message : t('submitFailed');
@@ -81,7 +83,7 @@ async function submit() {
       </div>
 
       <p v-if="error" class="danger">{{ error }}</p>
-      <button class="primary-button" :disabled="loading">
+      <button class="primary-button" data-testid="login-submit" :disabled="loading">
         {{ loading ? t('submitting') : mode === 'login' ? t('login') : t('registerAndEnter') }}
       </button>
     </form>

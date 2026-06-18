@@ -1,0 +1,535 @@
+{
+  "info": {
+    "name": "CS2 Tactics Suite",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/health"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('status is ok', function () { pm.expect(pm.response.json().status).to.eql('ok'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public - Home",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/public/home"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('has home sections', function () {",
+              "  pm.expect(body).to.have.property('featured_maps');",
+              "  pm.expect(body).to.have.property('featured_tactics');",
+              "  pm.expect(body).to.have.property('latest_tactics');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public - Maps",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/public/maps"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('maps is array', function () { pm.expect(pm.response.json()).to.be.an('array'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public - Map Detail",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/public/maps/{{map_slug}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('has points and lineups', function () {",
+              "  pm.expect(body).to.have.property('points');",
+              "  pm.expect(body).to.have.property('lineups');",
+              "});",
+              "if (body.lineups && body.lineups.length > 0) { pm.environment.set('lineup_id', body.lineups[0].id); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public - Tactics",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/public/tactics?page_size=1"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('has paginated items', function () {",
+              "  pm.expect(body).to.have.property('items');",
+              "  pm.expect(body.items).to.be.an('array');",
+              "});",
+              "if (body.items && body.items.length > 0) { pm.environment.set('tactic_id', body.items[0].id); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Player Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username_or_email\":\"{{username}}\",\"password\":\"{{password}}\"}"
+        },
+        "url": "{{base_url}}/api/public/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('has token', function () { pm.expect(body).to.have.property('token'); });",
+              "pm.environment.set('token', body.token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Me - Favorites Bundle",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/public/me/favorites"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('has personal playbook fields', function () {",
+              "  pm.expect(body).to.have.property('favorites');",
+              "  pm.expect(body).to.have.property('favorite_lineups');",
+              "  pm.expect(body).to.have.property('lineup_progress');",
+              "  pm.expect(body).to.have.property('tactic_progress');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Me - Favorite Lineup",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/public/me/lineups/favorites/{{lineup_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Me - Set Lineup Progress",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"status\":\"match_ready\"}"
+        },
+        "url": "{{base_url}}/api/public/me/progress/lineups/{{lineup_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Me - Invalid Progress Status",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"status\":\"done\"}"
+        },
+        "url": "{{base_url}}/api/public/me/progress/lineups/{{lineup_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 422', function () { pm.response.to.have.status(422); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Me - Sync Local",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"favorite_lineup_ids\":[{{lineup_id}}],\"lineup_progress\":{\"{{lineup_id}}\":\"practicing\"},\"tactic_progress\":{\"{{tactic_id}}\":\"match_ready\"}}"
+        },
+        "url": "{{base_url}}/api/public/me/sync-local"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Me - Create Tactic Board",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\":\"Postman Mirage A execute\",\"map_id\":5,\"side\":\"T\",\"plan_type\":\"exec\",\"summary\":\"Window smoke, connector smoke, then split A.\",\"markers\":[{\"x\":18,\"y\":82,\"label\":\"P1\",\"role\":\"player\",\"side\":\"T\"},{\"x\":47,\"y\":37,\"label\":\"Window\",\"role\":\"smoke\",\"side\":\"BOTH\"}],\"routes\":[]}"
+        },
+        "url": "{{base_url}}/api/public/me/boards"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('board has map and markers', function () {",
+              "  pm.expect(body).to.have.property('id');",
+              "  pm.expect(body.map.slug).to.eql('mirage');",
+              "  pm.expect(body.markers).to.be.an('array').that.is.not.empty;",
+              "});",
+              "pm.environment.set('board_id', body.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Me - List Tactic Boards",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/public/me/boards"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('boards is array', function () { pm.expect(pm.response.json()).to.be.an('array'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Me - Update Tactic Board",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\":\"Postman Mirage A execute v2\",\"map_id\":5,\"side\":\"T\",\"plan_type\":\"exec\",\"summary\":\"Updated board from Postman.\",\"markers\":[{\"x\":18,\"y\":82,\"label\":\"P1\",\"role\":\"player\",\"side\":\"T\"},{\"x\":47,\"y\":37,\"label\":\"Window\",\"role\":\"smoke\",\"side\":\"BOTH\"},{\"x\":78,\"y\":41,\"label\":\"A hit\",\"role\":\"note\",\"side\":\"BOTH\"}],\"routes\":[]}"
+        },
+        "url": "{{base_url}}/api/public/me/boards/{{board_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('board was updated', function () {",
+              "  pm.expect(body.title).to.include('v2');",
+              "  pm.expect(body.markers.length).to.eql(3);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Me - Delete Tactic Board",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/public/me/boards/{{board_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('delete ok', function () { pm.expect(pm.response.json().status).to.eql('ok'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Admin Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\":\"{{admin_username}}\",\"password\":\"{{admin_password}}\"}"
+        },
+        "url": "{{base_url}}/api/admin/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.environment.set('admin_token', body.token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Dashboard",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/admin/dashboard"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test('has dashboard counters', function () {",
+              "  pm.expect(body).to.have.property('maps');",
+              "  pm.expect(body).to.have.property('tactics');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Maps",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/admin/maps"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('maps is array', function () { pm.expect(pm.response.json()).to.be.an('array'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Assets",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/admin/assets"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('assets is array', function () { pm.expect(pm.response.json()).to.be.an('array'); });"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

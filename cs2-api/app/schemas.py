@@ -16,6 +16,19 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=6, max_length=64)
 
 
+TrainingStatus = Literal["practicing", "mastered", "match_ready"]
+
+
+class ProgressPayload(BaseModel):
+    status: TrainingStatus | None = None
+
+
+class LocalSyncPayload(BaseModel):
+    favorite_lineup_ids: list[int] = Field(default_factory=list)
+    lineup_progress: dict[str, TrainingStatus] = Field(default_factory=dict)
+    tactic_progress: dict[str, TrainingStatus] = Field(default_factory=dict)
+
+
 class AdminLoginRequest(BaseModel):
     username: str = Field(min_length=3, max_length=64)
     password: str = Field(min_length=6, max_length=64)
@@ -87,6 +100,24 @@ class RouteData(BaseModel):
     color: str = "#ff7a18"
     label: str = ""
     points: list[RoutePoint] = Field(default_factory=list)
+
+
+class BoardMarkerPayload(BaseModel):
+    x: float = Field(ge=0, le=100)
+    y: float = Field(ge=0, le=100)
+    label: str = Field(min_length=1, max_length=40)
+    role: Literal["player", "smoke", "flash", "molotov", "he", "note"] = "player"
+    side: Literal["T", "CT", "BOTH"] = "BOTH"
+
+
+class PersonalBoardPayload(BaseModel):
+    title: str = Field(min_length=1, max_length=80)
+    map_id: int
+    side: Literal["T", "CT"] = "T"
+    plan_type: Literal["exec", "default", "retake", "anti-rush", "practice"] = "exec"
+    summary: str = Field(default="", max_length=500)
+    markers: list[BoardMarkerPayload] = Field(default_factory=list)
+    routes: list[RouteData] = Field(default_factory=list)
 
 
 class ScreenshotItem(BaseModel):
