@@ -5,6 +5,7 @@ import hmac
 import json as _json
 import os
 import secrets
+import shutil
 import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -27,6 +28,7 @@ from .auth import (
 )
 from .schemas import (
     AdminLoginRequest,
+    ClipJobPayload,
     LineupPayload,
     LocalSyncPayload,
     LoginRequest,
@@ -45,6 +47,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 STORE = SqliteStore(BASE_DIR / "data" / "db.sqlite")
 UPLOAD_DIR = BASE_DIR / "app" / "static" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+CLIP_SOURCE_DIR = UPLOAD_DIR / "clips" / "sources"
+CLIP_OUTPUT_DIR = UPLOAD_DIR / "clips" / "outputs"
+CLIP_WORK_DIR = UPLOAD_DIR / "clips" / "work"
+for _clip_dir in (CLIP_SOURCE_DIR, CLIP_OUTPUT_DIR, CLIP_WORK_DIR):
+    _clip_dir.mkdir(parents=True, exist_ok=True)
 
 STRICT_PATHS = {"/api/public/auth/login", "/api/public/auth/register", "/api/admin/auth/login"}
 
@@ -74,6 +81,10 @@ app.add_middleware(
         "http://localhost:5174",
         "http://127.0.0.1:5175",
         "http://localhost:5175",
+        "http://127.0.0.1:5176",
+        "http://localhost:5176",
+        "http://127.0.0.1:5177",
+        "http://localhost:5177",
         # Production domains — add your actual domain below
         # "https://yourdomain.com",
     ],
@@ -1145,6 +1156,509 @@ def update_collection(col_id: int, payload: dict[str, Any], _: dict[str, Any] = 
 def delete_collection(col_id: int, _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, str]:
     def mutate(state: dict[str, Any]) -> dict[str, str]:
         state["collections"] = [c for c in state["collections"] if c["id"] != col_id]
+        return {"status": "ok"}
+
+    return STORE.mutate(mutate)
+
+
+CLIP_ALLOWED_EXTENSIONS = {".mp4", ".mov", ".mkv", ".webm"}
+CLIP_ALLOWED_MIMES = {
+    "video/mp4",
+    "video/quicktime",
+    "video/x-matroska",
+    "video/webm",
+    "application/octet-stream",
+}
+MAX_CLIP_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB
+CLIP_STATUSES = {"draft", "rendering", "ready", "failed"}
+
+
+def _clip_public_url(folder: str, filename: str) -> str:
+    return f"/static/uploads/clips/{folder}/{filename}"
+
+
+def _clip_file_from_url(url: str, folder: str) -> Path:
+    prefix = f"/static/uploads/clips/{folder}/"
+    if not url.startswith(prefix):
+        raise HTTPException(status_code=400, detail="视频地址必须来自剪辑中心上传目录")
+    name = Path(url[len(prefix):]).name
+    path = (UPLOAD_DIR / "clips" / folder / name).resolve()
+    root = (UPLOAD_DIR / "clips" / folder).resolve()
+    if root not in path.parents or not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail="视频文件不存在")
+    return path
+
+
+def _validate_clip_payload(state: dict[str, Any], item: dict[str, Any]) -> None:
+    title = (item.get("title") or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="剪辑标题不能为空")
+    if item.get("lineup_id") is not None:
+        find_by_id(state["lineups"], int(item["lineup_id"]))
+    _clip_file_from_url(item.get("source_url", ""), "sources")
+    segments = item.get("segments") or []
+    if not segments:
+        raise HTTPException(status_code=400, detail="至少需要一个剪辑片段")
+    for idx, segment in enumerate(segments, start=1):
+        start = float(segment.get("start_seconds", 0))
+        end = float(segment.get("end_seconds", 0))
+        if start < 0:
+            raise HTTPException(status_code=400, detail=f"片段 {idx} 的开始时间不能小于 0")
+        if end <= start:
+            raise HTTPException(status_code=400, detail=f"片段 {idx} 的结束时间必须大于开始时间")
+        duration = end - start
+        focus_point = segment.get("focus_point_seconds")
+        if focus_point is not None and float(focus_point) > duration:
+            raise HTTPException(status_code=400, detail=f"Segment {idx} focus point exceeds segment duration")
+        focus_pause = float(segment.get("focus_pause_seconds", 1.0))
+        if focus_pause < 0.2 or focus_pause > 5:
+            raise HTTPException(status_code=400, detail=f"Segment {idx} focus pause must be between 0.2 and 5 seconds")
+        if focus_point is None:
+            focus_start = segment.get("focus_start_seconds")
+            focus_end = segment.get("focus_end_seconds")
+            if focus_start is not None and float(focus_start) > duration:
+                raise HTTPException(status_code=400, detail=f"Segment {idx} focus start exceeds segment duration")
+            if focus_end is not None and float(focus_end) > duration:
+                raise HTTPException(status_code=400, detail=f"Segment {idx} focus end exceeds segment duration")
+            if focus_start is not None and focus_end is not None and float(focus_end) <= float(focus_start):
+                raise HTTPException(status_code=400, detail=f"Segment {idx} focus end must be greater than focus start")
+        focus_width = float(segment.get("focus_width", 0.24))
+        focus_height = float(segment.get("focus_height", 0.24))
+        focus_x = float(segment.get("focus_x", 0.38))
+        focus_y = float(segment.get("focus_y", 0.38))
+        if focus_x + focus_width > 1.0001 or focus_y + focus_height > 1.0001:
+            raise HTTPException(status_code=400, detail=f"Segment {idx} focus region exceeds the frame")
+    if item.get("template_type") != "lineup_tutorial":
+        raise HTTPException(status_code=400, detail="暂时只支持道具教学模板")
+
+
+def _normalize_clip_job(item: dict[str, Any], state: dict[str, Any] | None = None) -> dict[str, Any]:
+    result = dict(item)
+    result.setdefault("segments", [])
+    result.setdefault("template_type", "lineup_tutorial")
+    result.setdefault("status", "draft")
+    result.setdefault("output_url", "")
+    result.setdefault("output_filename", "")
+    result.setdefault("error", "")
+    lineup_id = result.get("lineup_id")
+    result["lineup"] = None
+    if state is not None and lineup_id is not None:
+        try:
+            result["lineup"] = build_lineup_detail(state, find_by_id(state["lineups"], int(lineup_id)))
+        except HTTPException:
+            result["lineup"] = None
+    return result
+
+
+def _format_ass_time(seconds: float) -> str:
+    seconds = max(0, float(seconds))
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    centis = int(round((seconds - int(seconds)) * 100))
+    if centis >= 100:
+        secs += 1
+        centis = 0
+    return f"{hours}:{minutes:02d}:{secs:02d}.{centis:02d}"
+
+
+def _ass_escape(text: str) -> str:
+    return (
+        (text or "")
+        .replace("{", "\\{")
+        .replace("}", "\\}")
+        .replace("\r", "")
+        .replace("\n", "\\N")
+    )
+
+
+def _write_segment_subtitle(path: Path, duration: float, title: str, note: str) -> bool:
+    lines = [item.strip() for item in [title, note] if item and item.strip()]
+    if not lines:
+        return False
+    text = "\\N".join(_ass_escape(item) for item in lines)
+    content = f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Microsoft YaHei,44,&H00FFFFFF,&H000000FF,&HAA000000,&H66000000,0,0,0,0,100,100,0,0,1,2,1,2,72,72,64,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,{_format_ass_time(duration)},Default,,0,0,0,,{text}
+"""
+    path.write_text(content, encoding="utf-8")
+    return True
+
+
+def _filter_escape(text: str) -> str:
+    return (
+        (text or "")
+        .replace("\\", "\\\\")
+        .replace(":", "\\:")
+        .replace("'", "\\'")
+        .replace("%", "\\%")
+        .replace("\r", " ")
+        .replace("\n", " ")
+    )
+
+
+def _clamp_float(value: Any, minimum: float, maximum: float, default: float) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        number = default
+    return max(minimum, min(maximum, number))
+
+
+def _round_float(value: float) -> float:
+    return round(float(value), 2)
+
+
+def _focus_window(segment: dict[str, Any], duration: float) -> tuple[float, float]:
+    focus_point = segment.get("focus_point_seconds")
+    if focus_point is not None:
+        point = _clamp_float(focus_point, 0, duration, max(0, duration * 0.25))
+        pause = _clamp_float(segment.get("focus_pause_seconds"), 0.2, 5, 1.0)
+        return _round_float(point), _round_float(point + pause)
+    fallback_start = max(0.8, duration * 0.25)
+    fallback_end = max(fallback_start + 0.8, duration * 0.78)
+    start = _clamp_float(segment.get("focus_start_seconds"), 0, duration, fallback_start)
+    end = _clamp_float(segment.get("focus_end_seconds"), 0, duration, fallback_end)
+    if end <= start:
+        end = min(duration, start + 0.8)
+    if end <= start:
+        start = max(0, end - 0.1)
+    return _round_float(start), _round_float(end)
+
+
+def _focus_pause_filter(segment: dict[str, Any], duration: float) -> str | None:
+    focus_point = segment.get("focus_point_seconds")
+    if focus_point is None:
+        return None
+    fps = 30
+    point = _clamp_float(focus_point, 0, duration, max(0, duration * 0.25))
+    pause = _clamp_float(segment.get("focus_pause_seconds"), 0.2, 5, 1.0)
+    point_frame = max(0, int(round(point * fps)))
+    pause_frames = max(1, int(round(pause * fps)))
+    return f"fps={fps},loop=loop={pause_frames}:size=1:start={point_frame},setpts=N/({fps}*TB)"
+
+
+def _focus_rect(segment: dict[str, Any]) -> tuple[float, float, float, float]:
+    width = _clamp_float(segment.get("focus_width"), 0.08, 1.0, 0.24)
+    height = _clamp_float(segment.get("focus_height"), 0.08, 1.0, 0.24)
+    x = _clamp_float(segment.get("focus_x"), 0, 1 - width, 0.38)
+    y = _clamp_float(segment.get("focus_y"), 0, 1 - height, 0.38)
+    return x, y, width, height
+
+
+def _focus_overlay_position(position: str) -> str:
+    positions = {
+        "top_left": "x=58:y=58",
+        "bottom_right": "x=W-w-58:y=H-h-58",
+        "bottom_left": "x=58:y=H-h-58",
+        "center": "x=(W-w)/2:y=(H-h)/2",
+    }
+    return positions.get(position, "x=(W-w)/2:y=(H-h)/2")
+
+
+def _teaching_filter(segment: dict[str, Any], duration: float, idx: int, total: int) -> str:
+    title = _filter_escape(str(segment.get("title") or f"Step {idx}"))
+    note = _filter_escape(str(segment.get("note") or ""))
+    focus_mode = segment.get("focus_mode", "auto_center")
+    slow_motion = bool(segment.get("slow_motion", True))
+    focus_start, focus_end = _focus_window(segment, duration)
+    filters = []
+    pause_filter = _focus_pause_filter(segment, duration)
+    if pause_filter:
+        filters.append(pause_filter)
+    filters.extend([
+        "scale=1920:1080:force_original_aspect_ratio=decrease",
+        "pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black",
+        "setsar=1",
+    ])
+    if focus_mode == "auto_center":
+        focus_x, focus_y, focus_width, focus_height = _focus_rect(segment)
+        focus_scale = _clamp_float(segment.get("focus_scale"), 0.8, 2.4, 1.2)
+        zoom_width = int(round(720 * focus_scale / 2) * 2)
+        zoom_height = int(round(420 * focus_scale / 2) * 2)
+        overlay_position = _focus_overlay_position(str(segment.get("focus_position") or "center"))
+        filters.append(
+            "split=2[base][zoom];"
+            f"[zoom]crop=iw*{focus_width:.4f}:ih*{focus_height:.4f}:iw*{focus_x:.4f}:ih*{focus_y:.4f},"
+            f"scale={zoom_width}:{zoom_height},"
+            "drawbox=x=0:y=0:w=iw:h=ih:color=white@0.9:t=4,"
+            f"drawtext=text='AIM ZOOM':x=24:y=24:fontsize=34:fontcolor=white:box=1:boxcolor=black@0.55:enable='between(t,{focus_start:.2f},{focus_end:.2f})'[zoomed];"
+            f"[base][zoomed]overlay={overlay_position}:enable='between(t,{focus_start:.2f},{focus_end:.2f})'"
+        )
+    if slow_motion:
+        filters.append(f"drawtext=text='SLOW MOTION':x=W-420:y=450:fontsize=36:fontcolor=#ffd166:box=1:boxcolor=black@0.45:enable='between(t,{focus_start:.2f},{focus_end:.2f})'")
+    filters.extend([
+        "drawbox=x=44:y=44:w=560:h=126:color=black@0.52:t=fill",
+        f"drawtext=text='STEP {idx}/{total}':x=72:y=66:fontsize=30:fontcolor=#ffb34f",
+        f"drawtext=text='{title}':x=72:y=108:fontsize=42:fontcolor=white",
+    ])
+    if note:
+        filters.extend([
+            f"drawbox=x=0:y=884:w=1920:h=196:color=black@0.66:t=fill:enable='between(t,{focus_start:.2f},{focus_end:.2f})'",
+            f"drawtext=text='{note}':x=(w-text_w)/2:y=946:fontsize=48:fontcolor=white:enable='between(t,{focus_start:.2f},{focus_end:.2f})'",
+        ])
+    return ",".join(filters)
+
+
+def _run_ffmpeg(command: list[str], cwd: Path | None = None) -> None:
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=str(cwd) if cwd else None,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=1800,
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=503, detail="未找到 ffmpeg，请先安装并加入 PATH")
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("FFmpeg 渲染超时")
+    if completed.returncode != 0:
+        message = (completed.stderr or completed.stdout or "FFmpeg 渲染失败").strip()
+        raise RuntimeError(message[-1000:])
+
+
+def _render_clip_job(job: dict[str, Any]) -> dict[str, str]:
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise HTTPException(status_code=503, detail="未找到 ffmpeg，请先安装并加入 PATH")
+
+    source_path = _clip_file_from_url(job.get("source_url", ""), "sources")
+    segments = job.get("segments") or []
+    if not segments:
+        raise RuntimeError("没有可渲染的片段")
+
+    job_dir = CLIP_WORK_DIR / f"clip-{job['id']}"
+    if job_dir.exists():
+        shutil.rmtree(job_dir)
+    job_dir.mkdir(parents=True, exist_ok=True)
+
+    rendered_files: list[str] = []
+    total_segments = len(segments)
+    for idx, segment in enumerate(segments, start=1):
+        start = float(segment["start_seconds"])
+        end = float(segment["end_seconds"])
+        duration = end - start
+        clip_name = f"segment-{idx:03d}.mp4"
+        command = [
+            ffmpeg,
+            "-y",
+            "-ss",
+            f"{start:.3f}",
+            "-i",
+            str(source_path),
+            "-t",
+            f"{duration:.3f}",
+            "-map",
+            "0:v:0",
+            "-map",
+            "0:a?",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "20",
+            "-pix_fmt",
+            "yuv420p",
+            "-vf",
+            _teaching_filter(segment, duration, idx, total_segments),
+        ]
+        command.extend(["-c:a", "aac", "-movflags", "+faststart", clip_name])
+        _run_ffmpeg(command, cwd=job_dir)
+        rendered_files.append(clip_name)
+
+    concat_file = job_dir / "concat.txt"
+    concat_file.write_text(
+        "\n".join(f"file '{name}'" for name in rendered_files),
+        encoding="utf-8",
+    )
+    output_filename = f"{uuid4().hex}.mp4"
+    output_path = CLIP_OUTPUT_DIR / output_filename
+    _run_ffmpeg(
+        [
+            ffmpeg,
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            str(concat_file),
+            "-c",
+            "copy",
+            "-movflags",
+            "+faststart",
+            str(output_path),
+        ],
+        cwd=job_dir,
+    )
+    return {"output_filename": output_filename, "output_url": _clip_public_url("outputs", output_filename)}
+
+
+@app.get("/api/admin/clips")
+def admin_clips(_: dict[str, Any] = Depends(get_admin_user)) -> list[dict[str, Any]]:
+    state = STORE.snapshot()
+    return [
+        _normalize_clip_job(item, state)
+        for item in sorted(state.get("clip_jobs", []), key=lambda x: x.get("created_at", ""), reverse=True)
+    ]
+
+
+@app.post("/api/admin/clips/source")
+def upload_clip_source(file: UploadFile = File(...), _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, Any]:
+    suffix = Path(file.filename or "clip.mp4").suffix.lower()
+    mime = (file.content_type or "").lower()
+    if suffix not in CLIP_ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"不支持的视频格式: {suffix}")
+    if mime and mime not in CLIP_ALLOWED_MIMES and not mime.startswith("video/"):
+        raise HTTPException(status_code=400, detail=f"不支持的视频类型: {mime}")
+
+    filename = f"{uuid4().hex}{suffix}"
+    target = CLIP_SOURCE_DIR / filename
+    total = 0
+    try:
+        with target.open("wb") as output:
+            while True:
+                chunk = file.file.read(1024 * 1024)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > MAX_CLIP_UPLOAD_BYTES:
+                    output.close()
+                    target.unlink(missing_ok=True)
+                    raise HTTPException(status_code=400, detail="视频文件过大，最大允许 2 GB")
+                output.write(chunk)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        target.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=f"视频上传失败: {exc}")
+    if total == 0:
+        target.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail="视频文件为空")
+    return {
+        "filename": filename,
+        "original_name": file.filename,
+        "url": _clip_public_url("sources", filename),
+        "size": total,
+        "type": file.content_type or "application/octet-stream",
+    }
+
+
+@app.post("/api/admin/clips")
+def create_clip_job(payload: ClipJobPayload, _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, Any]:
+    def mutate(state: dict[str, Any]) -> dict[str, Any]:
+        item = dump_model(payload)
+        _validate_clip_payload(state, item)
+        now = utc_iso(utc_now())
+        item["id"] = next_id(state, "clip_jobs")
+        item["status"] = "draft"
+        item["output_url"] = ""
+        item["output_filename"] = ""
+        item["error"] = ""
+        item["created_at"] = now
+        item["updated_at"] = now
+        state.setdefault("clip_jobs", []).append(item)
+        return _normalize_clip_job(item, state)
+
+    return STORE.mutate(mutate)
+
+
+@app.put("/api/admin/clips/{clip_id}")
+def update_clip_job(clip_id: int, payload: ClipJobPayload, _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, Any]:
+    def mutate(state: dict[str, Any]) -> dict[str, Any]:
+        item = find_by_id(state.setdefault("clip_jobs", []), clip_id)
+        next_item = {**item, **dump_model(payload)}
+        _validate_clip_payload(state, next_item)
+        item.update(next_item)
+        item["status"] = "draft"
+        item["error"] = ""
+        item["updated_at"] = utc_iso(utc_now())
+        return _normalize_clip_job(item, state)
+
+    return STORE.mutate(mutate)
+
+
+@app.post("/api/admin/clips/{clip_id}/render")
+def render_clip_job(background_tasks: BackgroundTasks, clip_id: int, _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, Any]:
+    state = STORE.snapshot()
+    job = _normalize_clip_job(find_by_id(state.get("clip_jobs", []), clip_id), state)
+    _validate_clip_payload(state, job)
+
+    def mark_rendering(state: dict[str, Any]) -> dict[str, Any]:
+        item = find_by_id(state["clip_jobs"], clip_id)
+        item["status"] = "rendering"
+        item["error"] = ""
+        item["updated_at"] = utc_iso(utc_now())
+        return _normalize_clip_job(item, state)
+
+    job = STORE.mutate(mark_rendering)
+    background_tasks.add_task(_render_clip_job_background, clip_id)
+    return job
+
+
+def _render_clip_job_background(clip_id: int) -> None:
+    state = STORE.snapshot()
+    job = _normalize_clip_job(find_by_id(state.get("clip_jobs", []), clip_id), state)
+    try:
+        result = _render_clip_job(job)
+    except HTTPException as exc:
+        def mark_failed(state: dict[str, Any]) -> dict[str, Any]:
+            item = find_by_id(state["clip_jobs"], clip_id)
+            item["status"] = "failed"
+            item["error"] = str(exc.detail)
+            item["updated_at"] = utc_iso(utc_now())
+            return _normalize_clip_job(item, state)
+
+        STORE.mutate(mark_failed)
+        return
+    except Exception as exc:
+        def mark_failed(state: dict[str, Any]) -> dict[str, Any]:
+            item = find_by_id(state["clip_jobs"], clip_id)
+            item["status"] = "failed"
+            item["error"] = str(exc)
+            item["updated_at"] = utc_iso(utc_now())
+            return _normalize_clip_job(item, state)
+
+        STORE.mutate(mark_failed)
+        return
+
+    def mark_ready(state: dict[str, Any]) -> dict[str, Any]:
+        item = find_by_id(state["clip_jobs"], clip_id)
+        item.update(result)
+        item["status"] = "ready"
+        item["error"] = ""
+        item["updated_at"] = utc_iso(utc_now())
+        return _normalize_clip_job(item, state)
+
+    STORE.mutate(mark_ready)
+
+
+@app.delete("/api/admin/clips/{clip_id}")
+def delete_clip_job(clip_id: int, _: dict[str, Any] = Depends(get_admin_user)) -> dict[str, str]:
+    def mutate(state: dict[str, Any]) -> dict[str, str]:
+        item = find_by_id(state.setdefault("clip_jobs", []), clip_id)
+        if item.get("output_url"):
+            try:
+                _clip_file_from_url(item["output_url"], "outputs").unlink(missing_ok=True)
+            except HTTPException:
+                pass
+        work_dir = CLIP_WORK_DIR / f"clip-{clip_id}"
+        if work_dir.exists():
+            shutil.rmtree(work_dir, ignore_errors=True)
+        state["clip_jobs"] = [clip for clip in state["clip_jobs"] if clip["id"] != clip_id]
         return {"status": "ok"}
 
     return STORE.mutate(mutate)

@@ -107,6 +107,22 @@ CREATE TABLE IF NOT EXISTS personal_boards (
     updated_at TEXT
 );
 
+CREATE TABLE IF NOT EXISTS clip_jobs (
+    id INTEGER PRIMARY KEY,
+    title TEXT,
+    lineup_id INTEGER,
+    source_url TEXT,
+    source_filename TEXT,
+    segments TEXT,
+    template_type TEXT,
+    status TEXT,
+    output_url TEXT,
+    output_filename TEXT,
+    error TEXT,
+    created_at TEXT,
+    updated_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS counters (
     table_name TEXT PRIMARY KEY,
     next_id INTEGER
@@ -132,6 +148,7 @@ TABLE_COLUMNS: dict[str, list[str]] = {
                   "favorite_lineup_ids", "lineup_progress", "tactic_progress"],
     "collections": ["title", "slug", "description", "cover_url", "tactic_ids", "status", "created_at"],
     "personal_boards": ["user_id", "map_id", "title", "side", "plan_type", "summary", "markers", "routes", "created_at", "updated_at"],
+    "clip_jobs": ["title", "lineup_id", "source_url", "source_filename", "segments", "template_type", "status", "output_url", "output_filename", "error", "created_at", "updated_at"],
     "assets":    ["filename", "original_name", "url", "width", "height", "type"],
     "tokens":    ["user_id", "token_hash", "created_at", "expires_at"],
     "login_log": ["user_id", "username", "ip", "success", "created_at"],
@@ -145,6 +162,7 @@ JSON_COLUMNS: dict[str, set[str]] = {
     "users":     {"favorite_ids", "recent_tactic_ids", "favorite_lineup_ids", "lineup_progress", "tactic_progress"},
     "collections": {"tactic_ids"},
     "personal_boards": {"markers", "routes"},
+    "clip_jobs": {"segments"},
 }
 
 

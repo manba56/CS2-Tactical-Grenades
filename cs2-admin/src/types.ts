@@ -50,6 +50,7 @@ export interface AdminPoint {
 export interface AdminLineup {
   id: number;
   map_id: number;
+  map?: { id: number; name: string; slug: string };
   title: string;
   slug: string;
   side: string;
@@ -64,6 +65,9 @@ export interface AdminLineup {
   media: string[];
   video_url: string;
   status: string;
+  start_point?: AdminPoint;
+  aim_point?: AdminPoint;
+  land_point?: AdminPoint;
 }
 
 export interface AdminTacticStep {
@@ -135,4 +139,48 @@ export interface AdminAsset {
   height: number | null;
   type: string;
   used?: boolean;
+}
+
+export interface ClipSegment {
+  title: string;
+  note: string;
+  start_seconds: number;
+  end_seconds: number;
+  focus_mode?: 'auto_center' | 'none';
+  slow_motion?: boolean;
+  focus_point_seconds?: number | null;
+  focus_pause_seconds?: number;
+  focus_start_seconds?: number | null;
+  focus_end_seconds?: number | null;
+  focus_x?: number;
+  focus_y?: number;
+  focus_width?: number;
+  focus_height?: number;
+  focus_scale?: number;
+  focus_position?: 'top_right' | 'top_left' | 'bottom_right' | 'bottom_left' | 'center';
+}
+
+export interface ClipSourceUploadResponse {
+  filename: string;
+  original_name: string;
+  url: string;
+  size: number;
+  type: string;
+}
+
+export interface AdminClipJob {
+  id: number;
+  title: string;
+  lineup_id: number | null;
+  lineup?: AdminLineup | null;
+  source_url: string;
+  source_filename: string;
+  segments: ClipSegment[];
+  template_type: 'lineup_tutorial';
+  status: 'draft' | 'rendering' | 'ready' | 'failed';
+  output_url: string;
+  output_filename: string;
+  error: string;
+  created_at: string;
+  updated_at: string;
 }

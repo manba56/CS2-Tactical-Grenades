@@ -57,6 +57,32 @@ require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "Missing command: $1"
 }
 
+install_ffmpeg_if_missing() {
+  if command -v ffmpeg >/dev/null 2>&1; then
+    log "ffmpeg is available: $(command -v ffmpeg)"
+    return 0
+  fi
+
+  log "ffmpeg not found, attempting to install it"
+  if [[ "$(id -u)" -ne 0 ]]; then
+    fail "Missing ffmpeg. Please install ffmpeg on the server or run deploy as root."
+  fi
+
+  if command -v apt-get >/dev/null 2>&1; then
+    run apt-get update
+    run apt-get install -y ffmpeg
+  elif command -v dnf >/dev/null 2>&1; then
+    run dnf install -y ffmpeg
+  elif command -v yum >/dev/null 2>&1; then
+    run yum install -y epel-release || true
+    run yum install -y ffmpeg
+  else
+    fail "Missing ffmpeg and no supported package manager was found"
+  fi
+
+  command -v ffmpeg >/dev/null 2>&1 || fail "ffmpeg installation did not complete"
+}
+
 prepare_runtime_dirs() {
   mkdir -p "$API_DIR/data" "$API_DIR/app/static/uploads" "$npm_config_cache"
 }
@@ -196,6 +222,7 @@ main() {
 
   log "Starting deploy: project=$PROJECT_DIR branch=$DEPLOY_BRANCH"
   prepare_runtime_dirs
+  install_ffmpeg_if_missing
   update_code
   fix_permissions_if_root
   install_backend_deps

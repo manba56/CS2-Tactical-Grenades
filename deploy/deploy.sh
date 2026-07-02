@@ -30,6 +30,22 @@ mkdir -p "$API_DIR/data" "$API_DIR/app/static/uploads"
 chown -R "$SERVICE_USER:$SERVICE_USER" "$PROJECT_DIR"
 chmod -R u+rwX,g+rwX "$API_DIR/data" "$API_DIR/app/static/uploads"
 
+echo "[0/4] Checking ffmpeg..."
+if ! command -v ffmpeg >/dev/null 2>&1; then
+    if command -v apt-get >/dev/null 2>&1; then
+        apt-get update
+        apt-get install -y ffmpeg
+    elif command -v dnf >/dev/null 2>&1; then
+        dnf install -y ffmpeg
+    elif command -v yum >/dev/null 2>&1; then
+        yum install -y epel-release || true
+        yum install -y ffmpeg
+    else
+        echo "ERROR: ffmpeg is required but no supported package manager was found."
+        exit 1
+    fi
+fi
+
 # ── 2. Install Python deps ──────────────────────────
 echo "[1/4] Installing Python dependencies..."
 cd "$API_DIR"

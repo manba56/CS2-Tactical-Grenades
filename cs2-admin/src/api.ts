@@ -1,11 +1,13 @@
 import type {
   AdminCollection,
+  AdminClipJob,
   AdminAsset,
   AdminLineup,
   AdminMap,
   AdminPoint,
   AdminSessionUser,
   AdminTactic,
+  ClipSourceUploadResponse,
   DashboardSummary,
 } from './types';
 
@@ -143,5 +145,28 @@ export const api = {
   },
   deleteCollection(id: number, token: string) {
     return request<{ status: string }>(`/api/admin/collections/${id}`, { method: 'DELETE' }, token);
+  },
+  clips(token: string) {
+    return request<AdminClipJob[]>('/api/admin/clips', {}, token);
+  },
+  uploadClipSource(file: File, token: string) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request<ClipSourceUploadResponse>('/api/admin/clips/source', {
+      method: 'POST',
+      body: formData,
+    }, token);
+  },
+  createClip(payload: Omit<AdminClipJob, 'id' | 'lineup' | 'status' | 'output_url' | 'output_filename' | 'error' | 'created_at' | 'updated_at'>, token: string) {
+    return request<AdminClipJob>('/api/admin/clips', { method: 'POST', body: JSON.stringify(payload) }, token);
+  },
+  updateClip(id: number, payload: Omit<AdminClipJob, 'id' | 'lineup' | 'status' | 'output_url' | 'output_filename' | 'error' | 'created_at' | 'updated_at'>, token: string) {
+    return request<AdminClipJob>(`/api/admin/clips/${id}`, { method: 'PUT', body: JSON.stringify(payload) }, token);
+  },
+  renderClip(id: number, token: string) {
+    return request<AdminClipJob>(`/api/admin/clips/${id}/render`, { method: 'POST' }, token);
+  },
+  deleteClip(id: number, token: string) {
+    return request<{ status: string }>(`/api/admin/clips/${id}`, { method: 'DELETE' }, token);
   },
 };

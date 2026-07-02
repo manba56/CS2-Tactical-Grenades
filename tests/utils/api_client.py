@@ -200,3 +200,32 @@ class Client:
         except Exception:
             body = {"detail": resp.text}
         return resp.status_code, body
+
+    def admin_list_clips(self) -> tuple[int, list]:
+        return self._do("GET", "/api/admin/clips")
+
+    def admin_create_clip(self, payload: dict) -> tuple[int, dict]:
+        return self._do("POST", "/api/admin/clips", json=payload)
+
+    def admin_update_clip(self, clip_id: int, payload: dict) -> tuple[int, dict]:
+        return self._do("PUT", f"/api/admin/clips/{clip_id}", json=payload)
+
+    def admin_render_clip(self, clip_id: int) -> tuple[int, dict]:
+        return self._do("POST", f"/api/admin/clips/{clip_id}/render")
+
+    def admin_delete_clip(self, clip_id: int) -> tuple[int, dict]:
+        return self._do("DELETE", f"/api/admin/clips/{clip_id}")
+
+    def admin_upload_clip_source(self, file_path: str, content_type: str = "video/mp4") -> tuple[int, dict]:
+        with open(file_path, "rb") as fh:
+            resp = self.session.post(
+                self._url("/api/admin/clips/source"),
+                files={"file": (file_path, fh, content_type)},
+                headers={"Authorization": f"Bearer {self.token}"} if self.token else {},
+                timeout=TIMEOUT,
+            )
+        try:
+            body = resp.json()
+        except Exception:
+            body = {"detail": resp.text}
+        return resp.status_code, body

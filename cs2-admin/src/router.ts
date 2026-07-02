@@ -19,6 +19,7 @@ const router = createRouter({
         { path: '/assets', component: () => import('./views/AssetsAdminView.vue') },
         { path: '/users', component: () => import('./views/UsersAdminView.vue') },
         { path: '/collections', component: () => import('./views/CollectionsAdminView.vue') },
+        { path: '/clips', component: () => import('./views/ClipsAdminView.vue') },
       ],
     },
   ],

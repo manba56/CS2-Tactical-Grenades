@@ -39,6 +39,7 @@ onMounted(loadSummary);
         <router-link to="/assets">媒体资源</router-link>
         <router-link to="/users">前台用户</router-link>
         <router-link to="/collections">战术合集</router-link>
+        <router-link to="/clips">剪辑中心</router-link>
         <a :href="apiBase + '/api/admin/db/download'" download>数据库备份</a>
       </nav>
 

@@ -120,6 +120,34 @@ class PersonalBoardPayload(BaseModel):
     routes: list[RouteData] = Field(default_factory=list)
 
 
+class ClipSegmentPayload(BaseModel):
+    title: str = Field(default="", max_length=80)
+    note: str = Field(default="", max_length=300)
+    start_seconds: float = Field(ge=0)
+    end_seconds: float = Field(gt=0)
+    focus_mode: Literal["auto_center", "none"] = "auto_center"
+    slow_motion: bool = True
+    focus_point_seconds: float | None = Field(default=None, ge=0)
+    focus_pause_seconds: float = Field(default=1.0, ge=0.2, le=5)
+    focus_start_seconds: float | None = Field(default=None, ge=0)
+    focus_end_seconds: float | None = Field(default=None, ge=0)
+    focus_x: float = Field(default=0.38, ge=0, le=0.95)
+    focus_y: float = Field(default=0.38, ge=0, le=0.95)
+    focus_width: float = Field(default=0.24, ge=0.08, le=1)
+    focus_height: float = Field(default=0.24, ge=0.08, le=1)
+    focus_scale: float = Field(default=1.2, ge=0.8, le=2.4)
+    focus_position: Literal["top_right", "top_left", "bottom_right", "bottom_left", "center"] = "center"
+
+
+class ClipJobPayload(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    lineup_id: int | None = None
+    source_url: str
+    source_filename: str = ""
+    segments: list[ClipSegmentPayload] = Field(default_factory=list)
+    template_type: Literal["lineup_tutorial"] = "lineup_tutorial"
+
+
 class ScreenshotItem(BaseModel):
     url: str
     description: str = ""
